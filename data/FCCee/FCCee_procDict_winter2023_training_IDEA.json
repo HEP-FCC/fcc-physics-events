@@ -1,0 +1,212 @@
+{
+    "wzp6_ee_nunuH_Hbb_ecm240": {
+        "numberOfEvents": 4800000,
+        "sumOfWeights": 4800000.0,
+        "crossSection": 0.0269,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hgg_ecm240": {
+        "numberOfEvents": 4690406,
+        "sumOfWeights": 4690406.0,
+        "crossSection": 0.003782,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Htautau_ecm240": {
+        "numberOfEvents": 4800000,
+        "sumOfWeights": 4800000.0,
+        "crossSection": 0.002897,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hqq_ecm240": {
+        "numberOfEvents": 4800000,
+        "sumOfWeights": 4800000.0,
+        "crossSection": 1.386e-08,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hss_ecm240": {
+        "numberOfEvents": 4700000,
+        "sumOfWeights": 4700000.0,
+        "crossSection": 1.109e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hcc_ecm240": {
+        "numberOfEvents": 4800000,
+        "sumOfWeights": 4800000.0,
+        "crossSection": 0.001335,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_WW_mumu_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000,
+        "crossSection": 0.25792,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_WW_ee_ecm240": {
+        "numberOfEvents": 4900000,
+        "sumOfWeights": 4900000,
+        "crossSection": 0.25792,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_ZZ_ecm240": {
+        "numberOfEvents": 28509825,
+        "sumOfWeights": 28509825,
+        "crossSection": 1.35899,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ee_Mee_30_150_ecm240": {
+        "numberOfEvents": 119100000,
+        "sumOfWeights": 119100000.0,
+        "crossSection": 8.305,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0071611,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0067643,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gammae_eZ_Zee_ecm240": {
+        "numberOfEvents": 6000000,
+        "sumOfWeights": 6000000.0,
+        "crossSection": 0.05198,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gaga_ee_60_ecm240": {
+        "numberOfEvents": 19500000,
+        "sumOfWeights": 19500000.0,
+        "crossSection": 0.873,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gaga_mumu_60_ecm240": {
+        "numberOfEvents": 29700000,
+        "sumOfWeights": 29700000.0,
+        "crossSection": 1.5523,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_egamma_eZ_Zmumu_ecm240": {
+        "numberOfEvents": 2500000,
+        "sumOfWeights": 2500000.0,
+        "crossSection": 0.10368,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gammae_eZ_Zmumu_ecm240": {
+        "numberOfEvents": 2500000,
+        "sumOfWeights": 2500000.0,
+        "crossSection": 0.10368,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumu_ecm240": {
+        "numberOfEvents": 116400000,
+        "sumOfWeights": 116400000.0,
+        "crossSection": 5.288,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_egamma_eZ_Zee_ecm240": {
+        "numberOfEvents": 5900000,
+        "sumOfWeights": 5900000.0,
+        "crossSection": 0.05198,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zqq_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000,
+        "crossSection": 52.6539,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_ecm240": {
+        "numberOfEvents": 4000000,
+        "sumOfWeights": 4000000.0,
+        "crossSection": 0.13635,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hdd_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000.0,
+        "crossSection": 9.702e-09,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_HWW_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000.0,
+        "crossSection": 0.00994,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_HZZ_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000.0,
+        "crossSection": 0.00122,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_WW_ecm240": {
+        "numberOfEvents": 5475936,
+        "sumOfWeights": 5475936,
+        "crossSection": 16.4385,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Huu_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000.0,
+        "crossSection": 4.158e-09,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hbs_ecm240": {
+        "numberOfEvents": 4700000,
+        "sumOfWeights": 4700000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hbd_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hsd_ecm240": {
+        "numberOfEvents": 5000000,
+        "sumOfWeights": 5000000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hcu_ecm240": {
+        "numberOfEvents": 4934713,
+        "sumOfWeights": 4934713.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    }
+}

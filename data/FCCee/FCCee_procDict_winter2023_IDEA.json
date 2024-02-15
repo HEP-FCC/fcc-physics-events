@@ -1,0 +1,1206 @@
+{
+    "wzp6_ee_nunuH_Hbb_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0269,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hcc_ecm240": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.001335,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Htautau_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.002897,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hss_ecm240": {
+        "numberOfEvents": 1008052,
+        "sumOfWeights": 1008052.0,
+        "crossSection": 1.109e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_WW_mumu_ecm240": {
+        "numberOfEvents": 10000000,
+        "sumOfWeights": 10000000,
+        "crossSection": 0.25792,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_WW_ecm240": {
+        "numberOfEvents": 373375386,
+        "sumOfWeights": 373375386,
+        "crossSection": 16.4385,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_ZZ_ecm240": {
+        "numberOfEvents": 56162093,
+        "sumOfWeights": 56162093,
+        "crossSection": 1.35899,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zqq_ecm240": {
+        "numberOfEvents": 100559248,
+        "sumOfWeights": 100559248,
+        "crossSection": 52.6539,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_HZa_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 7.081e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Haa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0001049,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_HWW_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.00994,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_HZZ_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.00122,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.005e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Htautau_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.00188,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Haa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.626e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_HZa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 4.594e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Haa_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 6.803e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_HWW_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.001453,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Hgg_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0005528,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_HZZ_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0001891,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.558e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_HWW_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.005023,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Hgg_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.001911,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Hbb_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.003932,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Htautau_ecm240": {
+        "numberOfEvents": 200000,
+        "sumOfWeights": 200000.0,
+        "crossSection": 0.003346,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_HZZ_ecm240": {
+        "numberOfEvents": 600000,
+        "sumOfWeights": 600000.0,
+        "crossSection": 0.0007912,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Hss_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.624e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Hcc_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0001956,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hgg_ecm240": {
+        "numberOfEvents": 1055845,
+        "sumOfWeights": 1055845.0,
+        "crossSection": 0.003782,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_HZa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 3.578e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Hss_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.28e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Htautau_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.001879,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Hss_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 7.193e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Hcc_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0001952,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Hss_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 5.607e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Hcc_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0006747,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.469e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_HWW_ecm240": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.01148,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Hgg_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.004367,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_HZZ_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0001786,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Hbb_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 0.00394,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_HZa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.098e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Haa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 6.8e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_HZZ_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.0007915,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Hbb_ecm240": {
+        "numberOfEvents": 200000,
+        "sumOfWeights": 200000.0,
+        "crossSection": 0.01745,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 5.079e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Htautau_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0004491,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hqq_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 1.386e-08,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Hss_ecm240": {
+        "numberOfEvents": 352836,
+        "sumOfWeights": 352836.0,
+        "crossSection": 1.718e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Htautau_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0004243,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_HZa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.037e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Htautau_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0004235,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_HWW_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.001541,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Hgg_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0005863,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_HZa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.035e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Hbb_ecm240": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000.0,
+        "crossSection": 0.03107,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91": {
+        "numberOfEvents": 438738637,
+        "sumOfWeights": 438738637,
+        "crossSection": 6645.46,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_HWW_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.00645,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Hgg_ecm240": {
+        "numberOfEvents": 200000,
+        "sumOfWeights": 200000.0,
+        "crossSection": 0.002454,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Haa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.533e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_HZa_ecm240": {
+        "numberOfEvents": 393135,
+        "sumOfWeights": 393135.0,
+        "crossSection": 8.177e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_HWW_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.006447,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Hgg_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.002453,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Hbb_ecm240": {
+        "numberOfEvents": 100000,
+        "sumOfWeights": 100000.0,
+        "crossSection": 0.01745,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_HZZ_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0006164,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_HZa_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 4.593e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Hcc_ecm240": {
+        "numberOfEvents": 200000,
+        "sumOfWeights": 200000.0,
+        "crossSection": 0.001542,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Htautau_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.001464,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Hcc_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0008664,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_Hss_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.62e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Hss_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 7.19e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Hcc_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 0.0008661,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_bbH_Hmumu_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 6.521e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_HWW_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.001456,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Hgg_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0005538,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Haa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.0001211,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_HZZ_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.001409,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.161e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Hbb_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.004171,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Haa_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 5.298e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_HZZ_ecm240": {
+        "numberOfEvents": 330996,
+        "sumOfWeights": 330996.0,
+        "crossSection": 0.0001783,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ssH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 6.519e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ccH_Hbb_ecm240": {
+        "numberOfEvents": 200000,
+        "sumOfWeights": 200000.0,
+        "crossSection": 0.01359,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Hmumu_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 1.472e-06,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_Hcc_ecm240": {
+        "numberOfEvents": 400000,
+        "sumOfWeights": 400000.0,
+        "crossSection": 0.000207,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_Haa_ecm240": {
+        "numberOfEvents": 300000,
+        "sumOfWeights": 300000.0,
+        "crossSection": 1.535e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumu_ecm240": {
+        "numberOfEvents": 53400000,
+        "sumOfWeights": 53400000.0,
+        "crossSection": 5.288,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautau_ecm240": {
+        "numberOfEvents": 52400000,
+        "sumOfWeights": 52400000.0,
+        "crossSection": 4.668,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zcc_ecm91": {
+        "numberOfEvents": 499786495,
+        "sumOfWeights": 499786495,
+        "crossSection": 5215.46,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_ee_Mee_30_150_ecm240": {
+        "numberOfEvents": 85400000,
+        "sumOfWeights": 85400000.0,
+        "crossSection": 8.305,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0071611,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0067643,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_mH-lower-50MeV_ecm240": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.007169,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_mH-higher-50MeV_ecm240": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.007152,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_mH-lower-100MeV_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0067849,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_mH-lower-50MeV_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0067738,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_ecm240": {
+        "numberOfEvents": 3500000,
+        "sumOfWeights": 3500000.0,
+        "crossSection": 0.046191,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_mH-lower-100MeV_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.007188,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_mH-higher-50MeV_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.0067488,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_mH-higher-100MeV_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.007137,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_mH-higher-100MeV_ecm240": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.0067393,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_ecm240": {
+        "numberOfEvents": 6700000,
+        "sumOfWeights": 6700000.0,
+        "crossSection": 0.13635,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gaga_mumu_60_ecm240": {
+        "numberOfEvents": 33900000,
+        "sumOfWeights": 33900000.0,
+        "crossSection": 1.5523,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_BES-lower-1pc_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.00676093,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_egamma_eZ_Zmumu_ecm240": {
+        "numberOfEvents": 6000000,
+        "sumOfWeights": 6000000.0,
+        "crossSection": 0.10368,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nuenueZ_ecm240": {
+        "numberOfEvents": 2000000,
+        "sumOfWeights": 2000000.0,
+        "crossSection": 0.033274,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_BES-higher-1pc_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0067614,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gammae_eZ_Zmumu_ecm240": {
+        "numberOfEvents": 5600000,
+        "sumOfWeights": 5600000.0,
+        "crossSection": 0.10368,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gaga_tautau_60_ecm240": {
+        "numberOfEvents": 33700000,
+        "sumOfWeights": 33700000.0,
+        "crossSection": 0.836,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gammae_eZ_Zee_ecm240": {
+        "numberOfEvents": 6000000,
+        "sumOfWeights": 6000000.0,
+        "crossSection": 0.05198,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_gaga_ee_60_ecm240": {
+        "numberOfEvents": 22500000,
+        "sumOfWeights": 22500000.0,
+        "crossSection": 0.873,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_BES-lower-1pc_ecm240": {
+        "numberOfEvents": 11479488,
+        "sumOfWeights": 11479488.0,
+        "crossSection": 0.007169,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_BES-higher-1pc_ecm240": {
+        "numberOfEvents": 11546321,
+        "sumOfWeights": 11546321.0,
+        "crossSection": 0.007159,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_egamma_eZ_Zee_ecm240": {
+        "numberOfEvents": 6000000,
+        "sumOfWeights": 6000000.0,
+        "crossSection": 0.05198,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_ecm240": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.0067518,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zss_ecm91": {
+        "numberOfEvents": 499842440,
+        "sumOfWeights": 499842440,
+        "crossSection": 5215.46,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zud_ecm91": {
+        "numberOfEvents": 497658654,
+        "sumOfWeights": 497658654,
+        "crossSection": 11870.5,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zee_ecm91": {
+        "numberOfEvents": 100000000,
+        "sumOfWeights": 100000000,
+        "crossSection": 1462.09,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_tt_ecm365": {
+        "numberOfEvents": 2700000,
+        "sumOfWeights": 2700000,
+        "crossSection": 0.8,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_noFSR_ecm91": {
+        "numberOfEvents": 2000000,
+        "sumOfWeights": 2000000,
+        "crossSection": 6645.46,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bu2D0Pi": {
+        "numberOfEvents": 200000,
+        "sumOfWeights": 200000,
+        "crossSection": 1.329092,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2DsK": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.01323,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_WW_ecm365": {
+        "numberOfEvents": 11754213,
+        "sumOfWeights": 11754213,
+        "crossSection": 10.7165,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2Dspi": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.176,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2Dsstarpi": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.105,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2Dsrho": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.2,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2DsKtest": {
+        "numberOfEvents": 460000,
+        "sumOfWeights": 460000,
+        "crossSection": 0.01323,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Ztautau_ecm91": {
+        "numberOfEvents": 100000000,
+        "sumOfWeights": 100000000,
+        "crossSection": 1476.58,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2Dsstarpi": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.00452,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hdd_ecm240": {
+        "numberOfEvents": 4979640,
+        "sumOfWeights": 4979640.0,
+        "crossSection": 9.702e-09,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Huu_ecm240": {
+        "numberOfEvents": 4900000,
+        "sumOfWeights": 4900000.0,
+        "crossSection": 4.158e-09,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2KstarTauTau": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2Taunu": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2pipipipi0pi0v2": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2pipipipi0v2": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsKstarTauNuDs2TauNu": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsstarDsKstarDs2TaunuDsstar2Dsgamma": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2DsKstar": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.00652,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2DsstarK": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 0.008248,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2TaunuDs2pipipipi0v2": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hbs_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hbd_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hsd_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_Hcu_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2TaunuDs2pipipipi0pi0": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsstarDsKstarDs2PiPiPiPi0Pi0Dsstar2Dsgamma": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsstarKstarTauNuDs2pipipipi0pi0": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2TaunuDs2pipipipi0pi0ChargeConjugation": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zmumu_ecm91": {
+        "numberOfEvents": 100000000,
+        "sumOfWeights": 100000000,
+        "crossSection": 1462.08,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2DsDsKstarDs2TaunuDs2pipipipi0v2ChargeConjugation": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_DIRAC_ecm91": {
+        "numberOfEvents": 500000000,
+        "sumOfWeights": 500000000,
+        "crossSection": 6645.46,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_Hlnuqq_ecm125": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 4.584e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_taunutauqq_ecm125": {
+        "numberOfEvents": 900000,
+        "sumOfWeights": 900000.0,
+        "crossSection": 0.006761,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumununu_ecm125": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.2202,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eenunu_ecm125": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.3364,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautaununu_ecm125": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.04265,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_munumuqq_ecm125": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.006711,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_Hqqlnu_ecm125": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 3.187e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_l1l2nunu_ecm125": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.005799,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_enueqq_ecm125": {
+        "numberOfEvents": 900000,
+        "sumOfWeights": 900000.0,
+        "crossSection": 0.01382,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_Hllnunu_ecm125": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 3.187e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qq_ecm125": {
+        "numberOfEvents": 800000,
+        "sumOfWeights": 800000.0,
+        "crossSection": 363.1,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_Hgg_ecm125": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 7.384e-05,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2PhiKs": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_qqH_ecm365": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.084307,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautauH_ecm365": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.004172,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_nunuH_ecm365": {
+        "numberOfEvents": 1200000,
+        "sumOfWeights": 1200000.0,
+        "crossSection": 0.05394,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_tautau_ecm365": {
+        "numberOfEvents": 11700000,
+        "sumOfWeights": 11700000.0,
+        "crossSection": 2.017,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_ecm365": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 0.004185,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_eeH_ecm365": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000.0,
+        "crossSection": 0.00739,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_ZZ_ecm365": {
+        "numberOfEvents": 11470944,
+        "sumOfWeights": 11470944,
+        "crossSection": 0.6428,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2PhiKs": {
+        "numberOfEvents": 500000,
+        "sumOfWeights": 500000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    }
+}

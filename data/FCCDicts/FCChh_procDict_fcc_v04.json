@@ -1,0 +1,156 @@
+{
+    "mgp8_pp_bbtata_QED": {
+        "numberOfEvents": 4910000,
+        "sumOfWeights": 4910000.0,
+        "crossSection": 0.5519,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_h012j_5f": {
+        "numberOfEvents": 6600000,
+        "sumOfWeights": 6600000.0,
+        "crossSection": 587.5,
+        "kfactor": 3.76,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_t123j_5f": {
+        "numberOfEvents": 3081020,
+        "sumOfWeights": 3081020.0,
+        "crossSection": 7524.0,
+        "kfactor": 2.16,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_tt012j_5f": {
+        "numberOfEvents": 79190000,
+        "sumOfWeights": 79190000.0,
+        "crossSection": 43110.0,
+        "kfactor": 1.74,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_tth01j_5f": {
+        "numberOfEvents": 1070000,
+        "sumOfWeights": 1070000.0,
+        "crossSection": 44.84,
+        "kfactor": 1.22,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_ttw_5f": {
+        "numberOfEvents": 1600000,
+        "sumOfWeights": 1600000.0,
+        "crossSection": 6.545,
+        "kfactor": 2.5,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_ttww_4f": {
+        "numberOfEvents": 1600000,
+        "sumOfWeights": 1600000.0,
+        "crossSection": 0.7827,
+        "kfactor": 1.4,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_ttz_5f": {
+        "numberOfEvents": 1100000,
+        "sumOfWeights": 1100000.0,
+        "crossSection": 38.05,
+        "kfactor": 1.68,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_ttzz_5f": {
+        "numberOfEvents": 1090000,
+        "sumOfWeights": 1090000.0,
+        "crossSection": 0.1206,
+        "kfactor": 1.3,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vbf_h01j_5f": {
+        "numberOfEvents": 6600000,
+        "sumOfWeights": 6600000.0,
+        "crossSection": 84.17,
+        "kfactor": 4.3,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vh012j_5f": {
+        "numberOfEvents": 1600000,
+        "sumOfWeights": 1600000.0,
+        "crossSection": 37.43,
+        "kfactor": 1.32,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vj_5f_HT_10000_27000": {
+        "numberOfEvents": 1980000,
+        "sumOfWeights": 1980000.0,
+        "crossSection": 0.008647,
+        "kfactor": 2.0,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vj_5f_HT_1000_2000": {
+        "numberOfEvents": 1980000,
+        "sumOfWeights": 1980000.0,
+        "crossSection": 191.6,
+        "kfactor": 2.0,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vj_5f_HT_2000_5000": {
+        "numberOfEvents": 1980000,
+        "sumOfWeights": 1980000.0,
+        "crossSection": 14.47,
+        "kfactor": 2.0,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vj_5f_HT_27000_100000": {
+        "numberOfEvents": 1970000,
+        "sumOfWeights": 1970000.0,
+        "crossSection": 7.24e-06,
+        "kfactor": 2.0,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vj_5f_HT_5000_10000": {
+        "numberOfEvents": 2000000,
+        "sumOfWeights": 2000000.0,
+        "crossSection": 0.2814,
+        "kfactor": 2.0,
+        "matchingEfficiency": 1.0
+    },
+    "mgp8_pp_vj_5f_HT_500_1000": {
+        "numberOfEvents": 2000000,
+        "sumOfWeights": 2000000.0,
+        "crossSection": 2034.0,
+        "kfactor": 2.0,
+        "matchingEfficiency": 1.0
+    },
+    "pwp8_pp_hh_lambda100_5f_hhbbaa": {
+        "numberOfEvents": 4980000,
+        "sumOfWeights": 4980000.0,
+        "crossSection": 0.0029844128399999998,
+        "kfactor": 1.075363,
+        "matchingEfficiency": 1.0
+    },
+    "pwp8_pp_hh_lambda100_5f_hhbbtata": {
+        "numberOfEvents": 4997958,
+        "sumOfWeights": 4997958.0,
+        "crossSection": 0.082464039,
+        "kfactor": 1.075363,
+        "matchingEfficiency": 1.0
+    },
+    "pwp8_pp_hh_lambda000_5f_hhbbtata": {
+        "numberOfEvents": 2350000,
+        "sumOfWeights": 2350000.0,
+        "crossSection": 0.17062192350000002,
+        "kfactor": 1.075363,
+        "matchingEfficiency": 1.0
+    },
+    "pwp8_pp_hh_lambda240_5f_hhbbtata": {
+        "numberOfEvents": 2390000,
+        "sumOfWeights": 2390000.0,
+        "crossSection": 0.03555969165,
+        "kfactor": 1.075363,
+        "matchingEfficiency": 1.0
+    },
+    "pwp8_pp_hh_lambda300_5f_hhbbtata": {
+        "numberOfEvents": 2290000,
+        "sumOfWeights": 2290000.0,
+        "crossSection": 0.0427436163,
+        "kfactor": 1.075363,
+        "matchingEfficiency": 1.0
+    }
+}

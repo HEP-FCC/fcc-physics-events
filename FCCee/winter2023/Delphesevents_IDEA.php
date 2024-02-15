@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>spring2021 IDEA training</title>
+<title>winter2023 IDEA</title>
 
 <style>
 <?php include '../../style/main.css'; ?>
@@ -8,7 +8,7 @@
 </head>
 
 <?php
-$txt_file    = file_get_contents('../../data/FCCee/Delphesevents_spring2021_training_IDEA.txt');
+$txt_file    = file_get_contents('../../data/FCCee/Delphesevents_winter2023_IDEA.txt');
 $rows        = explode("\n", $txt_file);
 ?>
 
@@ -47,7 +47,7 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
 <?php include '../../search.php'; ?>
 
 
-<h2>Delphes FCCee Physic events spring 2021 training  production (IDEA with Track Covariance full matrix lower triangle)</h2>
+<h2>Delphes FCCee Physic events winter2023 production (IDEA )</h2>
 <input type="text" id="myInput" onkeyup="search()" placeholder="Search for names.." title="Type in a name">
 <table id="myTable">
   <thead>

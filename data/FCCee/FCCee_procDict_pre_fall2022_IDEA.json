@@ -1,0 +1,37 @@
+{
+    "p8_ee_ZH_Znunu_Htautau_ecm240": {
+        "numberOfEvents": 100000,
+        "sumOfWeights": 100000,
+        "crossSection": 0.201868,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_ZH_ecm240": {
+        "numberOfEvents": 1000000,
+        "sumOfWeights": 1000000,
+        "crossSection": 0.201868,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "wzp6_ee_mumuH_ecm240": {
+        "numberOfEvents": 6300000,
+        "sumOfWeights": 6300000.0,
+        "crossSection": 0.0067643,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bd2KstarTauTau": {
+        "numberOfEvents": 800000,
+        "sumOfWeights": 800000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    },
+    "p8_ee_Zbb_ecm91_EvtGen_Bs2JpsiPhi": {
+        "numberOfEvents": 100000,
+        "sumOfWeights": 100000,
+        "crossSection": 1.0,
+        "kfactor": 1.0,
+        "matchingEfficiency": 1.0
+    }
+}

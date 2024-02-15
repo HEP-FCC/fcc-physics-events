@@ -3,10 +3,4 @@
   <a href="secure_email_form.php">Contact</a>
   <a href="FCChh/index.php">FCC-hh</a>
   <a href="FCCee/index.php">FCC-ee</a>
-
 </div>
-
-
-
-
-
