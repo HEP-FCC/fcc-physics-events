@@ -1,0 +1,18 @@
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+article {
+  flex-grow: 1;
+  margin-bottom: 4rem;
+}
+
+.bg-blue {
+  background-color: #508abb !important;
+}
+
+.bg-green {
+  background-color: #4caf50 !important;
+}
