@@ -1,29 +1,21 @@
-<html>
-<head>
-<title>spring2021 IDEA training</title>
+<?php
+require('../../config.php');
 
-<style>
-<?php include '../../style/main.css'; ?>
-</style>
-</head>
+$layer = 'table';
+$acc = 'fcc-ee';
+$det = 'idea';
+$evtType = 'delphes';
+$prodTag = 'spring2021-training';
+?>
 
 <?php
 $txt_file    = file_get_contents('../../data/FCCee/Delphesevents_spring2021_training_IDEA.txt');
 $rows        = explode("\n", $txt_file);
-?>
 
-<?php include 'topbar.php'; ?>
-
-<body>
-
- 
-<?php
-
-
-$lname=array('NO','Name','Nevents','Nweights',
+$lname=array('#','Name','Nevents','Nweights',
              'Nfiles','Nbad','Neos','Size (GB)',
              'Output Path','Main Process','Final States',
-             'Cross Section (pb)','K-factor','Matching eff');
+             'Cross Section (pb)','K-factor','Matching Eff.');
 
 
 
@@ -41,60 +33,46 @@ foreach($rows as $row => $data)
   }
 
 $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
-
 ?>
 
-<?php include '../../search.php'; ?>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IDEA | Delphes | Spring 2021 &ndash; training | FCC-ee | FCC Physics Events</title>
 
+    <link rel="icon" type="image/x-icon" href="<?= BASE_URL ?>/images/favicon.ico">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
+          crossorigin="anonymous">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/style/fcc.css">
+  </head>
 
-<h2>Delphes FCCee Physic events spring 2021 training  production (IDEA with Track Covariance full matrix lower triangle)</h2>
-<input type="text" id="myInput" onkeyup="search()" placeholder="Search for names.." title="Type in a name">
-<table id="myTable">
-  <thead>
-  <tr class="header">
+  <body>
+    <?php include '../../header.php'; ?>
 
-  <?php
-  for ($i=0; $i<$NbrCol; $i++)
-    {
-      ?>
-      <th> <?php 
-      echo $lname[$i] ;
-      ?> 
-      </th>
-      <?php
-    }
-?>
+    <article id="sample-article" class="container-lg">
+      <h1 class="mt-5">FCC-ee | Spring 2021 &ndash; training | Delphes | IDEA Samples</h1>
 
-  </tr>
-</thead>
-<tbody>
+      <p class="mt-3">
+        <em>Delphes FCCee Physic events Spring 2021 &ndash; training  production (IDEA with Track Covariance full matrix lower triangle).</em>
+      </p>
 
-<?php
-$no 	= 1;
-$totale 	= 0;
-$totalf 	= 0;
+      <?php include 'stack.php'; ?>
 
-for ($i=0; $i<$NbrLigne-1; $i++) { 
-  echo '<tr >';
-  for ($j=0; $j<$NbrCol; $j++) {
-    if ($j==0)echo '<td>'.$no.'</td>';
-    else echo '<td>'.$info[$i][$lname[$j]].'</td>';
-  }
-  echo  '</tr>';
-  $no++;
-}
-?>
-</tbody>
+      <p class="mt-5">
+        Additional stats about the production can be found <a href="<?= BASE_URL ?>/data/FCCee/statdelphesspring2021_training_IDEA.html">here</a>.
+      </p>
 
-<!--tfoot>
-  <tr>
-  <th colspan="4">TOTAL</th>
-  <th><?=number_format($totale)?></th>
-  <th><?=number_format($totalf)?></th>
+      <?php include '../../table.php'; ?>
+    </article>
 
-  </tr>
-</tfoot-->
-</table>
-</body>
+    <?php include '../../footer.php'; ?>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+	    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+            crossorigin="anonymous"></script>
+  </body>
 </html>
-
