@@ -34,7 +34,11 @@ $prodTag = 'winter2023';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023/Delphesevents_IDEA.php">IDEA</a>
       </div>
 
-      <?php include 'stack.php'; ?>
+      <p class="mt-5">
+	<a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
+        <code>winter2023</code> samples was:
+	<pre><code><?= $key4hepStacks['winter2023'] ?></code></pre>
+      </p>
     </article>
 
     <?php include '../../footer.php'; ?>

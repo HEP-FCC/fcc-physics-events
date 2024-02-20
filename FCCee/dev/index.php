@@ -34,7 +34,11 @@ $prodTag = 'dev';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/Delphesevents_IDEA.php">IDEA</a>
       </div>
 
-      <?php include 'stack.php'; ?>
+      <p class="mt-5">
+	<a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
+        <code>dev</code> samples was:
+	<pre><code><?= $key4hepStacks['dev'] ?></code></pre>
+      </p>
     </article>
 
     <?php include '../../footer.php'; ?>

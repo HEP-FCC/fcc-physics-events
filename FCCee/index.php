@@ -26,7 +26,21 @@ $evtType = 'none';
     <?php include '../header.php'; ?>
 
     <article class="container-lg">
-      <h1 class="mt-5">Production campaigns</h1>
+      <h1 class="mt-5">FCC-ee Samples</h1>
+
+      <div class="list-group mt-5">
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/LHEevents.php">Les Houches</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/STDHEPevents.php">STDHEP</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023/index.php">Delphes | Winter 2023</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023_training/index.php">Delphes | Winter 2023 &ndash; training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022/index.php">Delphes | Pre-fall 2022</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/index.php">Delphes | Pre-fall 2022 &ndash; training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021/index.php">Delphes | Spring 2021</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021_training/index.php">Delphes | Spring 2021 &ndash; training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/index.php">Dev</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Fullsim</a>
+      </div>
+      <h2 class="mt-5">Key4hep Stack</h2>
 
       <p>
         Exact <a href="https://cern.ch/key4hep/">Key4hep</a> stack used at the time of generation of the sample from the particular campaign can be found in the list below:
@@ -37,7 +51,7 @@ $evtType = 'none';
           <code>winter2023</code>
           <ul>
             <li>
-              <code>/cvmfs/sw.hsf.org/spackages6/key4hep-stack/2022-12-23/x86_64-centos7-gcc11.2.0-opt/ll3gi/setup.sh</code>
+	      <code><?= $key4hepStacks['winter2023'] ?></code>
             </li>
           </ul>
         </li>
@@ -45,7 +59,7 @@ $evtType = 'none';
           <code>winter2023_training</code>
           <ul>
             <li>
-              <code>/cvmfs/sw.hsf.org/spackages6/key4hep-stack/2022-12-23/x86_64-centos7-gcc11.2.0-opt/ll3gi/setup.sh</code>
+	      <code><?= $key4hepStacks['winter2023-training'] ?></code>
             </li>
           </ul>
         </li>
@@ -53,7 +67,7 @@ $evtType = 'none';
           <code>spring2021</code>
           <ul>
             <li>
-              <code>/cvmfs/sw.hsf.org/spackages2/key4hep-stack/2021-05-12/x86_64-centos7-gcc8.3.0-opt/iyafnfo5muwvpbxcoa4ygwoxi2smkkwa/setup.sh</code>
+	      <code><?= $key4hepStacks['spring2021'] ?></code>
             </li>
           </ul>
         </li>
@@ -61,7 +75,7 @@ $evtType = 'none';
           <code>spring2021_training</code>
           <ul>
             <li>
-              <code>/cvmfs/sw.hsf.org/spackages2/key4hep-stack/2021-05-12/x86_64-centos7-gcc8.3.0-opt/iyafnfo5muwvpbxcoa4ygwoxi2smkkwa/setup.sh</code>
+	      <code><?= $key4hepStacks['spring2021-training'] ?></code>
             </li>
           </ul>
         </li>

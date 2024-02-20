@@ -1,100 +1,22 @@
-<html>
-<head>
-<title>pre fall2022 training IDEA</title>
+<?php
+require('../../config.php');
 
-<style>
-<?php include '../../style/main.css'; ?>
-</style>
-</head>
+$layer = 'table';
+$acc = 'fcc-ee';
+$det = 'idea';
+$evtType = 'delphes';
+$prodTag = 'prefall2022-training';
+?>
 
 <?php
 $txt_file    = file_get_contents('../../data/FCCee/Delphesevents_pre_fall2022_training_IDEA.txt');
-$rows        = explode("\n", $txt_file);
-?>
 
-<?php include 'topbar.php'; ?>
-
-<body>
-
- 
-<?php
-
-
-$lname=array('NO','Name','Nevents','Nweights',
+$lname=array('#','Name','Nevents','Nweights',
              'Nfiles','Nbad','Neos','Size (GB)',
              'Output Path','Main Process','Final States',
-             'Cross Section (pb)','K-factor','Matching eff');
+             'Cross Section (pb)','K-factor','Matching Eff.');
 
-
-
-$NbrCol 	= count($lname); // $NbrCol : le nombre de colonnes
-
-foreach($rows as $row => $data)
-  {
-    //get row data
-    $row_data = explode(',,', $data);
-
-    for ($i=0; $i<$NbrCol-1; $i++)
-      {
-        $info[$row][$lname[$i+1]] = $row_data[$i]; 
-      }
-  }
-
-$NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
-
+$description = 'Delphes FCCee Physics events pre-fall 2022 &ndash; training production (IDEA with Track Covariance full matrix lower triangle).';
 ?>
 
-<?php include '../../search.php'; ?>
-
-
-<h2>Delphes FCCee Physic events per fall 2022 training production (IDEA with Track Covariance full matrix lower triangle)</h2>
-<input type="text" id="myInput" onkeyup="search()" placeholder="Search for names.." title="Type in a name">
-<table id="myTable">
-  <thead>
-  <tr class="header">
-
-  <?php
-  for ($i=0; $i<$NbrCol; $i++)
-    {
-      ?>
-      <th> <?php 
-      echo $lname[$i] ;
-      ?> 
-      </th>
-      <?php
-    }
-?>
-
-  </tr>
-</thead>
-<tbody>
-
-<?php
-$no 	= 1;
-$totale 	= 0;
-$totalf 	= 0;
-
-for ($i=0; $i<$NbrLigne-1; $i++) { 
-  echo '<tr >';
-  for ($j=0; $j<$NbrCol; $j++) {
-    if ($j==0)echo '<td>'.$no.'</td>';
-    else echo '<td>'.$info[$i][$lname[$j]].'</td>';
-  }
-  echo  '</tr>';
-  $no++;
-}
-?>
-</tbody>
-
-<!--tfoot>
-  <tr>
-  <th colspan="4">TOTAL</th>
-  <th><?=number_format($totale)?></th>
-  <th><?=number_format($totalf)?></th>
-
-  </tr>
-</tfoot-->
-</table>
-</body>
-</html>
-
+<?php require('../page.php') ?>

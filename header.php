@@ -61,6 +61,26 @@
               </ul>
             </li>
 	    <?php if ($evtType === 'delphes'): ?>
+	    <?php if ($prodTag === 'winter2023'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/winter2023/Delphesevents_IDEA.php">IDEA</a>
+            </li>
+            <?php endif ?>
+	    <?php if ($prodTag === 'winter2023-training'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/winter2023_training/Delphesevents_IDEA.php">IDEA</a>
+            </li>
+            <?php endif ?>
+	    <?php if ($prodTag === 'prefall2022'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/pre_fall2022/Delphesevents_IDEA.php">IDEA</a>
+            </li>
+            <?php endif ?>
+	    <?php if ($prodTag === 'prefall2022-training'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/Delphesevents_IDEA.php">IDEA</a>
+            </li>
+            <?php endif ?>
 	    <?php if ($prodTag === 'spring2021'): ?>
             <li class="nav-item">
               <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/spring2021/Delphesevents_IDEA.php">IDEA</a>

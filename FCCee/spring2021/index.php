@@ -36,7 +36,11 @@ $prodTag = 'spring2021';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021/Delphesevents_IDEA_FullSilicon.php">IDEA FullSilicon</a>
       </div>
 
-      <?php include 'stack.php'; ?>
+      <p class="mt-5">
+	<a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
+        <code>spring2021</code> samples was:
+	<pre><code><?= $key4hepStacks['spring2021'] ?></code></pre>
+      </p>
     </article>
 
     <?php include '../../footer.php'; ?>

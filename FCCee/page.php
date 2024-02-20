@@ -80,7 +80,7 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
   </head>
 
   <body>
-    <?php include '../../header.php'; ?>
+    <?php include BASE_PATH . '/header.php'; ?>
 
     <article id="sample-article" class="container-lg">
       <h1 class="mt-5"><?php
@@ -138,32 +138,40 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
       </p>
 
       <?php if ($evtType === 'delphes'): ?>
-      <?php include 'stack.php'; ?>
+      <p class="mt-5">
+	<a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
+        <?php
+          $prodName = '';
+          if ($prodTag === 'dev') {
+            $prodName = 'dev';
+          }
+          if ($prodTag === 'spring2021') {
+            $prodName = 'spring2021';
+          }
+          if ($prodTag === 'spring2021-training') {
+            $prodName = 'spring2021_training';
+          }
+          if ($prodTag === 'prefall2022') {
+            $prodName = 'pre_fall2022';
+          }
+          if ($prodTag === 'prefall2022-training') {
+            $prodName = 'pre_fall2022_training';
+          }
+          if ($prodTag === 'winter2023') {
+            $prodName = 'winter2023';
+          }
+          if ($prodTag === 'winter2023-training') {
+            $prodName = 'winter2023_training';
+          }
+	?>
+        <code><?= $prodName ?></code> samples was:
+	<pre><code><?= $key4hepStacks[$prodTag] ?></code></pre>
+      </p>
 
       <p class="mt-5">
         <?php
 	  $statUrl = BASE_URL.'/data/FCCee/statdelphes';
-          if ($prodTag === 'dev') {
-            $statUrl .= 'dev';
-          }
-          if ($prodTag === 'spring2021') {
-            $statUrl .= 'spring2021';
-          }
-          if ($prodTag === 'spring2021-training') {
-            $statUrl .= 'spring2021_training';
-          }
-          if ($prodTag === 'prefall2022') {
-            $statUrl .= 'prefall2022';
-          }
-          if ($prodTag === 'prefall2022-training') {
-            $statUrl .= 'prefall2022_training';
-          }
-          if ($prodTag === 'winter2023') {
-            $statUrl .= 'winter2023';
-          }
-          if ($prodTag === 'winter2023-training') {
-            $statUrl .= 'winter2023_training';
-          }
+	  $statUrl .= $prodName;
 
           if ($det === 'idea') {
             $statUrl .= '_IDEA';
@@ -181,10 +189,10 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
       </p>
       <?php endif ?>
 
-      <?php include '../../table.php'; ?>
+      <?php include BASE_PATH . '/table.php'; ?>
     </article>
 
-    <?php include '../../footer.php'; ?>
+    <?php include BASE_PATH . '/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
 	    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
