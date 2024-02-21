@@ -1,5 +1,6 @@
 <?php
-define('BASE_URL', '/fcc-physics-events');
+// define('BASE_URL', 'http://localhost:8000');
+define('BASE_URL', 'https://fcc-physics-events.web.cern.ch/fcc-physics-events');
 define('BASE_PATH', $_SERVER['DOCUMENT_ROOT'] . '/fcc-physics-events');
 
 $key4hepStacks = array(
