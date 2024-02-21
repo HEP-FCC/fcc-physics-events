@@ -2,7 +2,7 @@
       <div class="mt-3 container-lg">
         <div class="container-lg">
           <div class="float-start"><a href="#" data-bs-toggle="modal" data-bs-target="#contactModal">Contact</a></div>
-          <div class="float-end"><a href="https://github.com/HEP-FCC/WebTools">Github</a></div>
+          <div class="float-end"><a href="https://github.com/HEP-FCC/fcc-physics-events">Github</a></div>
         </div>
 
         <div class="mt-3 container-lg text-center">
