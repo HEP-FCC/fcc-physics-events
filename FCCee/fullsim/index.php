@@ -14,7 +14,7 @@ $prodTag = 'none';
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Fullsim | FCC-ee | FCC Physics Events</title>
+    <title>Full Sim | FCC-ee | FCC Physics Events</title>
 
     <link rel="icon" type="image/x-icon" href="<?= BASE_URL ?>/images/favicon.ico">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -28,7 +28,7 @@ $prodTag = 'none';
     <?php include '../../header.php'; ?>
 
     <article id="sample-article" class="container-lg">
-      <h1 class="mt-5">FCC-ee | Fullsim Samples</h1>
+      <h1 class="mt-5">FCC-ee | Full Sim Samples</h1>
 
       <p>TBA</p>
     </article>

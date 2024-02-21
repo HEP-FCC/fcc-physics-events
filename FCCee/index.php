@@ -28,7 +28,7 @@ $evtType = 'none';
     <article class="container-lg">
       <h1 class="mt-5">FCC-ee Samples</h1>
 
-      <div class="list-group mt-5">
+      <div class="list-group mt-3">
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/LHEevents.php">Les Houches</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/STDHEPevents.php">STDHEP</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023/index.php">Delphes | Winter 2023</a>
@@ -38,7 +38,7 @@ $evtType = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021/index.php">Delphes | Spring 2021</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021_training/index.php">Delphes | Spring 2021 &ndash; training</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/index.php">Dev</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Fullsim</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Full Sim</a>
       </div>
       <h2 class="mt-5">Key4hep Stack</h2>
 
@@ -51,7 +51,7 @@ $evtType = 'none';
           <code>winter2023</code>
           <ul>
             <li>
-	      <code><?= $key4hepStacks['winter2023'] ?></code>
+              <code><?= $key4hepStacks['winter2023'] ?></code>
             </li>
           </ul>
         </li>
@@ -59,7 +59,7 @@ $evtType = 'none';
           <code>winter2023_training</code>
           <ul>
             <li>
-	      <code><?= $key4hepStacks['winter2023-training'] ?></code>
+              <code><?= $key4hepStacks['winter2023-training'] ?></code>
             </li>
           </ul>
         </li>
@@ -67,7 +67,7 @@ $evtType = 'none';
           <code>spring2021</code>
           <ul>
             <li>
-	      <code><?= $key4hepStacks['spring2021'] ?></code>
+              <code><?= $key4hepStacks['spring2021'] ?></code>
             </li>
           </ul>
         </li>
@@ -75,7 +75,7 @@ $evtType = 'none';
           <code>spring2021_training</code>
           <ul>
             <li>
-	      <code><?= $key4hepStacks['spring2021-training'] ?></code>
+              <code><?= $key4hepStacks['spring2021-training'] ?></code>
             </li>
           </ul>
         </li>
@@ -85,7 +85,7 @@ $evtType = 'none';
     <?php include '../footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-	    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
             crossorigin="anonymous"></script>
   </body>
 </html>	
