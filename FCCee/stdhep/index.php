@@ -1,10 +1,11 @@
 <?php
-require('../config.php');
+require('../../config.php');
 
-$layer = 'evt-type';
+$layer = 'campaign';
 $acc = 'fcc-ee';
+$evtType = 'stdhep';
+$campaign = 'none';
 $det = 'none';
-$evtType = 'none';
 ?>
 
 <!doctype html>
@@ -12,7 +13,7 @@ $evtType = 'none';
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FCC-ee | FCC Physics Events</title>
+    <title>STDHEP | FCC-ee | FCC Physics Events</title>
 
     <link rel="icon" type="image/x-icon" href="<?= BASE_URL ?>/images/favicon.ico">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -23,22 +24,15 @@ $evtType = 'none';
   </head>
 
   <body>
-    <?php include '../header.php'; ?>
+    <?php include BASE_PATH . '/header.php'; ?>
 
     <article class="container-lg">
-      <h1 class="mt-5">FCC-ee Samples</h1>
+      <h1 class="mt-5">FCC-ee | STDHEP Samples</h1>
 
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/LHEevents.php">Les Houches</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/stdhep/index.php">STDHEP</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023/index.php">Delphes | Winter 2023</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023_training/index.php">Delphes | Winter 2023 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022/index.php">Delphes | Pre-fall 2022</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/index.php">Delphes | Pre-fall 2022 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021/index.php">Delphes | Spring 2021</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021_training/index.php">Delphes | Spring 2021 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/index.php">Dev</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Full Sim</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/stdhep/winter2023">Winter 2023</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/stdhep/winter2023_training">Winter 2023 &ndash; training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/stdhep/spring2021">Spring 2021</a>
       </div>
       <h2 class="mt-5">Key4hep Stack</h2>
 
@@ -82,7 +76,7 @@ $evtType = 'none';
       </ul>
     </article>
 
-    <?php include '../footer.php'; ?>
+    <?php include BASE_PATH . '/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"

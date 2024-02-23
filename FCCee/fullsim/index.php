@@ -5,7 +5,7 @@ $layer = 'det';
 $acc = 'fcc-ee';
 $det = 'none';
 $evtType = 'fullsim';
-$prodTag = 'none';
+$campaign = 'none';
 ?>
 
 

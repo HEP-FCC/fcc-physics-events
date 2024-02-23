@@ -3,9 +3,9 @@ require('../../config.php');
 
 $layer = 'table';
 $acc = 'fcc-ee';
-$det = 'idea';
 $evtType = 'delphes';
-$prodTag = 'prefall2022';
+$campaign = 'prefall2022';
+$det = 'idea';
 ?>
 
 <?php

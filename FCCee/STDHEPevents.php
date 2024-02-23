@@ -5,7 +5,7 @@ $layer = 'table';
 $acc = 'fcc-ee';
 $det = 'none';
 $evtType = 'stdhep';
-$prodTag = 'none';
+$campaign = 'none';
 ?>
 
 <?php

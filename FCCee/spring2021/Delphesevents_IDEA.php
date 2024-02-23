@@ -5,7 +5,7 @@ $layer = 'table';
 $acc = 'fcc-ee';
 $det = 'idea';
 $evtType = 'delphes';
-$prodTag = 'spring2021';
+$campaign = 'spring2021';
 ?>
 
 <?php

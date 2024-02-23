@@ -3,9 +3,9 @@ require('../../config.php');
 
 $layer = 'det';
 $acc = 'fcc-ee';
+$campaign = 'prefall2022-training';
 $det = 'none';
 $evtType = 'delphes';
-$prodTag = 'prefall2022-training';
 ?>
 
 

@@ -5,7 +5,7 @@ $layer = 'det';
 $acc = 'fcc-ee';
 $det = 'none';
 $evtType = 'delphes';
-$prodTag = 'spring2021';
+$campaign = 'spring2021';
 ?>
 
 

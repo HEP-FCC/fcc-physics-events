@@ -1,7 +1,7 @@
 <?php
-$rows        = explode("\n", $txt_file);
+$rows = explode("\n", $txt_file);
 
-$NbrCol 	= count($lname); // $NbrCol : le nombre de colonnes
+$NbrCol = count($lname); // $NbrCol : le nombre de colonnes
 
 foreach($rows as $row => $data)
   {
@@ -14,7 +14,7 @@ foreach($rows as $row => $data)
       }
   }
 
-$NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
+$NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
 ?>
 
 <!doctype html>
@@ -44,25 +44,25 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
         $title .= 'Les Houches | ';
       }
 
-      if ($prodTag === 'dev') {
+      if ($campaign === 'dev') {
         $title .= 'Dev | ';
       }
-      if ($prodTag === 'spring2021') {
+      if ($campaign === 'spring2021') {
         $title .= 'Spring 2021 | ';
       }
-      if ($prodTag === 'spring2021-training') {
+      if ($campaign === 'spring2021-training') {
         $title .= 'Spring 2021 &ndash; training | ';
       }
-      if ($prodTag === 'prefall2022') {
+      if ($campaign === 'prefall2022') {
         $title .= 'Pre-fall 2022 | ';
       }
-      if ($prodTag === 'prefall2022-training') {
+      if ($campaign === 'prefall2022-training') {
         $title .= 'Pre-fall 2022 &ndash; training | ';
       }
-      if ($prodTag === 'winter2023') {
+      if ($campaign === 'winter2023') {
         $title .= 'Winter 2023 | ';
       }
-      if ($prodTag === 'winter2023-training') {
+      if ($campaign === 'winter2023-training') {
         $title .= 'Winter 2023 &ndash; training | ';
       }
 
@@ -86,25 +86,25 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
       <h1 class="mt-5"><?php
         $title = 'FCC-ee';
 
-        if ($prodTag === 'dev') {
+        if ($campaign === 'dev') {
           $title .= ' | Dev';
         }
-        if ($prodTag === 'spring2021') {
+        if ($campaign === 'spring2021') {
           $title .= ' | Spring 2021';
         }
-        if ($prodTag === 'spring2021-training') {
+        if ($campaign === 'spring2021-training') {
           $title .= ' | Spring 2021 &ndash; training';
         }
-        if ($prodTag === 'prefall2022') {
+        if ($campaign === 'prefall2022') {
           $title .= ' | Pre-fall 2022';
         }
-        if ($prodTag === 'prefall2022-training') {
+        if ($campaign === 'prefall2022-training') {
           $title .= ' | Pre-fall 2022 &ndash; training';
         }
-        if ($prodTag === 'winter2023') {
+        if ($campaign === 'winter2023') {
           $title .= ' | Winter 2023';
         }
-        if ($prodTag === 'winter2023-training') {
+        if ($campaign === 'winter2023-training') {
           $title .= ' | Winter 2023 &ndash; training';
         }
 
@@ -137,41 +137,50 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
         <em><?= $description ?></em>
       </p>
 
-      <?php if ($evtType === 'delphes'): ?>
+      <?php if ($evtType === 'delphes' || $evtType === 'stdhep'): ?>
       <p class="mt-5">
-	<a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
+        <a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
         <?php
-          $prodName = '';
-          if ($prodTag === 'dev') {
-            $prodName = 'dev';
+          $campaignName = '';
+          if ($campaign === 'dev') {
+            $campaignName = 'dev';
           }
-          if ($prodTag === 'spring2021') {
-            $prodName = 'spring2021';
+          if ($campaign === 'spring2021') {
+            $campaignName = 'spring2021';
           }
-          if ($prodTag === 'spring2021-training') {
-            $prodName = 'spring2021_training';
+          if ($campaign === 'spring2021-training') {
+            $campaignName = 'spring2021_training';
           }
-          if ($prodTag === 'prefall2022') {
-            $prodName = 'pre_fall2022';
+          if ($campaign === 'prefall2022') {
+            $campaignName = 'pre_fall2022';
           }
-          if ($prodTag === 'prefall2022-training') {
-            $prodName = 'pre_fall2022_training';
+          if ($campaign === 'prefall2022-training') {
+            $campaignName = 'pre_fall2022_training';
           }
-          if ($prodTag === 'winter2023') {
-            $prodName = 'winter2023';
+          if ($campaign === 'winter2023') {
+            $campaignName = 'winter2023';
           }
-          if ($prodTag === 'winter2023-training') {
-            $prodName = 'winter2023_training';
+          if ($campaign === 'winter2023-training') {
+            $campaignName = 'winter2023_training';
           }
-	?>
-        <code><?= $prodName ?></code> samples was:
-	<pre><code><?= $key4hepStacks[$prodTag] ?></code></pre>
+        ?>
+        <code><?= $campaignName ?></code> samples was:
+        <pre><code><?= $key4hepStacks[$campaign] ?></code></pre>
       </p>
+      <?php endif ?>
 
-      <p class="mt-5">
+      <p class="mt-3">
         <?php
-	  $statUrl = BASE_URL.'/data/FCCee/statdelphes';
-	  $statUrl .= $prodName;
+          $statUrl = BASE_URL.'/data/FCCee/stat';
+
+          if ($evtType === 'stdhep') {
+            $statUrl .= '_stdhep_';
+          }
+          if ($evtType === 'delphes') {
+            $statUrl .= 'delphes';
+          }
+
+          $statUrl .= $campaignName;
 
           if ($det === 'idea') {
             $statUrl .= '_IDEA';
@@ -183,11 +192,10 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
             $statUrl .= '_IDEA_FullSilicon';
           }
 
-	  $statUrl .= '.html';
+          $statUrl .= '.html';
         ?>
-	Additional stats about the production can be found <a href="<?= $statUrl ?>">here</a>.
+        Additional stats about the production can be found <a href="<?= $statUrl ?>">here</a>.
       </p>
-      <?php endif ?>
 
       <?php include BASE_PATH . '/table.php'; ?>
     </article>
@@ -195,7 +203,7 @@ $NbrLigne 	= count($info);  // $NbrLigne : le nombre de lignes
     <?php include BASE_PATH . '/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-	    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
             crossorigin="anonymous"></script>
   </body>
 </html>
