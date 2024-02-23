@@ -1,6 +1,0 @@
-p8_ee_ZH_ecm240,,29,850,000,,0,,2985,,0,,2985,,125.57,,/eos/experiment/fcc/ee/generation/DelphesEvents/fcc_v01/p8_ee_ZH_ecm240/,,ZH ecm=240GeV,,inclusive decays,,0.201037,,1.0,,1.0
-p8_ee_ZZ_ecm240,,29,880,000,,0,,2988,,0,,2988,,96.24,,/eos/experiment/fcc/ee/generation/DelphesEvents/fcc_v01/p8_ee_ZZ_ecm240/,,ZZ ecm=240GeV,,inclusive decays,,1.35899,,1.0,,1.0
-p8_ee_WW_ecm240,,29,630,000,,0,,2963,,0,,2963,,91.49,,/eos/experiment/fcc/ee/generation/DelphesEvents/fcc_v01/p8_ee_WW_ecm240/,,WW ecm=240GeV,,inclusive decays,,16.4385,,1.0,,1.0
-p8_ee_Zqq_ecm240,,19,970,000,,0,,1997,,0,,1997,,51.75,,/eos/experiment/fcc/ee/generation/DelphesEvents/fcc_v01/p8_ee_Zqq_ecm240/,,Z/Gamma* ecm=240GeV,,hadronic decays,,53.188,,1.0,,1.0
-mgp8_ee_tt_ecm350,,100,000,,0,,10,,0,,10,,0.54,,/eos/experiment/fcc/ee/generation/DelphesEvents/fcc_v01/mgp8_ee_tt_ecm350/,,tt,,tt inclusive,,1.0,,1.0,,1.0
-total,,109,430,000,,0.0,,10,943,,0.0,,10,943.0,,365.59,,,,

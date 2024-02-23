@@ -1,3 +1,0 @@
-v03_newECalSegmentation/singlePart/electron/bFieldOn/eta0.36_phi0/flat/simu,,1,000,,1,,1,,0,,0.03,,0,,0,,1,,0,,0,,0,,0,,0,,0,,0,,0
-v03_newECalSegmentation/singlePart/electron/bFieldOn/eta0.36_phi0/flat/ntup/positions,,1,000,,1,,1,,0,,0.06,,0,,0,,1,,0,,0,,0,,0,,0,,0,,0,,0
-total,,2,000,,2,,2,,0,,0.08,,0,,0,,2,,0,,0,,0,,0,,0,,0,,0,,0
