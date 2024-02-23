@@ -15,3 +15,8 @@ Run local server:
 ```
 php -S localhost:8000
 ```
+
+## Deployment
+
+Changes to this repo will be reflected in the website within few hours. A cron
+job is set up to pick up the latest changes in the master branch.
