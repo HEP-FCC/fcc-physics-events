@@ -27,7 +27,7 @@ $evtType = 'none';
     <link rel="stylesheet" href="<?= BASE_URL ?>/style/fcc.css">
   </head>
 
-  <body data-bs-theme="light">
+  <body>
     <?php include 'header.php'; ?>
 
     <article class="container-lg mt-5">
