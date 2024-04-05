@@ -2,9 +2,9 @@
         <span class="input-group-text" id="sample-search-label">Name</span>
         <input type="text"
                class="form-control"
-	       id="sample-search-input"
-	       placeholder="Search in sample names..."
-	       aria-label="Search in sample names"
+               id="sample-search-input"
+               placeholder="Search in sample names..."
+               aria-label="Search in sample names"
                aria-describedby="sample-search-label"
                onkeyup="search()">
       </div>
@@ -22,12 +22,12 @@
           </tr>
         </thead>
         <tbody>
-	<?php for ($i=0; $i < $NbrLigne-1; $i++): ?>
+        <?php for ($i=0; $i < $NbrLigne-1; $i++): ?>
           <tr>
-	    <td><?= $i + 1; ?></td>
-	    <?php for ($j=1; $j < $NbrCol; $j++): ?>
-	    <td><?= $info[$i][$lname[$j]] ?></td>
-	    <?php endfor ?>
+            <td><?= $i + 1; ?></td>
+            <?php for ($j=1; $j < $NbrCol; $j++): ?>
+            <td><?= $info[$i][$lname[$j]] ?></td>
+            <?php endfor ?>
           </tr>
         <?php endfor ?>
         </tbody>

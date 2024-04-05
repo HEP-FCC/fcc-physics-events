@@ -6,17 +6,9 @@ $acc = 'fcc-ee';
 $det = 'none';
 $evtType = 'lhe';
 $campaign = 'none';
-?>
 
-<?php
-$txt_file    = file_get_contents('../data/FCCee/LHEevents.txt');
-
-$lname=array('#','Name','Nevents',
-             'Nfiles','Nbad','Neos','Size (GB)',
-             'Output Path','Main Process','Final States',
-             'Matching Param','Cross Section (pb)');
-
+$dataFilePath = BASE_PATH . '/data/FCCee/LHEevents.txt';
 $description = '';
 ?>
 
-<?php require('page.php') ?>
+<?php require(BASE_PATH . '/FCCee/page.php') ?>

@@ -1,16 +1,34 @@
 <?php
+$lname=array();
+if ($evtType === 'stdhep' || $evtType === 'lhe') {
+  $lname=array('#', 'Name', 'Nevents',
+               'Nfiles', 'Nbad', 'Neos', 'Size [GB]',
+               'Output Path', 'Main Process', 'Final States',
+               'Matching Param', 'Cross Section [pb]');
+}
+if ($evtType === 'delphes') {
+  $lname=array('#', 'Name', 'Nevents', 'Nweights',
+               'Nfiles', 'Nbad', 'Neos', 'Size [GB]',
+               'Output Path', 'Main Process', 'Final States',
+               'Cross Section [pb]', 'K-factor', 'Matching Eff.');
+}
+
+$txt_file = file_get_contents($dataFilePath);
+
+$dataFileModTime = date("F d Y H:i", filemtime($dataFilePath));
+
 $rows = explode("\n", $txt_file);
 
 $NbrCol = count($lname); // $NbrCol : le nombre de colonnes
 
 foreach($rows as $row => $data)
   {
-    //get row data
+    // get row data
     $row_data = explode(',,', $data);
 
     for ($i=0; $i<$NbrCol-1; $i++)
       {
-        $info[$row][$lname[$i+1]] = $row_data[$i]; 
+        $info[$row][$lname[$i+1]] = $row_data[$i];
       }
   }
 
@@ -83,7 +101,8 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
     <?php include BASE_PATH . '/header.php'; ?>
 
     <article id="sample-article" class="container-lg">
-      <h1 class="mt-5"><?php
+      <p class="mt-3 mb-1 text-end text-secondary">Last update: <?= $dataFileModTime ?> UTC.</p>
+      <h1 class="mt-2"><?php
         $title = 'FCC-ee';
 
         if ($campaign === 'dev') {
