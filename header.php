@@ -119,9 +119,9 @@
             <?php endif ?>
             <?php endif ?>
             <?php endif ?>
-            <?php if ($layer === 'evt-type' || $evtType === 'fullsim'): ?>
+            <?php if ($layer === 'evt-type' || $evtType === 'full-sim'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($evtType === 'fullsim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Full Sim</a>
+              <a class="ms-1 nav-link text-light<?php if ($evtType === 'full-sim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/full-sim/index.php">Full Sim</a>
             </li>
             <?php endif ?>
             <?php endif ?>

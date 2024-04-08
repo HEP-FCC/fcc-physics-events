@@ -4,7 +4,7 @@ require('../../config.php');
 $layer = 'det';
 $acc = 'fcc-ee';
 $det = 'none';
-$evtType = 'fullsim';
+$evtType = 'full-sim';
 $campaign = 'none';
 ?>
 
