@@ -1,10 +1,9 @@
 <?php
-require('../config.php');
+require('../../config.php');
 
-$layer = 'evt-type';
+$layer = 'campaign';
 $acc = 'fcc-hh';
-$evtType = 'none';
-$det = 'none';
+$evtType = 'gen';
 ?>
 
 <!doctype html>
@@ -12,7 +11,7 @@ $det = 'none';
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>FCC-hh | FCC Physics Events</title>
+    <title>Gen | FCC-hh | FCC Physics Events</title>
 
     <link rel="icon" type="image/x-icon" href="<?= BASE_URL ?>/images/favicon.ico">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
@@ -26,15 +25,10 @@ $det = 'none';
     <?php include BASE_PATH . '/header.php'; ?>
 
     <article class="container-lg">
-      <h1 class="mt-5">FCC-hh Samples</h1>
+      <h1 class="mt-5">FCC-hh | Gen Samples</h1>
 
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/LHEevents.php">Gen | Les Houches</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v02.php">Delphes | v0.2</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v03.php">Delphes | v0.3</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v04.php">Delphes | v0.4</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v03.php">Full Sim | v0.3</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v03_ecal.php">Full Sim | v0.3 ECal</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/LHEevents.php">Les Houches</a>
       </div>
       </div>
     </article>

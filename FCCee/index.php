@@ -37,7 +37,7 @@ $evtType = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/index.php">Delphes | Pre-fall 2022 &ndash; training</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021/index.php">Delphes | Spring 2021</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021_training/index.php">Delphes | Spring 2021 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/index.php">Dev</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/index.php">Delphes | Dev</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Full Sim</a>
       </div>
       <h2 class="mt-5">Key4hep Stack</h2>
@@ -88,4 +88,4 @@ $evtType = 'none';
             integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
             crossorigin="anonymous"></script>
   </body>
-</html>	
+</html>

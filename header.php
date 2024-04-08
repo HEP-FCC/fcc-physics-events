@@ -119,10 +119,68 @@
             <?php endif ?>
             <?php endif ?>
             <?php endif ?>
-	    <?php if ($layer === 'evt-type' || $evtType === 'fullsim'): ?>
+            <?php if ($layer === 'evt-type' || $evtType === 'fullsim'): ?>
             <li class="nav-item">
               <a class="ms-1 nav-link text-light<?php if ($evtType === 'fullsim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/fullsim/index.php">Full Sim</a>
             </li>
+            <?php endif ?>
+            <?php endif ?>
+
+            <!-- FCC-hh -->
+            <?php if ($acc === 'fcc-hh'): ?>
+            <!-- FCC-hh | Gen -->
+            <?php if ($layer === 'evt-type' || $evtType === 'gen'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($evtType === 'gen'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/gen/index.php">Gen</a>
+            </li>
+            <!-- FCC-hh | Gen | Les Houches -->
+            <?php if ($layer === 'campaign' || $campaign === 'lhe'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/LHEevents.php">Les Houches</a>
+            </li>
+            <?php endif ?>
+            <?php endif ?>
+            <!-- FCC-hh | Delphes -->
+            <?php if ($layer === 'evt-type' || $evtType === 'delphes'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($evtType === 'delphes'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/delphes/index.php">Delphes</a>
+            </li>
+            <!-- FCC-hh | Delphes | v02 -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v02'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v02.php">v0.2</a>
+            </li>
+            <?php endif ?>
+            <!-- FCC-hh | Delphes | v03 -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v03'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v03.php">v0.3</a>
+            </li>
+            <?php endif ?>
+            <!-- FCC-hh | Delphes | v04 -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v04'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v04.php">v0.4</a>
+            </li>
+            <?php endif ?>
+            <?php endif ?>
+            <!-- FCC-hh | Full Sim -->
+            <?php if ($layer === 'evt-type' || $evtType === 'full-sim'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($evtType === 'full-sim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/full-sim/index.php">Full Sim</a>
+            </li>
+            <!-- FCC-hh | Full Sim | v03 -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v03'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/FCCsim_v03.php">v0.3</a>
+            </li>
+            <?php endif ?>
+            <!-- FCC-hh | Full Sim | v03-ecal -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v03-ecal'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/FCCsim_v03_ecal.php">v0.3 ECal</a>
+            </li>
+            <?php endif ?>
             <?php endif ?>
             <?php endif ?>
           </ul>

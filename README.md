@@ -3,6 +3,13 @@
 Database of pre-generated samples for FCC-hh and FCC-ee physics performance
 studies.
 
+## Website hierarchy
+
+The website has four possible hierarchy levels. From top to bottom they are:
+* Accelerator --- FCC-hh or FCC-ee
+* Event type --- Gen, Delphes, Full Sim
+* Campaign
+* Detector
 
 ## Local development
 

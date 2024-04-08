@@ -1,3 +1,4 @@
+<?php if ($layer === 'table'): ?>
 <?php
 $lname=array();
 if ($evtType === 'stdhep' || $evtType === 'lhe') {
@@ -34,6 +35,7 @@ foreach($rows as $row => $data)
 
 $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
 ?>
+<?php endif ?>
 
 <!doctype html>
 <html lang="en">
@@ -50,16 +52,6 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
       }
       if ($det === 'idea-fullsilicon') {
         $title .= 'IDEA FullSilicon | ';
-      }
-
-      if ($evtType === 'delphes') {
-        $title .= 'Delphes | ';
-      }
-      if ($evtType === 'stdhep') {
-        $title .= 'STDHEP | ';
-      }
-      if ($evtType === 'lhe') {
-        $title .= 'Les Houches | ';
       }
 
       if ($campaign === 'dev') {
@@ -84,6 +76,16 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         $title .= 'Winter 2023 &ndash; training | ';
       }
 
+      if ($evtType === 'delphes') {
+        $title .= 'Delphes | ';
+      }
+      if ($evtType === 'stdhep') {
+        $title .= 'STDHEP | ';
+      }
+      if ($evtType === 'lhe') {
+        $title .= 'Les Houches | ';
+      }
+
       $title .= 'FCC-ee | FCC Physics Events';
 
       echo $title;
@@ -105,6 +107,16 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
       <h1 class="mt-2"><?php
         $title = 'FCC-ee';
 
+        if ($evtType === 'delphes') {
+          $title .= ' | Delphes';
+        }
+        if ($evtType === 'stdhep') {
+          $title .= ' | STDHEP';
+        }
+        if ($evtType === 'lhe') {
+          $title .= ' | Les Houches';
+        }
+
         if ($campaign === 'dev') {
           $title .= ' | Dev';
         }
@@ -125,16 +137,6 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         }
         if ($campaign === 'winter2023-training') {
           $title .= ' | Winter 2023 &ndash; training';
-        }
-
-        if ($evtType === 'delphes') {
-          $title .= ' | Delphes';
-        }
-        if ($evtType === 'stdhep') {
-          $title .= ' | STDHEP';
-        }
-        if ($evtType === 'lhe') {
-          $title .= ' | Les Houches';
         }
 
         if ($det === 'idea') {
