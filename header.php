@@ -181,6 +181,12 @@
               <a class="ms-1 nav-link text-light<?php if ($campaign === 'v03-ecal'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/FCCsim_v03_ecal.php">v0.3 ECal</a>
             </li>
             <?php endif ?>
+            <!-- FCC-hh | Full Sim | v04 -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v04'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/FCCsim_v04.php">v0.4</a>
+            </li>
+            <?php endif ?>
             <?php endif ?>
             <?php endif ?>
           </ul>

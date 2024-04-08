@@ -1,8 +1,10 @@
+<?php if ($layer = 'table'): ?>
 <?php
 $rows = explode("\n", $txt_file);
 
 $NbrCol = count($lname); // $NbrCol : le nombre de colonnes
 
+$info = array();
 foreach($rows as $row => $data)
   {
     //get row data
@@ -10,12 +12,13 @@ foreach($rows as $row => $data)
 
     for ($i=0; $i<$NbrCol-1; $i++)
       {
-        $info[$row][$lname[$i+1]] = $row_data[$i]; 
+        $info[$row][$lname[$i+1]] = $row_data[$i] ?? '';
       }
   }
 
 $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
 ?>
+<?php endif ?>
 
 <!doctype html>
 <html lang="en">

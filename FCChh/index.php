@@ -4,7 +4,7 @@ require('../config.php');
 $layer = 'evt-type';
 $acc = 'fcc-hh';
 $evtType = 'none';
-$det = 'none';
+$campaign = 'none';
 ?>
 
 <!doctype html>
@@ -35,6 +35,7 @@ $det = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/Delphesevents_fcc_v04.php">Delphes | v0.4</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v03.php">Full Sim | v0.3</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v03_ecal.php">Full Sim | v0.3 ECal</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v04.php">Full Sim | v0.4</a>
       </div>
       </div>
     </article>

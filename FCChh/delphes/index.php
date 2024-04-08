@@ -4,6 +4,7 @@ require('../../config.php');
 $layer = 'campaign';
 $acc = 'fcc-hh';
 $evtType = 'delphes';
+$campaign = 'none';
 ?>
 
 <!doctype html>

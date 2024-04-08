@@ -29,7 +29,7 @@ foreach($rows as $row => $data)
 
     for ($i=0; $i<$NbrCol-1; $i++)
       {
-        $info[$row][$lname[$i+1]] = $row_data[$i];
+        $info[$row][$lname[$i+1]] = $row_data[$i] ?? '';
       }
   }
 
