@@ -33,7 +33,8 @@ $campaign = 'none';
            href="<?= BASE_URL ?>/FCChh/FCCsim_v03.php">v0.3</a>
         <a class="list-group-item list-group-item-action"
            href="<?= BASE_URL ?>/FCChh/FCCsim_v03_ecal.php">v0.3 ECal</a>
-      </div>
+        <a class="list-group-item list-group-item-action"
+           href="<?= BASE_URL ?>/FCChh/FCCsim_v04.php">v0.4</a>
       </div>
     </article>
 
