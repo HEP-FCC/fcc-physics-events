@@ -61,7 +61,7 @@ fi
 
 git pull 2>&1 >> "${LOGFILE}"
 
-if [ "$(git rev-parse master)" != "$(git rev-parse origin/master)" ]; then
+if [ "$(git rev-parse main)" != "$(git rev-parse origin/main)" ]; then
   echo "`date`  ERROR: Git pull did not succeeded. Aborting..." >> "${LOGFILE}"
   send_email "Git pull did not succeeded. Status of the repository:"$'\n\n'"$(git status)"
 
