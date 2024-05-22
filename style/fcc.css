@@ -16,3 +16,19 @@ article {
 .bg-green {
   background-color: #4caf50 !important;
 }
+
+.bg-top-stopped {
+  background-color: #c9f2c2 !important;
+}
+
+.bg-bottom-stopped {
+  background-color: #e3fcde !important;
+}
+
+.bg-top-active {
+  background-color: #f5e4b0 !important;
+}
+
+.bg-bottom-active {
+  background-color: #fff8e3 !important;
+}
