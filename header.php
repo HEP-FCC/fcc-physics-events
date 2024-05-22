@@ -182,6 +182,12 @@
                   <a class="ms-1 nav-link text-light<?php if ($evtType === 'full-sim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/full-sim/index.php">Full Sim</a>
                 </li>
               <?php endif ?>
+              <!-- FCC-ee | Full Sim | Devel -->
+              <?php if ($evtType === 'full-sim'): ?>
+                <li class="nav-item">
+                  <a class="ms-1 nav-link text-light<?php if ($campaign === 'devel'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/full-sim/devel/">Devel</a>
+                </li>
+              <?php endif ?>
             <?php endif ?>
 
             <!-- FCC-hh -->

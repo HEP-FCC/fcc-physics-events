@@ -3,9 +3,9 @@ require('../../../config.php');
 
 $layer = 'table';
 $acc = 'fcc-ee';
-$det = 'none';
-$evtType = 'fullsim';
+$evtType = 'full-sim';
 $campaign = 'devel';
+$det = 'none';
 ?>
 
 

@@ -3,9 +3,9 @@ require('../../config.php');
 
 $layer = 'campaign';
 $acc = 'fcc-ee';
-$det = 'none';
 $evtType = 'full-sim';
 $campaign = 'none';
+$det = 'none';
 ?>
 
 
@@ -32,7 +32,7 @@ $campaign = 'none';
 
       <p>Available campaigns</p>
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/fullsim/devel/">Devel</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/full-sim/devel/">Devel</a>
       </div>
     </article>
 
