@@ -3,8 +3,10 @@ require('../config.php');
 
 $layer = 'evt-type';
 $acc = 'fcc-ee';
-$det = 'none';
 $evtType = 'none';
+$genType = 'none';
+$campaign = 'none';
+$det = 'none';
 ?>
 
 <!doctype html>
@@ -23,66 +25,28 @@ $evtType = 'none';
   </head>
 
   <body>
-    <?php include '../header.php'; ?>
+    <?php include BASE_PATH . '/header.php'; ?>
 
     <article class="container-lg">
       <h1 class="mt-5">FCC-ee Samples</h1>
 
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/LHEevents.php">Les Houches</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/stdhep/index.php">STDHEP</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023/index.php">Delphes | Winter 2023</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/winter2023_training/index.php">Delphes | Winter 2023 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022/index.php">Delphes | Pre-fall 2022</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/index.php">Delphes | Pre-fall 2022 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021/index.php">Delphes | Spring 2021</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/spring2021_training/index.php">Delphes | Spring 2021 &ndash; training</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/dev/index.php">Delphes | Dev</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/full-sim/index.php">Full Sim</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/gen/les-houches">Gen | Les Houches</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/gen/stdhep">Gen | STDHEP</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023">Delphes | Winter 2023</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training">Delphes | Winter 2023&ndash;training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022">Delphes | Pre-fall 2022</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022-training">Delphes | Pre-fall 2022&ndash;training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/spring2021">Delphes | Spring 2021</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/spring2021-training">Delphes | Spring 2021&ndash;training</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/dev">Delphes | Dev</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/full-sim">Full Sim</a>
       </div>
-      <h2 class="mt-5">Key4hep Stack</h2>
 
-      <p>
-        Exact <a href="https://cern.ch/key4hep/">Key4hep</a> stack used at the time of generation of the sample from the particular campaign can be found in the list below:
-      </p>
-
-      <ul>
-        <li>
-          <code>winter2023</code>
-          <ul>
-            <li>
-              <code><?= $key4hepStacks['winter2023'] ?></code>
-            </li>
-          </ul>
-        </li>
-        <li>
-          <code>winter2023_training</code>
-          <ul>
-            <li>
-              <code><?= $key4hepStacks['winter2023-training'] ?></code>
-            </li>
-          </ul>
-        </li>
-        <li>
-          <code>spring2021</code>
-          <ul>
-            <li>
-              <code><?= $key4hepStacks['spring2021'] ?></code>
-            </li>
-          </ul>
-        </li>
-        <li>
-          <code>spring2021_training</code>
-          <ul>
-            <li>
-              <code><?= $key4hepStacks['spring2021-training'] ?></code>
-            </li>
-          </ul>
-        </li>
-      </ul>
+      <?php include BASE_PATH . '/snippets/k4h-stack.php'; ?>
     </article>
 
-    <?php include '../footer.php'; ?>
+    <?php include BASE_PATH . '/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"

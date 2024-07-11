@@ -3,12 +3,27 @@
   Deny from all
 </Files>
 
+<Directory .git>
+    order Allow,Deny
+    Deny from all
+</Directory>
+
 <Files "git_sync">
   Order Allow,Deny
   Deny from all
 </Files>
 
 <Files ".sync.lock">
+  Order Allow,Deny
+  Deny from all
+</Files>
+
+<Directory log>
+    order Allow,Deny
+    Deny from all
+</Directory>
+
+<Files "config.ini">
   Order Allow,Deny
   Deny from all
 </Files>

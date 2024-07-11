@@ -21,109 +21,167 @@
         <div class="collapse navbar-collapse" id="navbarSupportedContent">
           <ul class="navbar-nav nav-pills me-auto mb-2 mb-lg-0">
             <?php if ($layer === 'top' || $acc === 'fcc-ee'): ?>
-            <li class="nav-item">
-              <a class="nav-link text-light<?php if ($acc === 'fcc-ee'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/index.php">FCC-ee</a>
-            </li>
+              <li class="nav-item">
+                <a class="nav-link text-light<?php if ($acc === 'fcc-ee'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee">FCC-ee</a>
+              </li>
             <?php endif ?>
 
             <?php if ($layer === 'top' || $acc === 'fcc-hh'): ?>
-            <li class="nav-item">
-              <a class="nav-link text-light<?php if ($acc === 'fcc-hh'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh/index.php">FCC-hh</a>
-            </li>
+              <li class="nav-item">
+                <a class="nav-link text-light<?php if ($acc === 'fcc-hh'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCChh">FCC-hh</a>
+              </li>
             <?php endif ?>
 
+            <!-- FCC-ee -->
             <?php if ($acc === 'fcc-ee'): ?>
-            <?php if ($layer === 'evt-type' || $evtType === 'lhe'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($evtType === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/LHEevents.php">Les Houches</a>
-            </li>
-            <?php endif ?>
-            <?php if ($layer === 'evt-type' || $evtType === 'stdhep'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($evtType === 'stdhep'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/stdhep/index.php">STDHEP</a>
-            </li>
-            <?php endif ?>
-            <?php if ($evtType === 'stdhep'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/stdhep/winter2023">Winter 2023</a>
-            </li>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023-training'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/stdhep/winter2023_training">Winter 2023 &ndash; training</a>
-            </li>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'spring2021'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/stdhep/spring2021">Spring 2021</a>
-            </li>
-            <?php endif ?>
-            <?php if ($layer === 'evt-type' || $evtType === 'delphes'): ?>
-            <li class="ms-1 nav-item dropdown">
-              <a class="nav-link dropdown-toggle text-light<?php if ($evtType === 'delphes'): ?> active bg-green<?php endif ?>"
-                 href="#"
-                 role="button"
-                 data-bs-toggle="dropdown"
-                 aria-expanded="false">Delphes</a>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/winter2023/index.php">Winter 2023</a>
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/winter2023_training/index.php">Winter 2023 &ndash; training</a>
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/pre_fall2022/index.php">Pre-fall 2022</a>
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/index.php">Pre-fall 2022 &ndash; training</a>
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/spring2021/index.php">Spring 2021</a></li>
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/spring2021_training/index.php">Spring 2021 &ndash; training</a>
-                <li><a class="dropdown-item" href="<?= BASE_URL ?>/FCCee/dev/index.php">Dev</a>
-              </ul>
-            </li>
-            <?php if ($evtType === 'delphes'): ?>
-            <?php if ($campaign === 'winter2023'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/winter2023/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'winter2023-training'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/winter2023_training/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'prefall2022'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/pre_fall2022/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'prefall2022-training'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/pre_fall2022_training/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'spring2021'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/spring2021/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'spring2021-training'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/spring2021_training/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'dev'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/dev/Delphesevents_IDEA.php">IDEA</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'spring2021'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea-3t'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/spring2021/Delphesevents_IDEA_3T.php">IDEA 3T</a>
-            </li>
-            <?php endif ?>
-            <?php if ($campaign === 'spring2021'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($det === 'idea-fullsilicon'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/spring2021/Delphesevents_IDEA_FullSilicon.php">IDEA Full Silicon</a>
-            </li>
-            <?php endif ?>
-            <?php endif ?>
-            <?php endif ?>
-            <?php if ($layer === 'evt-type' || $evtType === 'full-sim'): ?>
-            <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($evtType === 'full-sim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/full-sim/index.php">Full Sim</a>
-            </li>
-            <?php endif ?>
+              <!-- FCC-ee | Gen -->
+              <?php if ($layer === 'evt-type' || $evtType === 'gen'): ?>
+                <li class="nav-item">
+                  <a class="ms-1 nav-link text-light<?php if ($evtType === 'gen'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/gen">Gen</a>
+                </li>
+                <!-- FCC-ee | Gen | Les Houches -->
+                <?php if ($layer === 'gen-type' || $genType === 'lhe'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($genType === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/gen/les-houches">Les Houches</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Gen | STDHEP -->
+                <?php if ($layer === 'gen-type' || $genType === 'stdhep'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($genType === 'stdhep'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/gen/stdhep">STDHEP</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($genType === 'stdhep'): ?>
+                  <!-- FCC-ee | Gen | STDHEP | Winter 2023 -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/gen/stdhep/winter2023">Winter 2023</a>
+                  </li>
+                  <!-- FCC-ee | Gen | STDHEP | Winter 2023 --- training -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023-training'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/gen/stdhep/winter2023_training">Winter 2023&ndash;training</a>
+                  </li>
+                  <!-- FCC-ee | Gen | STDHEP | Spring 2021 -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'spring2021'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/gen/stdhep/spring2021">Spring 2021</a>
+                  </li>
+                <?php endif ?>
+              <?php endif ?>
+
+              <!-- FCC-ee | Delphes -->
+              <?php if ($layer === 'evt-type' || $evtType === 'delphes'): ?>
+                <li class="nav-item">
+                  <a class="ms-1 nav-link text-light<?php if ($evtType === 'delphes'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes">Delphes</a>
+                </li>
+              <?php endif ?>
+              <?php if ($evtType === 'delphes'): ?>
+                <!-- FCC-ee | Delphes | Winter 2023 -->
+                <?php if ($layer === 'campaign' || $campaign === 'winter2023'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023">Winter 2023</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'winter2023'): ?>
+                  <!-- FCC-ee | Delphes | Winter 2023 | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea">IDEA</a>
+                  </li>
+                  <!-- FCC-ee | Delphes | Winter 2023 | IDEA --- SiTracking -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea-sitracking'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea-sitracking">IDEA SiTracking</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Delphes | Winter 2023 --- training -->
+                <?php if ($layer === 'campaign' || $campaign === 'winter2023-training'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023-training'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training">Winter 2023&ndash;training</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'winter2023-training'): ?>
+                  <!-- FCC-ee | Delphes | Winter 2023--training | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/idea">IDEA</a>
+                  </li>
+                  <!-- FCC-ee | Delphes | Winter 2023--training | IDEA--SiTracking -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea-sitracking'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/idea-sitracking">IDEA SiTracking</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Delphes | Pre-fall 2022 -->
+                <?php if ($layer === 'campaign' || $campaign === 'prefall2022'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'prefall2022'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022/index.php">Pre-fall 2022</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'prefall2022'): ?>
+                  <!-- FCC-ee | Delphes | Pre-fall 2022 | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022/idea">IDEA</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Delphes | Pre-fall 2022--training -->
+                <?php if ($layer === 'campaign' || $campaign === 'prefall2022-training'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'prefall2022-training'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022-training">Pre-fall 2022&ndash;training</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'prefall2022-training'): ?>
+                  <!-- FCC-ee | Delphes | Pre-fall 2022--training | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022-training/idea">IDEA</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Delphes | Spring 2021 -->
+                <?php if ($layer === 'campaign' || $campaign === 'spring2021'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'spring2021'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/spring2021">Spring 2021</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'spring2021'): ?>
+                  <!-- FCC-ee | Delphes | Spring 2021 | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/spring2021/idea">IDEA</a>
+                  </li>
+                  <!-- FCC-ee | Delphes | Spring 2021 | IDEA 3T -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea-3t'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/spring2021/idea-3t">IDEA 3T</a>
+                  </li>
+                  <!-- FCC-ee | Delphes | Spring 2021 | IDEA Full Silicone -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea-fullsilicone'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/spring2021/idea-fullsilicone">IDEA Full Silicone</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Delphes | Spring 2021--training -->
+                <?php if ($layer === 'campaign' || $campaign === 'spring2021-training'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'spring2021-training'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/spring2021-training">Spring 2021&ndash;training</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'spring2021-training'): ?>
+                  <!-- FCC-ee | Delphes | Spring 2021--training | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/spring2021-training/idea">IDEA</a>
+                  </li>
+                <?php endif ?>
+                <!-- FCC-ee | Delphes | Dev -->
+                <?php if ($layer === 'campaign' || $campaign === 'dev'): ?>
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($campaign === 'dev'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/dev">Dev</a>
+                  </li>
+                <?php endif ?>
+                <?php if ($campaign === 'dev'): ?>
+                  <!-- FCC-ee | Delphes | Dev | IDEA -->
+                  <li class="nav-item">
+                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/dev/idea">IDEA</a>
+                  </li>
+                <?php endif ?>
+              <?php endif ?>
+
+              <!-- FCC-ee | Full Sim -->
+              <?php if ($layer === 'evt-type' || $evtType === 'full-sim'): ?>
+                <li class="nav-item">
+                  <a class="ms-1 nav-link text-light<?php if ($evtType === 'full-sim'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/full-sim/index.php">Full Sim</a>
+                </li>
+              <?php endif ?>
             <?php endif ?>
 
             <!-- FCC-hh -->

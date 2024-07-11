@@ -1,9 +1,0 @@
-#ShibRequireAll On
-#ShibRequireSession On
-#ShibExportAssertion On
-##SSLRequireSSL   # The modules only work using HTTPS
-#AuthType Shibboleth
-
-#Require valid-user
-Options +Indexes
-

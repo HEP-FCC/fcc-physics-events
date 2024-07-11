@@ -1,7 +1,7 @@
 <?php if ($layer === 'table'): ?>
 <?php
 $lname=array();
-if ($evtType === 'stdhep' || $evtType === 'lhe') {
+if ($genType === 'stdhep' || $genType === 'lhe') {
   $lname=array('#', 'Name', 'Nevents',
                'Nfiles', 'Nbad', 'Neos', 'Size [GB]',
                'Output Path', 'Main Process', 'Final States',
@@ -50,8 +50,11 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
       if ($det === 'idea-3t') {
         $title .= 'IDEA 3T | ';
       }
-      if ($det === 'idea-fullsilicon') {
-        $title .= 'IDEA FullSilicon | ';
+      if ($det === 'idea-fullsilicone') {
+        $title .= 'IDEA FullSilicone | ';
+      }
+      if ($det === 'idea-sitracking') {
+        $title .= 'IDEA SiTracking | ';
       }
 
       if ($campaign === 'dev') {
@@ -76,14 +79,21 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         $title .= 'Winter 2023 &ndash; training | ';
       }
 
+      if ($genType === 'stdhep') {
+        $title .= 'STDHEP | ';
+      }
+      if ($genType === 'lhe') {
+        $title .= 'Les Houches | ';
+      }
+
+      if ($evtType === 'gen') {
+        $title .= 'Gen | ';
+      }
       if ($evtType === 'delphes') {
         $title .= 'Delphes | ';
       }
-      if ($evtType === 'stdhep') {
-        $title .= 'STDHEP | ';
-      }
-      if ($evtType === 'lhe') {
-        $title .= 'Les Houches | ';
+      if ($evtType === 'full-sim') {
+        $title .= 'Full Sim | ';
       }
 
       $title .= 'FCC-ee | FCC Physics Events';
@@ -107,13 +117,20 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
       <h1 class="mt-2"><?php
         $title = 'FCC-ee';
 
+        if ($evtType === 'gen') {
+          $title .= ' | Gen';
+        }
         if ($evtType === 'delphes') {
           $title .= ' | Delphes';
         }
-        if ($evtType === 'stdhep') {
+        if ($evtType === 'full-sim') {
+          $title .= ' | Full Sim';
+        }
+
+        if ($genType === 'stdhep') {
           $title .= ' | STDHEP';
         }
-        if ($evtType === 'lhe') {
+        if ($genType === 'lhe') {
           $title .= ' | Les Houches';
         }
 
@@ -145,8 +162,11 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         if ($det === 'idea-3t') {
           $title .= ' | IDEA 3T';
         }
-        if ($det === 'idea-fullsilicon') {
-          $title .= ' | IDEA FullSilicon';
+        if ($det === 'idea-fullsilicone') {
+          $title .= ' | IDEA FullSilicone';
+        }
+        if ($det === 'idea-sitracking') {
+          $title .= ' | IDEA SiTracking';
         }
 
         $title .= ' Samples';
@@ -211,6 +231,9 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
           }
           if ($det === 'idea-fullsilicon') {
             $statUrl .= '_IDEA_FullSilicon';
+          }
+          if ($det === 'idea-sitracking') {
+            $statUrl .= '_IDEA_SiTracking';
           }
 
           $statUrl .= '.html';
