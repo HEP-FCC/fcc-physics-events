@@ -94,10 +94,8 @@ file_put_contents(SAMPLEDB_PATH, json_encode($sample_db))
 
 <?php
   $metadata = json_decode(file_get_contents(SAMPLEDB_PATH), true);
-  # $last_update = $metadata['last_update'];
-  $last_update = $metadata['last_file_update'];
-  # $samples = $metadata['samples'];
-  $samples = $metadata['transformations'];
+  $last_update = $metadata['last_update'];
+  $samples = $metadata['samples'];
 ?>
 
 
@@ -198,5 +196,4 @@ file_put_contents(SAMPLEDB_PATH, json_encode($sample_db))
       </div>
 
 
-      <script src="<?= BASE_URL ?>/js/table.js"></script>
-
+      <script src="<?= BASE_URL ?>/js/table-dirac.js"></script>
