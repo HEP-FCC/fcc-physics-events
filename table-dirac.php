@@ -19,8 +19,15 @@ $augments = json_decode($json_string, true)['augments'];
 # print_r($augments);
 
 # Load transformations info
-$json_string = file_get_contents(TRANSINFO_PATH);
-$trans_info = json_decode($json_string, true);
+$phar = new \PharData(TRANSINFO_PATH);
+$trans_info;
+foreach (new \RecursiveIteratorIterator($phar) as $file) {
+  if (str_ends_with($file, '.json')) {
+    $json_string = file_get_contents($file->getPathName());
+    $trans_info = json_decode($json_string, true);
+    break;
+  }
+}
 $last_update = $trans_info['last_file_update'];
 $transformations = $trans_info['transformations'];
 # echo "<br><br>Transformations:<br>";
@@ -30,17 +37,30 @@ $sample_db = array();
 $sample_db['last_update'] = $last_update;
 $sample_db['samples'] = array();
 foreach ($transformations as $trans_id => $trans) {
+  /*
   if (!array_key_exists($trans_id, $augments)) {
+
     # echo '<br>WARNING: Augments file does not contain sample: ' . $trans_id . '!';
     continue;
   }
+  */
 
-  $augment = $augments[$trans_id];
+  $augment = array();
+  if (array_key_exists($trans_id, $augments)) {
+    $augment = $augments[$trans_id];
+  }
 
   $sample = array();
 
   # Status
   $sample['status'] = strtolower($trans['Status']);
+
+  # Name
+  if (array_key_exists('name', $augment)) {
+    $sample['name'] = $augment['name'];
+  } else {
+    $sample['name'] = 'Not assigned';
+  }
 
   # Cross-section
   if (array_key_exists('cross-section', $augment)) {
@@ -66,10 +86,16 @@ foreach ($transformations as $trans_id => $trans) {
   # Efficiency info
   if (array_key_exists('efficiency-info', $augment)) {
     $sample['efficiency-info'] = $augment['efficiency-info'];
+  } else {
+    $sample['efficiency-info'] = '';
   }
 
   # Total sum of weights
-  $sample['total-sum-of-weights'] = $trans['total-sum-of-weights'];
+  if (array_key_exists('total-sum-of-weights', $trans)) {
+    $sample['total-sum-of-weights'] = $trans['total-sum-of-weights'];
+  } else {
+    $sample['total-sum-of-weights'] = 'Unknown';
+  }
 
   # Total number of events
   $sample['total-number-of-events'] = $trans['total-number-of-events'];
@@ -80,11 +106,13 @@ foreach ($transformations as $trans_id => $trans) {
   # Paths
   $sample['path'] = $trans['path'];
 
+  # Production manager
+  $cn = explode('/', $trans['production-manager'])[7];
+  $name = explode('=', $cn)[1];
+  $sample['production-manager'] = $name;
+
   $sample_db['samples'][$trans_id] = $sample;
 }
-
-# echo "<br><br>Sample DB:<br>";
-# print_r($sample_db);
 
 file_put_contents(SAMPLEDB_PATH, json_encode($sample_db))
 
@@ -115,27 +143,27 @@ file_put_contents(SAMPLEDB_PATH, json_encode($sample_db))
       <div class="container">
         <?php foreach ($samples as $sample_id => $sample): ?>
         <div class="row mb-2">
-          <div class="col info-box">
-            <div class="sample-top rounded-top bg-top-<?= strtolower($sample['status']) ?>">
+          <div class="col sample-box">
+            <div class="sample-top rounded bg-top-<?= strtolower($sample['status']) ?>">
               <div class="row">
+                <!-- Name -->
+                <div class="col p-3 text-left">
+                  <b>Name</b><br>
+                  <?= $sample["name"] ?>
+                </div>
                 <!-- Sample ID -->
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Sample ID</b><br>
                   <?= $sample_id ?>
                 </div>
                 <!-- Status -->
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Status</b><br>
                   <?= $sample["status"] ?>
                 </div>
-                <!-- Name -->
-                <div class="col p-3 text-left info-box-top">
-                  <b>Name</b><br>
-                  <?= $sample["name"] ?>
-                </div>
               </div>
               <div class="row">
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Cross-section</b><br>
                   <?php
                     if (array_key_exists('cross-section', $sample) &&
@@ -145,36 +173,36 @@ file_put_contents(SAMPLEDB_PATH, json_encode($sample_db))
                       echo 'Unknown';
                     } ?>
                 </div>
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Efficiency</b><br>
                   <?= $sample["efficiency"] ?><br>
                   <?php if ($sample["efficiency-info"] != "") {
                     echo $sample["efficiency-info"];
                   } ?>
                 </div>
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Total sum of weights</b><br>
                   <?= $sample["total-sum-of-weights"] ?>
                 </div>
               </div>
             </div>
-            <div class="sample-bottom rounded-bottom bg-bottom-<?= strtolower($sample['Status']) ?>">
+            <div class="sample-bottom rounded-bottom bg-bottom-<?= strtolower($sample['status']) ?>">
               <div class="row">
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Total number of events</b><br>
                   <?= $sample["total-number-of-events"] ?>
                 </div>
-                <div class="col p-3 text-left info-box-top">
+                <div class="col p-3 text-left">
                   <b>Number of events per file</b><br>
                   <?= $sample["number-of-events-per-file"] ?>
                 </div>
               </div>
               <div class="row">
-                <div class="col p-3 text-left info-box-bottom">
+                <div class="col p-3 text-left">
                   <?php if (count($sample["path"]) > 1): ?>
-                  <b>Paths</b>
+                  <b>EOS Locations</b>
                   <?php else: ?>
-                  <b>Path</b>
+                  <b>EOS Location</b>
                   <?php endif ?>
                   <ul>
                     <?php
@@ -184,8 +212,8 @@ file_put_contents(SAMPLEDB_PATH, json_encode($sample_db))
                     ?>
                   </ul>
                 </div>
-                <div class="col p-3 text-left info-box-top">
-                  <b>Production Manager</b><br>
+                <div class="col p-3 text-left">
+                  <b>Produced by</b><br>
                   <?= $sample["production-manager"] ?>
                 </div>
               </div>

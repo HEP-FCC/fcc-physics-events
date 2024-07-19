@@ -4,6 +4,7 @@ require('../../config.php');
 $layer = 'campaign';
 $acc = 'fcc-ee';
 $evtType = 'full-sim';
+$genType = 'none';
 $campaign = 'none';
 $det = 'none';
 ?>
@@ -25,7 +26,7 @@ $det = 'none';
   </head>
 
   <body>
-    <?php include '../../header.php'; ?>
+    <?php include BASE_PATH . '/header.php'; ?>
 
     <article id="sample-article" class="container-lg">
       <h1 class="mt-5">FCC-ee | Full Sim Samples</h1>
@@ -36,7 +37,7 @@ $det = 'none';
       </div>
     </article>
 
-    <?php include '../../footer.php'; ?>
+    <?php include BASE_PATH . '/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
             integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"

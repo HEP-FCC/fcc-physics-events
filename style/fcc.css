@@ -23,6 +23,7 @@ article {
 
 .bg-bottom-stopped {
   background-color: #e3fcde !important;
+  display: none;
 }
 
 .bg-top-active {
@@ -31,4 +32,5 @@ article {
 
 .bg-bottom-active {
   background-color: #fff8e3 !important;
+  display: none;
 }

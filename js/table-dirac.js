@@ -18,3 +18,27 @@ function search() {
     }
   }
 }
+
+
+// Event listener to expand/colapse the sample information
+const sampleElems = document.getElementsByClassName("sample-box");
+
+const moreInfoToggle = function() {
+  const bottomElems = this.getElementsByClassName("sample-bottom");
+  if (bottomElems.length < 1) {
+    return;
+  }
+  const bottomElem = bottomElems[0];
+  if (bottomElem.style.display === "") {
+    bottomElem.style.display = "block";
+    return;
+  }
+  if (bottomElem.style.display === "block") {
+    bottomElem.style.display = "";
+    return;
+  }
+};
+
+for (var i = 0; i < sampleElems.length; i++) {
+    sampleElems[i].addEventListener('click', moreInfoToggle, false);
+}
