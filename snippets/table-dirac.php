@@ -25,7 +25,7 @@
             <div class="sample-box focus-ring rounded"
                  tabIndex="<?= $tab_index ?>"
                  data-sample-name="<?= $sample["name"] ?>">
-              <div class="sample-top rounded bg-top-<?= $sample['status'] ?>">
+              <div class="sample-top rounded ps-4 bg-top-<?= $sample['status'] ?>">
                 <div class="row">
                   <!-- Name -->
                   <div class="col p-3 text-left">
@@ -68,7 +68,7 @@
                   </div>
                 </div>
               </div>
-              <div class="sample-bottom rounded-bottom bg-bottom-<?= $sample['status'] ?>">
+              <div class="sample-bottom rounded-bottom ps-4 bg-bottom-<?= $sample['status'] ?>">
                 <div class="row">
                   <div class="col p-3 text-left">
                     <b>Total number of events</b><br>
