@@ -30,7 +30,7 @@ $det = 'none';
     <article id="sample-article" class="container-lg">
       <h1 class="mt-5">FCC-ee | Full Sim | Devel Samples</h1>
 
-      <?php include BASE_PATH . '/table-dirac.php'; ?>
+      <?php include BASE_PATH . '/snippets/table-dirac.php'; ?>
     </article>
 
     <?php include BASE_PATH . '/footer.php'; ?>

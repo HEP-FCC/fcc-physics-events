@@ -1,26 +1,22 @@
-function search() {
-  // Declare variables
-  // var input, filter, table, tr, td, i;
-  const input = document.getElementById("sample-search-input");
-  const filter = input.value.toUpperCase();
-  const table = document.getElementById("sample-table");
-  const tr = table.getElementsByTagName("tr");
+// Filter sample information boxed based on the filter string
+const filterSamples = function() {
+  const filterStr = this.value.toLowerCase();
+  const sampleBoxes = document.getElementsByClassName("sample-box");
 
-  // Loop through all table rows, and hide those who don't match the search query
-  for (let i = 0; i < tr.length; i++) {
-    const td = tr[i].getElementsByTagName("td")[1];
-    if (td) {
-      if (td.innerHTML.toUpperCase().indexOf(filter) > -1) {
-        tr[i].style.display = "";
-      } else {
-        tr[i].style.display = "none";
-      }
+  for (let sampleBox of sampleBoxes) {
+    const sampleName = sampleBox.dataset.sampleName.toLowerCase();
+    if (sampleName.indexOf(filterStr) > -1) {
+      sampleBox.style.display = "";
+    } else {
+      sampleBox.style.display = "none";
     }
   }
-}
+};
+
+document.getElementById("sample-filter").addEventListener('keyup', filterSamples);
 
 
-// Event listener to expand/colapse the sample information
+// Event listener to expand/colapse the sample information boxes
 const sampleElems = document.getElementsByClassName("sample-box");
 
 const moreInfoToggle = function() {
@@ -40,5 +36,5 @@ const moreInfoToggle = function() {
 };
 
 for (var i = 0; i < sampleElems.length; i++) {
-    sampleElems[i].addEventListener('click', moreInfoToggle, false);
+    sampleElems[i].addEventListener('click', moreInfoToggle);
 }
