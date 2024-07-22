@@ -5,15 +5,21 @@ studies.
 
 ## Website hierarchy
 
-The website has four possible hierarchy levels. From top to bottom they are:
+The website has four possible hierarchy levels. Depending on the type of the
+events it is either:
 * Accelerator --- FCC-hh or FCC-ee
 * Event type --- Gen, Delphes, Full Sim
-* Campaign
-* Detector
+* Campaign --- spring2021, winter2023, ...
+* Detector --- CLD, IDEA, ...
+or:
+* Accelerator --- FCC-hh or FCC-ee
+* Event type --- Gen, Delphes, Full Sim
+* Generator type --- STDHEP, LesHouches, ...
+* Campaign --- spring2021, winter2023, ...
 
 ## Local development
 
-Install `php`:
+Install `php`, for RedHat based distros it is simply:
 ```
 dnf install php-cli
 ```
@@ -32,5 +38,22 @@ job is set up to pick up the latest changes in the master branch.
 
 ## Limiting which files are served
 
-To limit the files served by the Apache server `.htaccess` file is employed in
-several directories.
+To limit the files served by the Apache server `.htaccess` files are employed
+across several directories.
+
+
+## Publishing Dirac samples
+
+To publish a Dirac sample one needs to create an entry for it in "augments" json
+file stored in `data` directory.
+ATM one can specify following fields:
+```
+name: Name for the sample
+cross-section: Cross-section in pb
+cross-section-error: Error on cross-section in pb
+efficiency: Used to adjust sample cross-section
+efficiency-info: Info about the adjustment
+```
+
+To update the sample database use `bin/generate_samples_db`. The database is
+also updated every hour using cron.
