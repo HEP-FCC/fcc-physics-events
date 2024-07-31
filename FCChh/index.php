@@ -37,7 +37,37 @@ $campaign = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v03_ecal.php">Full Sim | v0.3 ECal</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/FCCsim_v04.php">Full Sim | v0.4</a>
       </div>
-      </div>
+
+      <h2 class="mt-3">Delphes Card Reference</h2>
+
+      <p>
+        A repository for Delphes cards is available in the
+        <a href="https://github.com/delphes/delphes/tree/master/card">GitHub repository</a>
+        of the project, where example for many detector concepts exist.
+      </p>
+
+      <p>
+        The Delphes cards used for the FCC-hh CDR and HL/HE-LHC yellow reports
+        can be found here:
+        <ul>
+          <li>
+            <a href="https://fccsw.web.cern.ch/fccsw/delphescards/download/delphes_cards_HL-HELHC_baseline.tgz">delphes_cards_HL-HELHC_baseline.tgz</a>
+          </li>
+          <li>
+            <a href="https://fccsw.web.cern.ch/fccsw/delphescards/download/delphes_cards_FCChh_baseline.tgz">delphes_cards_FCChh_baseline.tgz</a>
+          </li>
+        </ul>
+      </p>
+
+      <p>
+        Delphes cards for the most common solutions for future e+e- experiment
+        detectors can be found at
+        <a href="https://fccsw.web.cern.ch/fccsw/delphescards/">here</a> and
+        they are also available on lxplus at
+        <pre><code>/eos/project/f/fccsw-web/www/delphescards</code></pre>
+        (where relevant cards are taken from the
+        <a href="https://github.com/delphes/delphes/tree/master/cards">GitHub Delphes repository</a>).
+      </p>
     </article>
 
     <?php include BASE_PATH . '/footer.php'; ?>
