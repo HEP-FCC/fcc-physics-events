@@ -7,11 +7,11 @@
       <p class="mt-3 mb-1 text-end text-secondary">Last update: <?= date('Y-M-d H:i T', $last_update) ?>.</p>
 
       <div class="mt-5 mb-5 input-group input-group-lg">
-        <span class="input-group-text" id="sample-filter-label">Name</span>
+        <span class="input-group-text" id="sample-filter-label">Search</span>
         <input type="text"
                class="form-control"
                id="sample-filter"
-               placeholder="Search in sample names..."
+               placeholder="Search in the samples..."
                aria-label="Search in sample names"
                aria-describedby="sample-filter-label">
       </div>
@@ -24,7 +24,7 @@
           <div class="col">
             <div class="sample-box focus-ring rounded"
                  tabIndex="<?= $tab_index ?>"
-                 data-sample-name="<?= $sample["name"] ?>">
+                 data-search-string="<?= $sample["name"] ?> <?= $sample_id ?> <?= $sample['status'] ?> <?= $sample["production-manager"] ?>">
               <div class="sample-top rounded ps-4 bg-top-<?= $sample['status'] ?>">
                 <div class="row">
                   <!-- Name -->

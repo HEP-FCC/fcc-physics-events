@@ -4,7 +4,7 @@ const filterSamples = function() {
   const sampleBoxes = document.getElementsByClassName("sample-box");
 
   for (let sampleBox of sampleBoxes) {
-    const sampleName = sampleBox.dataset.sampleName.toLowerCase();
+    const sampleName = sampleBox.dataset.searchString.toLowerCase();
     if (sampleName.indexOf(filterStr) > -1) {
       sampleBox.style.display = "";
     } else {
