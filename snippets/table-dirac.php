@@ -89,7 +89,7 @@
                     <?php endif ?>
                     <ul>
                     <?php foreach ($sample["paths"] as $path): ?>
-                      <li><?= $path?></li>
+                      <li><span class="text-secondary">/eos/experiment/fcc/prod</span><?= $path?></li>
                     <?php endforeach ?>
                     </ul>
                   </div>

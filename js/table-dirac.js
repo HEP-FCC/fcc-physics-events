@@ -36,5 +36,15 @@ const moreInfoToggle = function() {
 };
 
 for (var i = 0; i < sampleElems.length; i++) {
-    sampleElems[i].addEventListener('click', moreInfoToggle);
+  sampleElems[i].addEventListener('dblclick', moreInfoToggle);
+  sampleElems[i].addEventListener('mousedown', function(event) {
+    if (event.detail > 1) {
+      event.preventDefault();
+      // of course, you still do not know what you prevent here...
+      // You could also check event.ctrlKey/event.shiftKey/event.altKey
+      // to not prevent something useful.
+      // from:
+      // https://stackoverflow.com/questions/880512/prevent-text-selection-after-double-click
+    }
+  }, false);
 }
