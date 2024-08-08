@@ -36,7 +36,7 @@ $det = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/gen/stdhep/spring2021">Spring 2021</a>
       </div>
 
-      <?php include BASE_PATH . '/snippets/k4h-stack.php'; ?>
+      <?php include BASE_PATH . '/includes/k4h-stack.php'; ?>
     </article>
 
     <?php include BASE_PATH . '/footer.php'; ?>

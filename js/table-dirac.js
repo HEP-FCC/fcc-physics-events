@@ -16,7 +16,7 @@ const filterSamples = function() {
 document.getElementById("sample-filter").addEventListener('keyup', filterSamples);
 
 
-// Event listener to expand/colapse the sample information boxes
+// Event listener(s) to expand/colapse the sample information boxes
 const sampleElems = document.getElementsByClassName("sample-box");
 
 const moreInfoToggle = function() {
@@ -47,4 +47,28 @@ for (var i = 0; i < sampleElems.length; i++) {
       // https://stackoverflow.com/questions/880512/prevent-text-selection-after-double-click
     }
   }, false);
+}
+
+// Event listener copy sample path
+const samplePathCopyElems = document.getElementsByClassName("copy-sample-path");
+
+const copyPath = function() {
+  const samplePath = this.dataset.path;
+  navigator.clipboard.writeText(samplePath);
+
+  const clipboardElems = this.getElementsByClassName("bi-clipboard");
+  if (clipboardElems.length < 1) {
+    return;
+  }
+  clipboardElems[0].classList.add("d-none");
+
+  const clipboardCheckElems = this.getElementsByClassName("bi-clipboard-check");
+  if (clipboardCheckElems.length < 1) {
+    return;
+  }
+  clipboardCheckElems[0].classList.remove("d-none");
+};
+
+for (var i = 0; i < samplePathCopyElems.length; i++) {
+  samplePathCopyElems[i].addEventListener('click', copyPath);
 }
