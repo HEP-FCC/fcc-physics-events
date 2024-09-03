@@ -31,10 +31,20 @@ $det = 'none';
       <h1 class="mt-5">FCC-ee | Delphes Samples</h1>
 
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea">Winter 2023 | IDEA</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea-sitracking">Winter 2023 | IDEA SiTracking</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/idea">Winter 2023&ndash;training | IDEA</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/idea-sitracking">Winter 2023&ndash;training | IDEA SiTracking</a>
+        <?php foreach($campaignDetectors['winter2023'] as $detector): ?>
+        <a class="list-group-item list-group-item-action"
+           href="<?= BASE_URL ?>/FCCee/delphes/winter2023/<?= $detector ?>">Winter 2023 | <?= $detectorNames[$detector] ?></a>
+        <?php endforeach ?>
+      </div>
+
+      <div class="list-group mt-1">
+        <?php foreach($campaignDetectors['winter2023-training'] as $detector): ?>
+        <a class="list-group-item list-group-item-action"
+           href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/<?= $detector ?>">Winter 2023&ndash;training | <?= $detectorNames[$detector] ?></a>
+        <?php endforeach ?>
+      </div>
+
+      <div class="list-group mt-1">
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022/idea">Pre-fall 2022 | IDEA</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/prefall2022-training/idea">Pre-fall 2022&ndash;training | IDEA</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/spring2021/idea">Spring 2021 | IDEA</a>

@@ -44,17 +44,10 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php
       $title = '';
-      if ($det === 'idea') {
-        $title .= 'IDEA | ';
-      }
-      if ($det === 'idea-3t') {
-        $title .= 'IDEA 3T | ';
-      }
-      if ($det === 'idea-fullsilicone') {
-        $title .= 'IDEA FullSilicone | ';
-      }
-      if ($det === 'idea-sitracking') {
-        $title .= 'IDEA SiTracking | ';
+      if (array_key_exists($det, $detectorNames)) {
+        $title .= $detectorNames[$det] . ' | ';
+      } else {
+        $title .= $det . ' | ';
       }
 
       if ($campaign === 'dev') {
@@ -156,17 +149,10 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
           $title .= ' | Winter 2023 &ndash; training';
         }
 
-        if ($det === 'idea') {
-          $title .= ' | IDEA';
-        }
-        if ($det === 'idea-3t') {
-          $title .= ' | IDEA 3T';
-        }
-        if ($det === 'idea-fullsilicone') {
-          $title .= ' | IDEA FullSilicone';
-        }
-        if ($det === 'idea-sitracking') {
-          $title .= ' | IDEA SiTracking';
+        if (array_key_exists($det, $detectorNames)) {
+          $title .= ' | ' . $detectorNames[$det];
+        } else {
+          $title .= ' | ' . $det;
         }
 
         $title .= ' Samples';
@@ -223,17 +209,10 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
 
           $statUrl .= $campaignName;
 
-          if ($det === 'idea') {
-            $statUrl .= '_IDEA';
-          }
-          if ($det === 'idea-3t') {
-            $statUrl .= '_IDEA_3T';
-          }
-          if ($det === 'idea-fullsilicon') {
-            $statUrl .= '_IDEA_FullSilicon';
-          }
-          if ($det === 'idea-sitracking') {
-            $statUrl .= '_IDEA_SiTracking';
+          if (array_key_exists($det, $detectorNames)) {
+            $statUrl .= '_' . str_replace(' ', '_', $detectorNames[$det]);
+          } else {
+            $statUrl .= '_' . $det;
           }
 
           $statUrl .= '.html';

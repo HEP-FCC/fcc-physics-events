@@ -31,8 +31,10 @@ $det = 'none';
       <h1 class="mt-5">FCC-ee | Delphes | Winter 2023 Samples</h1>
 
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea">IDEA</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea-sitracking">IDEA SiTracking</a>
+        <?php foreach($campaignDetectors['winter2023'] as $detector): ?>
+        <a class="list-group-item list-group-item-action"
+           href="<?= BASE_URL ?>/FCCee/delphes/winter2023/<?= $detector ?>"><?= $detectorNames[$detector] ?></a>
+        <?php endforeach ?>
       </div>
 
       <h2 class="mt-5">Key4hep Stack</h2>

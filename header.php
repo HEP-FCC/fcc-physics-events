@@ -81,30 +81,28 @@
                   </li>
                 <?php endif ?>
                 <?php if ($campaign === 'winter2023'): ?>
-                  <!-- FCC-ee | Delphes | Winter 2023 | IDEA -->
+                  <?php foreach($campaignDetectors['winter2023'] as $detector): ?>
+                  <!-- FCC-ee | Delphes | Winter 2023 | <?= $detectorNames[$detector] ?> -->
                   <li class="nav-item">
-                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea">IDEA</a>
+                  <a class="ms-1 nav-link text-light<?php if ($det === $detector): ?> active bg-green<?php endif ?>"
+                     href="<?= BASE_URL ?>/FCCee/delphes/winter2023/<?= $detector ?>"><?= $detectorNames[$detector] ?></a>
                   </li>
-                  <!-- FCC-ee | Delphes | Winter 2023 | IDEA --- SiTracking -->
-                  <li class="nav-item">
-                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea-sitracking'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023/idea-sitracking">IDEA SiTracking</a>
-                  </li>
+                  <?php endforeach ?>
                 <?php endif ?>
-                <!-- FCC-ee | Delphes | Winter 2023 --- training -->
+                <!-- FCC-ee | Delphes | Winter 2023--training -->
                 <?php if ($layer === 'campaign' || $campaign === 'winter2023-training'): ?>
                   <li class="nav-item">
                     <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023-training'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training">Winter 2023&ndash;training</a>
                   </li>
                 <?php endif ?>
                 <?php if ($campaign === 'winter2023-training'): ?>
-                  <!-- FCC-ee | Delphes | Winter 2023--training | IDEA -->
+                  <?php foreach($campaignDetectors['winter2023-training'] as $detector): ?>
+                  <!-- FCC-ee | Delphes | Winter 2023--training | <?= $detectorNames[$detector] ?> -->
                   <li class="nav-item">
-                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/idea">IDEA</a>
+                  <a class="ms-1 nav-link text-light<?php if ($det === $detector): ?> active bg-green<?php endif ?>"
+                     href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/<?= $detector ?>"><?= $detectorNames[$detector] ?></a>
                   </li>
-                  <!-- FCC-ee | Delphes | Winter 2023--training | IDEA--SiTracking -->
-                  <li class="nav-item">
-                    <a class="ms-1 nav-link text-light<?php if ($det === 'idea-sitracking'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/FCCee/delphes/winter2023-training/idea-sitracking">IDEA SiTracking</a>
-                  </li>
+                  <?php endforeach ?>
                 <?php endif ?>
                 <!-- FCC-ee | Delphes | Pre-fall 2022 -->
                 <?php if ($layer === 'campaign' || $campaign === 'prefall2022'): ?>

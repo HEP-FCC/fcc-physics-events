@@ -1,0 +1,15 @@
+<?php
+require('../../../../config.php');
+
+$layer = 'table';
+$acc = 'fcc-ee';
+$evtType = 'delphes';
+$genType = 'none';
+$campaign = 'winter2023-training';
+$det = 'idea-heavierbp-100pc';
+
+$dataFilePath = BASE_PATH . '/data/FCCee/Delphesevents_winter2023_training_IDEA_heavierBP_100pc.txt';
+$description = 'Delphes FCCee Physics events winter2023 training production (IDEA detector with heavier BP &mdash; 100pc).';
+?>
+
+<?php require(BASE_PATH . '/FCCee/page.php') ?>
