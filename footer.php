@@ -33,11 +33,25 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-	    <p>This page lists all available pre-generated FCC samples and is automatically updated to include updates to existing samples or to list new ones. The propagation time for the updates is roughly &#189; day.</p>
+            <p>
+              This page lists all available pre-generated FCC samples and is
+              automatically updated to include updates to existing samples or
+              to list new ones. The propagation time for the updates is
+              roughly &#189; day.
+            </p>
 
-	    <hr>
+            <p>
+              In case of questions or any problems you can contact us through
+              CERN e-group:
+              <a href="mailto:FCC-PED-SoftwareAndComputing-Analysis@cern.ch"
+                 target="_blank">FCC-PED-SoftwareAndComputing-Analysis</a>.
+            </p>
 
-            <p>These pages were originaly created by: <br> Clement Helsens &lt;<a href="mailto:clement.helsens@cern.ch">clement.helsens@cern.ch</a>&gt;</p>
+            <hr>
+
+            <p>
+              These pages were originaly created by Clement Helsens.
+            </p>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -58,11 +72,15 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            In case of questions or any problems you can contact at: <br>
-            <a href="mailto:FCC-PED-SoftwareAndComputing-Analysis@cern.ch">FCC-PED-SoftwareAndComputing-Analysis</a>
+            In case of questions or any problems you can contact us through CERN
+            e-group:
+            <a href="mailto:FCC-PED-SoftwareAndComputing-Analysis@cern.ch"
+               target="_blank">FCC-PED-SoftwareAndComputing-Analysis</a>.
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>
