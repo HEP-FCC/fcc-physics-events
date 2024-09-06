@@ -39,12 +39,15 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
       if ($campaign === 'v04') {
         $title .= 'v0.4 | ';
       }
+      if ($campaign === 'lhe') {
+        $title .= 'Les Houches | ';
+      }
 
       if ($evtType === 'delphes') {
         $title .= 'Delphes | ';
       }
-      if ($evtType === 'lhe') {
-        $title .= 'Les Houches | ';
+      if ($evtType === 'gen') {
+        $title .= 'Gen | ';
       }
       if ($evtType === 'full-sim') {
         $title .= 'Full Sim | ';
@@ -73,8 +76,8 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         if ($evtType === 'delphes') {
           $title .= ' | Delphes';
         }
-        if ($evtType === 'lhe') {
-          $title .= ' | Les Houches';
+        if ($evtType === 'gen') {
+          $title .= ' | Gen';
         }
         if ($evtType === 'full-sim') {
           $title .= ' | Full Sim';
@@ -92,6 +95,9 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         if ($campaign === 'v04') {
           $title .= ' | v0.4';
         }
+        if ($campaign === 'lhe') {
+          $title .= ' | Les Houches';
+        }
 
         $title .= ' Samples';
 
@@ -106,7 +112,7 @@ $NbrLigne = count($info);  // $NbrLigne : le nombre de lignes
         <?php
           $statUrl = BASE_URL . '/data/FCChh/stat';
 
-          if ($evtType === 'lhe') {
+          if ($campaign === 'lhe') {
             $statUrl .= 'lhe';
           }
 
