@@ -1,7 +1,10 @@
       <h2 class="mt-5">Key4hep Stack</h2>
 
       <p class="mt-3">
-        Exact version of the <a href="https://cern.ch/key4hep/">Key4hep</a>
+        Exact version of the
+        <a href="https://cern.ch/key4hep/"
+           target="_blank">Key4hep</a>&nbsp;<i class="bi bi-box-arrow-up-right"
+                                              style="font-size: 12px; color: darkred;"></i>
         stack used for the generation of a campaign can be found in the list
         below:
       </p>

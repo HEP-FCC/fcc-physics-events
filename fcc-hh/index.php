@@ -19,6 +19,8 @@ $campaign = 'none';
           rel="stylesheet"
           integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
           crossorigin="anonymous">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/style/fcc.css">
   </head>
 
@@ -33,7 +35,7 @@ $campaign = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v02.php">Delphes | v0.2</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v03.php">Delphes | v0.3</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v04.php">Delphes | v0.4</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenario_I.php">Delphes | v0.5 scenario I.</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenarioI.php">Delphes | v0.5 scenario I.</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/FCCsim_v03.php">Full Sim | v0.3</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/FCCsim_v03_ecal.php">Full Sim | v0.3 ECal</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/FCCsim_v04.php">Full Sim | v0.4</a>

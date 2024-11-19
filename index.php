@@ -19,6 +19,8 @@ $evtType = 'none';
           rel="stylesheet"
           integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN"
           crossorigin="anonymous">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/style/fcc.css">
   </head>
 
@@ -27,13 +29,26 @@ $evtType = 'none';
 
     <article class="container-lg mt-5">
       <h1>FCC Physics Events</h1>
-      <p>Database of pre-generated samples for FCC-hh and <a href="https://hep-fcc.github.io/FCCeePhysicsPerformance/">FCC-ee physics performance studies</a>.</p>
 
-      <h2>Accelerators</h2>
+      <p class="mt-3">
+        Database of centrally produced pre-generated samples for
+        <a href="https://hep-fcc.github.io/FCChhPhysicsPerformance/"
+           target="_blank">FCC-hh</a>&nbsp;<i class="bi bi-box-arrow-up-right"
+                                              style="font-size: 12px; color: darkred;"></i>
+        and
+        <a href="https://hep-fcc.github.io/FCCeePhysicsPerformance/"
+           target="_blank">FCC-ee</a>&nbsp;<i class="bi bi-box-arrow-up-right"
+                                              style="font-size: 12px; color: darkred;"></i>
+        physics performance studies.
+      </p>
+
+      <h2 class="mt-3">Accelerators</h2>
       The FCC integrated program includes two accelerator proposals:
       <div class="list-group mt-3">
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-ee/index.php">FCC-ee</a>
-        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/FCChh/index.php">FCC-hh</a>
+        <a class="list-group-item list-group-item-action"
+           href="<?= BASE_URL ?>/fcc-ee/index.php">FCC-ee</i></a>
+        <a class="list-group-item list-group-item-action"
+           href="<?= BASE_URL ?>/fcc-hh/index.php">FCC-hh</a>
       </div>
     </article>
 
