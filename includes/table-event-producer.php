@@ -2,7 +2,7 @@
   // First lets try to load the samples from the JSON file
   $dataFilePathJSON = substr_replace($dataFilePath , 'json', strrpos($dataFilePath , '.') + 1);
   $loadedFromJSON = false;
-  if (file_exists($dataFilePathJSON)) {
+  if (file_exists($dataFilePathJSON) && !($acc == 'fcc-hh' && $evtType == 'gen')) {
     $json_file = file_get_contents($dataFilePathJSON);
     if ($json_file === false) {
       die("ERROR: Can't read sample information!<br>Please contact site administrator(s).");
