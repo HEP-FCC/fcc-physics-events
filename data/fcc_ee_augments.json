@@ -46,5 +46,27 @@
     },
     "16544": {
       "name": "htautau"
+    },
+    "16765": {
+      "name": "htautau-lcfijet"
+    },
+    "16768": {
+      "name": "hgg-lcfijet"
+    },
+    "16771": {
+      "name": "hdd-lcfijet"
+    },
+    "16774": {
+      "name": "huu-lcfijet"
+    },
+    "16777": {
+      "name": "hss-lcfijet"
+    },
+    "16780": {
+      "name": "hcc-lcfijet"
+    },
+    "16783": {
+      "name": "hbb-lcfijet"
+    }
   }
 }
