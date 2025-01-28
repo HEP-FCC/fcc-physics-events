@@ -4,7 +4,7 @@ require('../../config.php');
 $layer = 'gen-type';
 $acc = 'fcc-ee';
 $evtType = 'gen';
-$genType = 'none';
+$fileType = 'none';
 $campaign = 'none';
 $det = 'none';
 ?>

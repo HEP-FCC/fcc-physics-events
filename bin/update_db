@@ -1,0 +1,62 @@
+#!/bin/bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+cd $SCRIPT_DIR || exit 1
+
+
+source ./venv/bin/activate
+
+# FCC-ee
+
+# # LHE
+# ./sample_db_manager ${1} \
+#                     -a fcc-ee -e gen -f lhe \
+#                     -t event-prod-json -b ../data/fcc-sample.db \
+#                     ../data/FCCee/LHEevents.json || exit 1
+# 
+# # STDHEP
+# ./sample_db_manager ${1} \
+#                     -a fcc-ee -e gen -f stdhep -c spring2021 \
+#                     -t event-prod-json -b ../data/fcc-sample.db \
+#                     ../data/FCCee/STDHEP_events_spring2021.json || exit 1
+# ./sample_db_manager ${1} \
+#                     -a fcc-ee -e gen -f stdhep -c winter2023 \
+#                     -t event-prod-json -b ../data/fcc-sample.db \
+#                     ../data/FCCee/STDHEP_events_winter2023.json || exit 1
+# ./sample_db_manager ${1} \
+#                     -a fcc-ee -e gen -f stdhep -c winter2023-training \
+#                     -t event-prod-json -b ../data/fcc-sample.db \
+#                     ../data/FCCee/STDHEP_events_winter2023_training.json || exit 1
+
+
+# # FCC-hh
+
+# # LHE
+# ./sample_db_manager ${1} \
+#                     -a fcc-hh -e gen -f lhe \
+#                     -t event-prod-json -b ../data/fcc-sample.db \
+#                     ../data/FCChh/LHEevents.json || exit 1
+
+# Delphes
+./sample_db_manager ${1} \
+                    -a fcc-hh -e delphes -f fcc-root -c v02 \
+                    -t event-prod-txt -b ../data/fcc-sample.db \
+                    ../data/FCChh/Delphesevents_fcc_v02.txt || exit 1
+./sample_db_manager ${1} \
+                    -a fcc-hh -e delphes -f fcc-root -c v03 \
+                    -t event-prod-txt -b ../data/fcc-sample.db \
+                    ../data/FCChh/Delphesevents_fcc_v03.txt || exit 1
+./sample_db_manager ${1} \
+                    -a fcc-hh -e delphes -c v04 \
+                    -t event-prod-json -b ../data/fcc-sample.db \
+                    ../data/FCChh/Delphesevents_fcc_v04.json || exit 1
+# ./sample_db_manager ${1} \
+#                     -a fcc-hh -e delphes -c v05-scenario-i \
+#                     -t event-prod-json -b ../data/fcc-sample.db \
+#                     ../data/FCChh/Delphesevents_fcc_v05_scenarioI.json || exit 1
+
+# FullSim
+./sample_db_manager ${1} \
+                    -a fcc-hh -e full-sim -c v04 \
+                    -t event-prod-txt -b ../data/fcc-sample.db \
+                    ../data/FCChh/FCCsim_v04.txt || exit 1

@@ -73,6 +73,19 @@ article {
   display: none;
 }
 
+/*  On tape  */
+.bg-top-on-tape {
+  background-color: #b3b3b3 !important;
+}
+.bg-top-on-tape-highlight:hover {
+  background-color: #bfbfbf !important;
+}
+
+.bg-bottom-on-tape {
+  background-color: #d9d9d9 !important;
+  display: none;
+}
+
 /*  Unknown  */
 .bg-top-unknown {
   background-color: #80b3ff !important;

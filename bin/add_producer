@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+
+'''
+Add new producer to the FCC samples database.
+'''
+import os
+import sys
+import argparse
+import logging
+from sqlmodel import Session, SQLModel
+from sqlmodel import create_engine, select
+from sqlalchemy.engine.base import Engine
+from models import Producer
+
+
+LOGGER = logging.getLogger('add_producer')
+
+
+# _____________________________________________________________________________
+def add_producer(args: argparse.Namespace, engine: Engine):
+    '''
+    Add samples producer.
+    '''
+    with Session(engine) as session:
+        statement = select(Producer).where(Producer.username == args.username)
+        results = session.exec(statement)
+
+        db_producers = results.all()
+
+        if len(db_producers) < 1:
+            LOGGER.debug('Creating new producer record...')
+            LOGGER.debug('  - username:   %s', args.username)
+            LOGGER.debug('  - name:       %s', args.name)
+
+            db_producer = Producer(username=args.username, name=args.name)
+
+        elif len(db_producers) == 1:
+            LOGGER.debug('Updating producer record...')
+            LOGGER.debug('  - username:   %s', args.username)
+            LOGGER.debug('  - name:       %s', args.name)
+
+            db_producer = db_producers[0]
+
+        else:
+            LOGGER.warning('Found multiple producers with the same '
+                           'username...')
+            LOGGER.warning('  - username:   %s', args.username)
+            LOGGER.warning('Aborting...')
+            sys.exit(3)
+
+        db_producer.username = args.username
+        db_producer.name = args.name
+
+        session.add(db_producer)
+
+        session.commit()
+
+
+# -----------------------------------------------------------------------------
+def main():
+    '''
+    Entry point
+    '''
+    parser = argparse.ArgumentParser(
+        prog='add_producer',
+        description='Add sample producers to the FCC samples database'
+    )
+
+    parser.add_argument('-v', '--verbose',
+                        action='store_true',
+                        help='make console output more verbose')
+    parser.add_argument('-u', '--username',
+                        type=str,
+                        required=True,
+                        help='CERN username of the producer')
+    parser.add_argument('-n', '--name',
+                        type=str,
+                        help='civil name of the producer')
+    parser.add_argument('-d', '--db-path',
+                        type=str,
+                        default='../data/fcc-sample.db',
+                        help='which sample database to manipulate')
+
+    args = parser.parse_args()
+
+    # Set verbosity
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    # Create DB engine
+    engine = create_engine(f'sqlite:///{args.db_path}')
+
+    if not os.path.isfile(args.db_path):
+        LOGGER.info('Creating empty database...')
+        SQLModel.metadata.create_all(engine)
+
+    # Add producer
+    add_producer(args, engine)
+
+
+if __name__ == "__main__":
+    main()

@@ -4,7 +4,7 @@ require('../config.php');
 $layer = 'table';
 $acc = 'fcc-hh';
 $evtType = 'full-sim';
-$genType = 'none';
+$fileType = 'fcc-root';
 $campaign = 'v03-ecal';
 
 $dataFilePath = BASE_PATH . '/data/FCChh/FCCsim_v03_ecal.txt';

@@ -4,7 +4,9 @@ require('../config.php');
 $layer = 'evt-type';
 $acc = 'fcc-hh';
 $evtType = 'none';
+$fileType = 'none';
 $campaign = 'none';
+$det = 'none';
 ?>
 
 <!doctype html>

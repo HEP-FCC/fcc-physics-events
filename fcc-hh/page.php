@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php
       $title = '';
-      if ($campaign === 'v02') {
-        $title .= 'v0.2 | ';
-      }
       if ($campaign === 'v03') {
         $title .= 'v0.3 | ';
       }
@@ -17,10 +14,25 @@
       if ($campaign === 'v04') {
         $title .= 'v0.4 | ';
       }
-      if ($campaign === 'v05-scenarioI') {
+      if ($campaign === 'fcc-v02') {
+        $title .= 'v0.2 | ';
+      }
+      if ($campaign === 'fcc-v03') {
+        $title .= 'v0.3 | ';
+      }
+      if ($campaign === 'fcc-v04') {
+        $title .= 'v0.4 | ';
+      }
+      if ($campaign === 'fcc-v05-scenario-i') {
         $title .= 'v0.5 scenario I. | ';
       }
-      if ($campaign === 'lhe') {
+      if ($campaign === 'fcc-v05-scenario-ii') {
+        $title .= 'v0.5 scenario II. | ';
+      }
+      if ($campaign === 'fcc-v06') {
+        $title .= 'v0.6 | ';
+      }
+      if ($fileType === 'lhe') {
         $title .= 'Les Houches | ';
       }
 
@@ -66,9 +78,6 @@
           $title .= ' | Full Sim';
         }
 
-        if ($campaign === 'v02') {
-          $title .= ' | v0.2';
-        }
         if ($campaign === 'v03') {
           $title .= ' | v0.3';
         }
@@ -78,10 +87,25 @@
         if ($campaign === 'v04') {
           $title .= ' | v0.4';
         }
-        if ($campaign === 'v05-scenarioI') {
+        if ($campaign === 'fcc-v02') {
+          $title .= ' | v0.2';
+        }
+        if ($campaign === 'fcc-v03') {
+          $title .= ' | v0.3';
+        }
+        if ($campaign === 'fcc-v04') {
+          $title .= ' | v0.4';
+        }
+        if ($campaign === 'fcc-v05-scenario-i') {
           $title .= ' | v0.5 scenario I.';
         }
-        if ($campaign === 'lhe') {
+        if ($campaign === 'fcc-v05-scenario-ii') {
+          $title .= ' | v0.5 scenario II.';
+        }
+        if ($campaign === 'fcc-v06') {
+          $title .= ' | v0.6';
+        }
+        if ($fileType === 'lhe') {
           $title .= ' | Les Houches';
         }
 
@@ -113,7 +137,7 @@
         <?php
           $statUrl = BASE_URL . '/data/FCChh/stat';
 
-          if ($campaign === 'lhe') {
+          if ($fileType === 'lhe') {
             $statUrl .= 'lhe';
           }
 

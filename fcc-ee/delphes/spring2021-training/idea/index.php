@@ -4,7 +4,7 @@ require('../../../../config.php');
 $layer = 'table';
 $acc = 'fcc-ee';
 $evtType = 'delphes';
-$genType = 'none';
+$fileType = 'edm4hep-root';
 $campaign = 'spring2021-training';
 $det = 'idea';
 

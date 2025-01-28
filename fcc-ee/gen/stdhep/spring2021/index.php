@@ -4,7 +4,7 @@ require('../../../../config.php');
 $layer = 'table';
 $acc = 'fcc-ee';
 $evtType = 'gen';
-$genType = 'stdhep';
+$fileType = 'stdhep';
 $campaign = 'spring2021';
 $det = 'none';
 

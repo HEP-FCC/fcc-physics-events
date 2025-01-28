@@ -13,10 +13,10 @@
         $title .= $campaignNames[$campaign] . ' | ';
       }
 
-      if ($genType === 'stdhep') {
+      if ($fileType === 'stdhep') {
         $title .= 'STDHEP | ';
       }
-      if ($genType === 'lhe') {
+      if ($fileType === 'lhe') {
         $title .= 'Les Houches | ';
       }
 
@@ -62,10 +62,10 @@
           $title .= ' | Full Sim';
         }
 
-        if ($genType === 'stdhep') {
+        if ($fileType === 'stdhep') {
           $title .= ' | STDHEP';
         }
-        if ($genType === 'lhe') {
+        if ($fileType === 'lhe') {
           $title .= ' | Les Houches';
         }
 
@@ -86,7 +86,7 @@
         <em><?= $description ?></em>
       </p>
 
-      <?php if ($evtType === 'delphes' || $genType === 'stdhep'): ?>
+      <?php if ($evtType === 'delphes' || $fileType === 'stdhep'): ?>
       <p class="mt-5">
         <a href="https://cern.ch/key4hep/">Key4hep</a> stack used during the generation of the
         <code><?= $campaignTags[$campaign] ?></code> samples was:
@@ -96,31 +96,35 @@
 
       <p class="mt-3">
         <?php
-          $statUrl = BASE_URL.'/data/FCCee/stat';
+          $prodStatUrl = $statUrl;
+          if (!isset($statUrl)) {
+            $statUrl = BASE_URL.'/data/FCCee/stat';
 
-          if ($genType === 'lhe') {
-            $statUrl .= 'lhe';
+            if ($fileType === 'lhe') {
+              $statUrl .= 'lhe';
+            }
+
+            if ($fileType === 'stdhep') {
+              $statUrl .= '_stdhep_';
+            }
+
+            if ($evtType === 'delphes') {
+              $statUrl .= 'delphes';
+            }
+
+            if (array_key_exists($campaign, $campaignTags)) {
+              $statUrl .= $campaignTags[$campaign];
+            }
+
+            if (array_key_exists($det, $detectorNames)) {
+              $statUrl .= '_' . str_replace(' ', '_', $detectorNames[$det]);
+            }
+
+            $statUrl .= '.html';
+            $prodStatUrl = $statUrl;
           }
-
-          if ($genType === 'stdhep') {
-            $statUrl .= '_stdhep_';
-          }
-
-          if ($evtType === 'delphes') {
-            $statUrl .= 'delphes';
-          }
-
-          if (array_key_exists($campaign, $campaignTags)) {
-            $statUrl .= $campaignTags[$campaign];
-          }
-
-          if (array_key_exists($det, $detectorNames)) {
-            $statUrl .= '_' . str_replace(' ', '_', $detectorNames[$det]);
-          }
-
-          $statUrl .= '.html';
         ?>
-        Additional stats about the production can be found <a href="<?= $statUrl ?>">here</a>.
+        Additional stats about the production can be found <a href="<?= $prodStatUrl ?>">here</a>.
       </p>
 
       <?php include BASE_PATH . '/includes/table-event-producer.php'; ?>

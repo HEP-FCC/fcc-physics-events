@@ -1,0 +1,461 @@
+#!/usr/bin/env python3
+'''
+Update samples generated with Dirac in the FCC samples database.
+Requires augments JSON file and Dirac transformations JSON file.
+'''
+
+import argparse
+import os
+import sys
+import tarfile
+import json
+import logging
+from typing import Any
+
+
+LOGGER = logging.getLogger('update_dirac_samples')
+
+
+# -----------------------------------------------------------------------------
+def load_transf(transf_path: str) -> Any:
+    '''
+    Load Dirac transformations info.
+    '''
+    try:
+        with tarfile.open(transf_path, 'r:gz') as intarfile:
+            for member in intarfile.getmembers():
+                if not member.name.endswith('.json'):
+                    continue
+                infile = intarfile.extractfile(member)
+                if infile is not None:
+                    return json.load(infile)
+    except tarfile.ReadError:
+        LOGGER.error('Provided transformations file is not of type ".tar.gz"!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+    except json.decoder.JSONDecodeError:
+        LOGGER.error('The Dirac transformations file is not valid JSON!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    return None
+
+
+# -----------------------------------------------------------------------------
+def load_augments(augments_path: str) -> Any:
+    '''
+    Load sample augments.
+    '''
+
+    try:
+        with open(augments_path, 'r', encoding='utf-8') as infile:
+            json_text = ''
+            for line in infile:
+                if line.startswith('#'):
+                    continue
+                json_text += line
+            return json.loads(json_text)
+    except json.decoder.JSONDecodeError:
+        LOGGER.error('The augments file is not valid JSON!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    return None
+
+
+# -----------------------------------------------------------------------------
+def update_field(db_sample, sample, field_name: str) -> int:
+    '''
+    Update field name if it is different.
+    '''
+
+    if getattr(db_sample, field_name.replace('-', '_')) != sample[field_name]:
+        LOGGER.debug('Updating field "%s" in sample "%s"',
+                     field_name, sample['process-name'])
+        LOGGER.debug('DB value: "%s"',
+                     str(getattr(db_sample, field_name.replace('-', '_'))))
+        LOGGER.debug('New value: "%s"', str(sample[field_name]))
+
+        setattr(db_sample, field_name.replace('-', '_'), sample[field_name])
+
+        return 1
+
+    return 0
+
+
+# -----------------------------------------------------------------------------
+def update_field_float(db_sample, sample, field_name: str) -> int:
+    '''
+    Update field name if it is different.
+    '''
+
+    if getattr(db_sample, field_name.replace('-', '_')) != \
+            float(sample[field_name]):
+        LOGGER.debug('Updating field "%s" in sample "%s"',
+                     field_name, sample['process-name'])
+        LOGGER.debug('DB value: "%s"',
+                     str(getattr(db_sample, field_name.replace('-', '_'))))
+        LOGGER.debug('New value: "%s"', str(float(sample[field_name])))
+
+        setattr(db_sample, field_name.replace('-', '_'),
+                float(sample[field_name]))
+
+        return 1
+
+    return 0
+
+
+# -----------------------------------------------------------------------------
+def update_field_stack(session, db_sample, sample) -> int:
+    '''
+    Update field name if it is different.
+    '''
+
+    if db_sample.stack:
+        if db_sample.stack.name != sample['stack-name']:
+            LOGGER.debug('Updating field "stack" in sample "%s"',
+                         sample['process-name'])
+            LOGGER.debug('DB value: "%s"', db_sample.stack.name)
+            LOGGER.debug('New value: "%s"', sample['stack-name'])
+
+            try:
+                statement = select(Stack).where(
+                    Stack.name == sample['stack-name'])
+                db_stack = session.exec(statement).one()
+            except NoResultFound:
+                LOGGER.error('Can\'t find Key4hep stack with name: %s',
+                             sample['stack-name'])
+                LOGGER.error('Aborting...')
+
+                sys.exit(3)
+
+            db_sample.stack = db_stack
+
+            return 1
+    else:
+        LOGGER.debug('Assigning field "stack" in sample "%s"',
+                     sample['process-name'])
+        LOGGER.debug('New value: "%s"', sample['stack-name'])
+
+        try:
+            statement = select(Stack).where(Stack.name == sample['stack-name'])
+            db_stack = session.exec(statement).one()
+        except NoResultFound:
+            LOGGER.error('Can\'t find Key4hep stack with name: %s',
+                         sample['stack-name'])
+            LOGGER.error('Aborting...')
+
+            sys.exit(3)
+
+        db_sample.stack = db_stack
+
+        return 1
+
+    return 0
+
+
+# -----------------------------------------------------------------------------
+def update_field_produced_by(session, db_sample, sample) -> int:
+    '''
+    Update field "produced-by" if it is different.
+    '''
+
+    n_updates = 0
+    for producer_username in sample['produced-by']:
+        try:
+            statement = select(Producer).where(
+                Producer.username == producer_username)
+            db_producer = session.exec(statement).one()
+        except NoResultFound:
+            LOGGER.error('Can\'t find sample producer with username: %s',
+                         producer_username)
+            LOGGER.error('Aborting...')
+
+            sys.exit(3)
+
+        if db_producer not in db_sample.producers:
+            LOGGER.debug('Updating producers of sample "%s"',
+                         sample['process-name'])
+            LOGGER.debug('New value: %s', sample['produced-by'])
+
+            db_sample.producers.append(db_producer)
+            n_updates += 1
+
+    return n_updates
+
+
+# -----------------------------------------------------------------------------
+def update_samples(args, engine, samples, last_update):
+    with Session(engine) as session:
+        for sample in samples:
+            statement = select(Sample).where(
+                Sample.accelerator == args.accelerator,
+                Sample.event_type == args.event_type,
+                Sample.file_type == args.file_type,
+                Sample.campaign == args.campaign,
+                Sample.detector == args.detector,
+                Sample.process_name == sample['process-name'])
+            results = session.exec(statement)
+
+            db_samples = results.all()
+
+            if len(db_samples) < 1:
+                LOGGER.info('Creating new sample record...')
+                LOGGER.info('  - name:   %s', sample['process-name'])
+
+                db_sample = Sample(accelerator=args.accelerator,
+                                   event_type=args.event_type,
+                                   file_type=args.file_type,
+                                   campaign=args.campaign,
+                                   detector=args.detector,
+                                   process_name=sample['process-name'])
+
+            elif len(db_samples) == 1:
+                LOGGER.info('Updating sample record...')
+                LOGGER.info('  - name:   %s', sample['process-name'])
+
+                db_sample = db_samples[0]
+
+            else:
+                LOGGER.warning('Found multiple samples...')
+                LOGGER.warning('  - name:   %s',
+                               sample['name'])
+                LOGGER.warning('Continuing...')
+                continue
+
+            n_updates = 0
+            if 'cross-section' in sample:
+                n_updates += update_field_float(db_sample, sample,
+                                                'cross-section')
+            n_updates += update_field(db_sample, sample, 'n-events')
+            if 'sum-of-weights' in sample:
+                n_updates += update_field_float(db_sample, sample,
+                                                'sum-of-weights')
+            n_updates += update_field(db_sample, sample, 'n-files-good')
+            n_updates += update_field(db_sample, sample, 'n-files-bad')
+            n_updates += update_field(db_sample, sample, 'n-files-eos')
+            n_updates += update_field(db_sample, sample, 'size')
+            if 'path' in sample:
+                n_updates += update_field(db_sample, sample, 'path')
+            # db_sample.files = None
+            if 'description' in sample:
+                n_updates += update_field(db_sample, sample, 'description')
+            if 'comment' in sample:
+                n_updates += update_field(db_sample, sample, 'comment')
+            if 'matching-params' in sample:
+                n_updates += update_field(db_sample, sample, 'matching-params')
+            if 'k-factor' in sample:
+                n_updates += update_field_float(db_sample, sample, 'k-factor')
+            if 'matching-eff' in sample:
+                n_updates += update_field_float(db_sample, sample,
+                                                'matching-eff')
+            if 'stack-name' in sample:
+                n_updates += update_field_stack(session, db_sample, sample)
+
+            n_updates += update_field(db_sample, sample, 'status')
+
+            if n_updates > 0:
+                db_sample.last_update = last_update
+
+            session.add(db_sample)
+
+        session.commit()
+
+        # Update relationships
+        for sample in samples:
+            statement = select(Sample).where(
+                Sample.accelerator == args.accelerator,
+                Sample.event_type == args.event_type,
+                Sample.file_type == args.file_type,
+                Sample.campaign == args.campaign,
+                Sample.detector == args.detector,
+                Sample.process_name == sample['process-name'])
+            results = session.exec(statement)
+
+            db_sample = results.one()
+
+            if 'stack-name' in sample:
+                n_updates += update_field_stack(session, db_sample, sample)
+
+            if 'produced-by' in sample:
+                if len(sample['produced-by']) > 0:
+                    n_updates += update_field_produced_by(session,
+                                                          db_sample, sample)
+            session.add(db_sample)
+
+        session.commit()
+def run(transf_path: str, augments_path: str, db_path: str,
+        verbose: bool = False):
+    '''
+    Compare the transformations and augments and create samples db.
+    '''
+    transf_info = load_transf(transf_path)
+    if transf_info is None:
+        print('Error: Can\'t load transformations information from the '
+              'provided file!')
+        print('       Aborting...')
+        sys.exit(1)
+
+    augments_info = load_augments(augments_path)
+    if augments_info is None:
+        print('Error: Can\'t load augments info from the provided file!')
+        print('       Aborting...')
+        sys.exit(1)
+
+    sample_db = {}
+    sample_db['last_update'] = transf_info['last_file_update']
+    sample_db['samples'] = {}
+
+    for transf_id, transformation in transf_info['transformations'].items():
+        if transf_id not in augments_info['augments'].keys():
+            if verbose:
+                print('Warning: Augments file does not contain sample '
+                      f'{transf_id}!')
+            continue
+
+        augment = {}
+        if transf_id in augments_info['augments'].keys():
+            augment = augments_info['augments'][transf_id]
+
+        sample = {}
+
+        # Status
+        sample['status'] = transformation['Status'].lower()
+
+        # Name
+        if 'name' in augment:
+            sample['process-name'] = augment['name']
+        else:
+            sample['process-name'] = 'Not assigned'
+
+        # Cross-section
+        if 'cross-section' in augment:
+            sample['cross-section'] = augment['cross-section']
+        elif 'cross-section' in transformation:
+            sample['cross-section'] = transformation['cross-section']
+        else:
+            sample['cross-section'] = 'Unknown'
+        # Sometimes transformation info contains null, 0 or empty string
+        if sample['cross-section'] is None:
+            sample['cross-section'] = 'Unknown'
+        try:
+            if float(str(sample['cross-section'])) == 0.:
+                sample['cross-section'] = 'Unknown'
+        except ValueError:
+            sample['cross-section'] = 'Unknown'
+        if sample['cross-section'] == '':
+            sample['cross-section'] = 'Unknown'
+
+        # Cross-section error
+        if 'cross-section-error' in augment:
+            sample['cross-section-error'] = augment['cross-section-error']
+        elif 'cross-section-error' in transformation:
+            sample['cross-section-error'] = \
+                transformation['cross-section-error']
+        else:
+            sample['cross-section-error'] = 'Unknown'
+        # Sometimes transformation info contains null or empty string
+        if sample['cross-section-error'] == '':
+            sample['cross-section-error'] = 'Unknown'
+        if sample['cross-section-error'] is None:
+            sample['cross-section-error'] = 'Unknown'
+
+        # Efficiency
+        if 'efficiency' in augment:
+            sample['efficiency'] = augment['efficiency']
+        else:
+            sample['efficiency'] = 1.
+
+        # Efficiency info
+        if 'efficiency-info' in augment:
+            sample['efficiency-info'] = augment['efficiency-info']
+        elif 'efficiency-info' in transformation:
+            sample['efficiency-info'] = transformation['efficiency-info']
+        else:
+            sample['efficiency-info'] = ''
+        # Some samples have FIXME string
+        if sample['efficiency-info'] is None:
+            sample['efficiency-info'] = ''
+        if 'FIXME:' in sample['efficiency-info']:
+            sample['efficiency-info'] = ''
+
+        # Total sum of weights
+        if 'total-sum-of-weights' in transformation:
+            sample['total-sum-of-weights'] = \
+                transformation['total-sum-of-weights']
+        else:
+            sample['total-sum-of-weights'] = 'Unknown'
+
+        # Total number of events
+        if 'total-number-of-events' in transformation:
+            sample['total-number-of-events'] = \
+                transformation['total-number-of-events']
+        else:
+            sample['total-number-of-events'] = 'Unknown'
+
+        # Number of events per file
+        if 'number-of-events-per-file' in transformation:
+            sample['number-of-events-per-file'] = \
+                transformation['number-of-events-per-file']
+        else:
+            sample['number-of-events-per-file'] = 'Unknown'
+
+        # Paths
+        if 'path' in transformation:
+            if isinstance(transformation['path'], str):
+                sample['paths'] = [transformation['path']]
+            else:
+                sample['paths'] = transformation['path']
+        else:
+            sample['paths'] = []
+
+        # Production manager
+        if 'production-manager' in transformation:
+            cn = transformation['production-manager'].split('/')[7]
+            name = cn.split('=')[1]
+            sample['production-manager'] = name
+        else:
+            sample['production-manager'] = 'Unknown'
+
+        sample_db['samples'][transf_id] = sample
+
+    with open(db_path, 'w', encoding='utf-8') as dbfile:
+        json.dump(sample_db, dbfile)
+
+
+def main():
+    '''
+    Entry point
+    '''
+    parser = argparse.ArgumentParser(
+        prog='generate_samples_db',
+        description='(Re)Generate FCC samples database'
+    )
+
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Make console output more verbose')
+    parser.add_argument('-t', '--transf', type=str, required=True,
+                        help='Location for the Dirac transformations file')
+    parser.add_argument('-a', '--augments', type=str, required=True,
+                        help='Location of the augments file')
+    parser.add_argument('-o', '--db', type=str, required=True,
+                        help='Location of the output database file')
+    args = parser.parse_args()
+
+    if not os.path.isfile(args.transf):
+        print('Error: Provided Dirac transformations file notfound!')
+        print('       Aborting...')
+        return sys.exit(1)
+
+    if not os.path.isfile(args.augments):
+        print('Error: Provided augments file not found!')
+        print('       Aborting...')
+        return sys.exit(1)
+
+    run(args.transf, args.augments, args.db, args.verbose)
+
+    return sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

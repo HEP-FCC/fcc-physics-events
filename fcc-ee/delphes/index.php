@@ -4,9 +4,9 @@ require('../../config.php');
 $layer = 'campaign';
 $acc = 'fcc-ee';
 $evtType = 'delphes';
-$genType = 'none';
-$campaign = 'none';
-$det = 'none';
+$fileType = 'edm4hep-root';
+$campaign = 'edm4hep-root';
+$det = 'edm4hep-root';
 ?>
 
 <!doctype html>
