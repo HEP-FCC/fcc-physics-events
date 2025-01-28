@@ -1,5 +1,5 @@
 <?php
-  $metadata = json_decode(file_get_contents(SAMPLEDB_PATH), true);
+  $metadata = json_decode(file_get_contents(SAMPLEDB_DIRAC_PATH), true);
   $last_update = strtotime($metadata['last_update']);
   $samples = $metadata['samples'];
 ?>

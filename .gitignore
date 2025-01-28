@@ -3,3 +3,4 @@
 *.root
 .sync.lock
 config.ini
+bin/venv
