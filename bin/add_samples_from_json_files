@@ -282,7 +282,7 @@ def load_event_producer_json(args: argparse.Namespace,
                 sample['stack-name'] = 'key4hep-2021-05-12'
             if 'dev' in args.campaign:
                 sample['stack-name'] = 'key4hep-latest'
-            if 'pre-fall2022' in args.campaign:
+            if 'prefall2022' in args.campaign:
                 sample['stack-name'] = 'fcc-latest'
             if 'winter2023' in args.campaign:
                 sample['stack-name'] = 'key4hep-2022-12-23'
