@@ -4,7 +4,7 @@ require('../../../../config.php');
 $layer = 'table';
 $acc = 'fcc-ee';
 $evtType = 'delphes';
-$genType = 'none';
+$fileType = 'edm4hep-root';
 $campaign = 'winter2023-training';
 $det = 'idea-lighterbp-50pc';
 

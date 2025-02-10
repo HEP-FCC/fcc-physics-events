@@ -4,7 +4,9 @@ require('../../config.php');
 $layer = 'campaign';
 $acc = 'fcc-hh';
 $evtType = 'gen';
+$fileType = 'none';
 $campaign = 'none';
+$det = 'none';
 ?>
 
 <!doctype html>

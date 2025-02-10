@@ -40,18 +40,18 @@
                   <a class="ms-1 nav-link text-light<?php if ($evtType === 'gen'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-ee/gen">Gen</a>
                 </li>
                 <!-- FCC-ee | Gen | Les Houches -->
-                <?php if ($layer === 'gen-type' || $genType === 'lhe'): ?>
+                <?php if ($layer === 'gen-type' || $fileType === 'lhe'): ?>
                   <li class="nav-item">
-                    <a class="ms-1 nav-link text-light<?php if ($genType === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-ee/gen/les-houches">Les Houches</a>
+                    <a class="ms-1 nav-link text-light<?php if ($fileType === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-ee/gen/les-houches">Les Houches</a>
                   </li>
                 <?php endif ?>
                 <!-- FCC-ee | Gen | STDHEP -->
-                <?php if ($layer === 'gen-type' || $genType === 'stdhep'): ?>
+                <?php if ($layer === 'gen-type' || $fileType === 'stdhep'): ?>
                   <li class="nav-item">
-                    <a class="ms-1 nav-link text-light<?php if ($genType === 'stdhep'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-ee/gen/stdhep">STDHEP</a>
+                    <a class="ms-1 nav-link text-light<?php if ($fileType === 'stdhep'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-ee/gen/stdhep">STDHEP</a>
                   </li>
                 <?php endif ?>
-                <?php if ($genType === 'stdhep'): ?>
+                <?php if ($fileType === 'stdhep'): ?>
                   <!-- FCC-ee | Gen | STDHEP | Winter 2023 -->
                   <li class="nav-item">
                     <a class="ms-1 nav-link text-light<?php if ($campaign === 'winter2023'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-ee/gen/stdhep/winter2023">Winter 2023</a>
@@ -196,9 +196,9 @@
               <a class="ms-1 nav-link text-light<?php if ($evtType === 'gen'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/gen/index.php">Gen</a>
             </li>
             <!-- FCC-hh | Gen | Les Houches -->
-            <?php if ($layer === 'campaign' || $campaign === 'lhe'): ?>
+            <?php if ($layer === 'campaign' || $fileType === 'lhe'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/LHEevents.php">Les Houches</a>
+              <a class="ms-1 nav-link text-light<?php if ($fileType === 'lhe'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/LHEevents.php">Les Houches</a>
             </li>
             <?php endif ?>
             <?php endif ?>
@@ -210,25 +210,25 @@
             <!-- FCC-hh | Delphes | v02 -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v02'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v02.php">v0.2</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v02'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v02.php">v0.2</a>
             </li>
             <?php endif ?>
             <!-- FCC-hh | Delphes | v03 -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v03'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v03.php">v0.3</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v03'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v03.php">v0.3</a>
             </li>
             <?php endif ?>
             <!-- FCC-hh | Delphes | v04 -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v04'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v04.php">v0.4</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v04'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v04.php">v0.4</a>
             </li>
             <?php endif ?>
             <!-- FCC-hh | Delphes | v05_scenarioI -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'v05-scenarioI'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenarioI.php">v0.5 scenario I.</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v05-scenario-i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenarioI.php">v0.5 scenario I.</a>
             </li>
             <?php endif ?>
             <?php endif ?>

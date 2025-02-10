@@ -3,8 +3,10 @@ require('config.php');
 
 $layer = 'top';
 $acc = 'none';
-$detector = 'none';
 $evtType = 'none';
+$fileType = 'none';
+$campaign = 'none';
+$det = 'none';
 ?>
 
 <!doctype html>
@@ -40,6 +42,13 @@ $evtType = 'none';
            target="_blank">FCC-ee</a>&nbsp;<i class="bi bi-box-arrow-up-right"
                                               style="font-size: 12px; color: darkred;"></i>
         physics performance studies.
+      </p>
+
+      <p>
+        More information about how the samples were produced can be found in
+        the <a href="https://github.com/HEP-FCC/FCC-config"
+               target="_blank">FCC-config</a>&nbsp;<i class="bi bi-box-arrow-up-right"
+                                                      style="font-size: 12px; color: darkred;"></i> repository.
       </p>
 
       <h2 class="mt-3">Accelerators</h2>

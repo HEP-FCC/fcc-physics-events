@@ -5,7 +5,7 @@ $layer = 'table';
 $acc = 'fcc-ee';
 $det = 'none';
 $evtType = 'gen';
-$genType = 'lhe';
+$fileType = 'lhe';
 $campaign = 'none';
 $det = 'none';
 

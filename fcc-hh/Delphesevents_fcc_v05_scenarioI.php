@@ -4,8 +4,8 @@ require('../config.php');
 $layer = 'table';
 $acc = 'fcc-hh';
 $evtType = 'delphes';
-$genType = 'none';
-$campaign = 'v05-scenarioI';
+$fileType = 'edm4hep-root';
+$campaign = 'fcc-v05-scenario-i';
 
 $dataFilePath = BASE_PATH . '/data/FCChh/Delphesevents_fcc_v05_scenarioI.txt';
 $description = 'Delphes FCC-hh Physics events v0.5 scenario I. in EDM4Hep format.';

@@ -4,8 +4,9 @@ require('../config.php');
 $layer = 'table';
 $acc = 'fcc-hh';
 $evtType = 'gen';
-$genType = 'lhe';
-$campaign = 'lhe';
+$fileType = 'lhe';
+$campaign = 'none';
+$det = 'none';
 
 $dataFilePath = BASE_PATH . '/data/FCChh/LHEevents.txt';
 

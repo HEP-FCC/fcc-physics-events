@@ -4,7 +4,7 @@ require('../../../../config.php');
 $layer = 'table';
 $acc = 'fcc-ee';
 $evtType = 'delphes';
-$genType = 'none';
+$fileType = 'edm4hep-root';
 $campaign = 'prefall2022';
 $det = 'idea';
 
