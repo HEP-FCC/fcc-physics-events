@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+
+'''
+Add Key4hep stack to the FCC samples database.
+'''
+import os
+import sys
+import argparse
+import logging
+from sqlmodel import Session, SQLModel
+from sqlmodel import create_engine, select
+from sqlalchemy.engine.base import Engine
+from models import Stack
+
+
+LOGGER = logging.getLogger('add_stack')
+
+
+# _____________________________________________________________________________
+def add_stack(args: argparse.Namespace, engine: Engine):
+    '''
+    Add stack which was used for sample production.
+    '''
+    with Session(engine) as session:
+        statement = select(Stack).where(Stack.name == args.name)
+        results = session.exec(statement)
+
+        db_stacks = results.all()
+
+        if len(db_stacks) < 1:
+            LOGGER.debug('Creating new stack record...')
+            LOGGER.debug('  - stack name:   %s', args.name)
+            LOGGER.debug('  - stack path:   %s', args.path)
+
+            db_stack = Stack(name=args.name, path=args.path)
+
+        elif len(db_stacks) == 1:
+            LOGGER.debug('Updating stack record...')
+            LOGGER.debug('  - stack name:   %s', args.name)
+            LOGGER.debug('  - stack path:   %s', args.path)
+
+            db_stack = db_stacks[0]
+
+        else:
+            LOGGER.warning('Found multiple stacks with the same name...')
+            LOGGER.warning('  - stack name:   %s', args.name)
+            LOGGER.warning('Aborting...')
+
+            sys.exit(3)
+
+        db_stack.name = args.name
+        db_stack.path = args.path
+
+        session.add(db_stack)
+
+        session.commit()
+
+
+# -----------------------------------------------------------------------------
+def main():
+    '''
+    Entry point
+    '''
+    parser = argparse.ArgumentParser(
+        prog='add_stack',
+        description='Add Key4hep stack used in FCC samples production.'
+    )
+
+    parser.add_argument('-v', '--verbose',
+                        action='store_true',
+                        help='make console output more verbose')
+    parser.add_argument('-p', '--path',
+                        type=str,
+                        required=True,
+                        help='global path to the stack')
+    parser.add_argument('-n', '--name',
+                        type=str,
+                        help='name assigned to the stack')
+    parser.add_argument('-d', '--db-path',
+                        type=str,
+                        default='../data/fcc-sample.db',
+                        help='which sample database to manipulate')
+
+    args = parser.parse_args()
+
+    # Set verbosity
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    # Create DB engine
+    engine = create_engine(f'sqlite:///{args.db_path}')
+
+    if not os.path.isfile(args.db_path):
+        LOGGER.info('Creating empty database...')
+        SQLModel.metadata.create_all(engine)
+
+    # Add producer
+    add_stack(args, engine)
+
+
+if __name__ == "__main__":
+    main()

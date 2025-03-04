@@ -4,7 +4,7 @@ require('../../config.php');
 $layer = 'campaign';
 $acc = 'fcc-ee';
 $evtType = 'full-sim';
-$genType = 'none';
+$fileType = 'edm4hep-root';
 $campaign = 'none';
 $det = 'none';
 ?>

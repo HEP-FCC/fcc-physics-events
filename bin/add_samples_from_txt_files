@@ -1,0 +1,477 @@
+#!/usr/bin/env python3
+
+'''
+Add samples from old EventProducer txt files to the FCC samples database.
+'''
+import os
+import sys
+import argparse
+import datetime
+import logging
+from typing import Any
+from sqlmodel import Session, SQLModel
+from sqlmodel import create_engine, select
+from sqlalchemy.engine.base import Engine
+from sqlalchemy.exc import NoResultFound
+from models import Stack, Producer, Sample
+
+
+LOGGER = logging.getLogger('add_samples_from_txt_files')
+
+
+# -----------------------------------------------------------------------------
+def update_field(db_sample, sample, field_name: str) -> int:
+    '''
+    Update field name if it is different.
+    '''
+
+    if getattr(db_sample, field_name.replace('-', '_')) != sample[field_name]:
+        LOGGER.debug('Updating field "%s" in sample "%s"',
+                     field_name, sample['process-name'])
+        LOGGER.debug('DB value: "%s"',
+                     str(getattr(db_sample, field_name.replace('-', '_'))))
+        LOGGER.debug('New value: "%s"', str(sample[field_name]))
+
+        setattr(db_sample, field_name.replace('-', '_'), sample[field_name])
+
+        return 1
+
+    return 0
+
+
+# -----------------------------------------------------------------------------
+def update_field_stack(session, db_sample, sample) -> int:
+    '''
+    Update field name if it is different.
+    '''
+
+    if db_sample.stack:
+        if db_sample.stack.name != sample['stack-name']:
+            LOGGER.debug('Updating field "stack" in sample "%s"',
+                         sample['process-name'])
+            LOGGER.debug('DB value: "%s"', db_sample.stack.name)
+            LOGGER.debug('New value: "%s"', sample['stack-name'])
+
+            try:
+                statement = select(Stack).where(
+                    Stack.name == sample['stack-name'])
+                db_stack = session.exec(statement).one()
+            except NoResultFound:
+                LOGGER.error('Can\'t find Key4hep stack with name: %s',
+                             sample['stack-name'])
+                LOGGER.error('Aborting...')
+
+                sys.exit(3)
+
+            db_sample.stack = db_stack
+
+            return 1
+    else:
+        LOGGER.debug('Assigning field "stack" in sample "%s"',
+                     sample['process-name'])
+        LOGGER.debug('New value: "%s"', sample['stack-name'])
+
+        try:
+            statement = select(Stack).where(Stack.name == sample['stack-name'])
+            db_stack = session.exec(statement).one()
+        except NoResultFound:
+            LOGGER.error('Can\'t find Key4hep stack with name: %s',
+                         sample['stack-name'])
+            LOGGER.error('Aborting...')
+
+            sys.exit(3)
+
+        db_sample.stack = db_stack
+
+        return 1
+
+    return 0
+
+
+# -----------------------------------------------------------------------------
+def update_field_produced_by(session, db_sample, sample) -> int:
+    '''
+    Update field "produced-by" if it is different.
+    '''
+
+    n_updates = 0
+    for producer_username in sample['produced-by']:
+        try:
+            statement = select(Producer).where(
+                Producer.username == producer_username)
+            db_producer = session.exec(statement).one()
+        except NoResultFound:
+            LOGGER.error('Can\'t find sample producer with username: %s',
+                         producer_username)
+            LOGGER.error('Aborting...')
+
+            sys.exit(3)
+
+        if db_producer not in db_sample.producers:
+            LOGGER.debug('Updating producers of sample "%s"',
+                         sample['process-name'])
+            LOGGER.debug('New value: %s', sample['produced-by'])
+
+            db_sample.producers.append(db_producer)
+            n_updates += 1
+
+    return n_updates
+
+
+# -----------------------------------------------------------------------------
+def update_field_float(db_sample, sample, field_name: str) -> int:
+    '''
+    Update field name if it is different.
+    '''
+
+    if getattr(db_sample, field_name.replace('-', '_')) != \
+            float(sample[field_name]):
+        LOGGER.debug('Updating field "%s" in sample "%s"',
+                     field_name, sample['process-name'])
+        LOGGER.debug('DB value: "%s"',
+                     str(getattr(db_sample, field_name.replace('-', '_'))))
+        LOGGER.debug('New value: "%s"', str(float(sample[field_name])))
+
+        setattr(db_sample, field_name.replace('-', '_'),
+                float(sample[field_name]))
+
+        return 1
+
+    return 0
+
+
+# -----------------------------------------------------------------------------
+def update_samples(args, engine, samples, last_update):
+    with Session(engine) as session:
+        for sample in samples:
+            statement = select(Sample).where(
+                Sample.accelerator == args.accelerator,
+                Sample.event_type == args.event_type,
+                Sample.file_type == args.file_type,
+                Sample.campaign == args.campaign,
+                Sample.detector == args.detector,
+                Sample.process_name == sample['process-name'])
+            results = session.exec(statement)
+
+            db_samples = results.all()
+
+            if len(db_samples) < 1:
+                LOGGER.info('Creating new sample record...')
+                LOGGER.info('  - name:   %s', sample['process-name'])
+
+                db_sample = Sample(accelerator=args.accelerator,
+                                   event_type=args.event_type,
+                                   file_type=args.file_type,
+                                   campaign=args.campaign,
+                                   detector=args.detector,
+                                   process_name=sample['process-name'])
+
+            elif len(db_samples) == 1:
+                LOGGER.info('Updating sample record...')
+                LOGGER.info('  - name:   %s', sample['process-name'])
+
+                db_sample = db_samples[0]
+
+            else:
+                LOGGER.warning('Found multiple sample records...')
+                LOGGER.warning('  - name:   %s',
+                               sample['process-name'])
+                LOGGER.warning('Continuing...')
+                continue
+
+            n_updates = 0
+            if 'cross-section' in sample:
+                n_updates += update_field_float(db_sample, sample,
+                                                'cross-section')
+            n_updates += update_field(db_sample, sample, 'n-events')
+            if 'sum-of-weights' in sample:
+                n_updates += update_field_float(db_sample, sample,
+                                                'sum-of-weights')
+            n_updates += update_field(db_sample, sample, 'n-files-good')
+            n_updates += update_field(db_sample, sample, 'n-files-bad')
+            n_updates += update_field(db_sample, sample, 'n-files-eos')
+            n_updates += update_field(db_sample, sample, 'size')
+            if 'path' in sample:
+                n_updates += update_field(db_sample, sample, 'path')
+            if 'description' in sample:
+                n_updates += update_field(db_sample, sample, 'description')
+            if 'comment' in sample:
+                n_updates += update_field(db_sample, sample, 'comment')
+            if 'matching-params' in sample:
+                n_updates += update_field(db_sample, sample, 'matching-params')
+            if 'k-factor' in sample:
+                n_updates += update_field_float(db_sample, sample, 'k-factor')
+            if 'matching-eff' in sample:
+                n_updates += update_field_float(db_sample, sample,
+                                                'matching-eff')
+
+            n_updates += update_field(db_sample, sample, 'status')
+
+            if n_updates > 0:
+                db_sample.last_update = last_update
+
+            session.add(db_sample)
+
+        session.commit()
+
+        # Update relationships
+        for sample in samples:
+            statement = select(Sample).where(
+                Sample.accelerator == args.accelerator,
+                Sample.event_type == args.event_type,
+                Sample.file_type == args.file_type,
+                Sample.campaign == args.campaign,
+                Sample.detector == args.detector,
+                Sample.process_name == sample['process-name'])
+            results = session.exec(statement)
+
+            db_sample = results.one()
+
+            if 'stack-name' in sample:
+                n_updates += update_field_stack(session, db_sample, sample)
+
+            if 'produced-by' in sample:
+                if len(sample['produced-by']) > 0:
+                    n_updates += update_field_produced_by(session,
+                                                          db_sample, sample)
+            session.add(db_sample)
+
+        session.commit()
+
+
+# -----------------------------------------------------------------------------
+def load_event_producer_txt(args: argparse.Namespace,
+                            engine: Engine):
+    col_names = []
+    if args.event_type == 'gen':
+        col_names = ['process-name', 'n-events',
+                     'n-files-good', 'n-files-bad', 'n-files-eos', 'size',
+                     'path', 'description', 'comment',
+                     'matching-param',
+                     'cross-section']
+
+    if args.event_type == 'delphes':
+        col_names = ['process-name', 'n-events', 'sum-of-weights',
+                     'n-files-good', 'n-files-bad', 'n-files-eos', 'size',
+                     'path', 'description', 'comment',
+                     'cross-section',
+                     'k-factor', 'matching-eff']
+
+    if args.event_type == 'full-sim' and args.accelerator == 'fcc-hh':
+        col_names = ['process-name', 'n-events',
+                     'n-files-good', 'n-files-eos', 'n-files-bad', 'size',
+                     'aleksa', 'azaborow', 'cneubuse', 'djamin', 'helsens',
+                     'jhrdinka', 'jkiesele', 'novaj', 'rastein', 'selvaggi',
+                     'vavolkl']
+
+    n_cols_expected = len(col_names)
+
+    # Load sample data from the file
+    with open(args.filepath, 'r', encoding='utf-8') as infile:
+        file_lines = infile.readlines()
+
+    last_update = datetime.datetime.fromtimestamp(
+        os.path.getmtime(args.filepath))
+
+    samples: list[dict[str, Any]] = []
+    if args.event_type == 'full-sim' and args.accelerator == 'fcc-hh':
+        for row in file_lines:
+            row_elems = row.split(',,')
+            n_cols = len(row_elems)
+
+            # Exclude total row
+            if n_cols > 1:
+                if row_elems[0] == 'total':
+                    continue
+
+            # Exclude non-standard rows
+            if n_cols != n_cols_expected:
+                continue
+
+            # Remove new line from the last elem
+            row_elems[-1] = row_elems[-1].replace('\n', '')
+
+            # Parse row
+            sample: dict[str, Any] = {}
+            sample['produced-by'] = []
+            for i in range(n_cols):
+                if col_names[i] == 'process-name':
+                    sample[col_names[i]] = row_elems[i]
+                elif col_names[i] == 'n-events':
+                    sample[col_names[i]] = int(row_elems[i].replace(',', ''))
+                elif 'n-files' in col_names[i]:
+                    elem_str = row_elems[i].replace(',', '')
+                    elem_str = elem_str.replace('<h2><mark>', '')
+                    elem_str = elem_str.replace('</mark></h2>', '')
+                    sample[col_names[i]] = int(elem_str)
+                elif col_names[i] == 'size':
+                    sample[col_names[i]] = float(row_elems[i].replace(',', ''))
+                else:
+                    if int(row_elems[i]) > 0:
+                        sample['produced-by'].append(col_names[i])
+            sample['path'] = '/eos/experiment/fcc/hh/simulation/samples/' + \
+                             sample['process-name']
+            samples.append(sample)
+    else:
+        for row in file_lines:
+            row_elems = row.split(',,')
+            n_cols = len(row_elems)
+
+            # Exclude total row
+            if n_cols > 1:
+                if row_elems[0] == 'total':
+                    continue
+
+            # Exclude non-standard rows
+            if n_cols != n_cols_expected:
+                continue
+
+            # Remove new line from the last elem
+            row_elems[-1] = row_elems[-1].replace('\n', '')
+
+            # Parse row
+            sample = {}
+            for i in range(n_cols):
+                if col_names[i] == 'n-events':
+                    sample[col_names[i]] = int(row_elems[i].replace(',', ''))
+                elif col_names[i] == 'sum-of-weights':
+                    sample[col_names[i]] = float(row_elems[i].replace(',', ''))
+                elif col_names[i] == 'cross-section':
+                    sample[col_names[i]] = float(row_elems[i].replace(',', ''))
+                elif col_names[i] == 'k-factor':
+                    sample[col_names[i]] = float(row_elems[i].replace(',', ''))
+                elif col_names[i] == 'matching-eff':
+                    sample[col_names[i]] = float(row_elems[i].replace(',', ''))
+                elif col_names[i] == 'size':
+                    sample[col_names[i]] = float(row_elems[i].replace(',', ''))
+                elif 'n-files' in col_names[i]:
+                    elem_str = row_elems[i].replace(',', '')
+                    elem_str = elem_str.replace('<h2><mark>', '')
+                    elem_str = elem_str.replace('</mark></h2>', '')
+                    sample[col_names[i]] = int(elem_str)
+                else:
+                    sample[col_names[i]] = row_elems[i]
+
+            sample['stack-name'] = 'fcc-latest'
+            samples.append(sample)
+
+    for sample in samples:
+        # Add status
+        if 'status' not in sample:
+            sample['status'] = 'on-tape'
+
+        # Fix sum of weights
+        if 'sum-of-weights' in sample:
+            if sample['n-events'] > 0 and sample['sum-of-weights'] == 0.:
+                sample['sum-of-weights'] = float(sample['n-events'])
+
+        # Replace empty strings with None
+        for key in sample:
+            if sample[key] == '':
+                sample[key] = None
+
+    update_samples(args, engine, samples, last_update)
+
+
+# -----------------------------------------------------------------------------
+def main():
+    '''
+    Entry point
+    '''
+    parser = argparse.ArgumentParser(
+        prog='sample_db_manager',
+        description='Add samples to FCC samples database from old '
+                    'EventProducer txt files.'
+    )
+
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='make console output more verbose')
+    parser.add_argument('-a', '--accelerator', type=str, required=True,
+                        choices=['fcc-ee', 'fcc-hh'],
+                        help='which accelerator')
+    parser.add_argument('-e', '--event-type', type=str, required=True,
+                        choices=['gen', 'delphes', 'full-sim'],
+                        help='which event type')
+    parser.add_argument('-f', '--file-type', type=str, default=None,
+                        choices=['lhe', 'stdhep', 'edm4hep-root', 'fcc-root',
+                                 None],
+                        help='which file type')
+    parser.add_argument('-c', '--campaign', type=str, default=None,
+                        choices=['v02',
+                                 'v03',
+                                 'v03-ecal',
+                                 'v04',
+                                 'fcc-v01',
+                                 'fcc-v02',
+                                 'fcc-v03',
+                                 None],
+                        help='which campaign')
+    parser.add_argument('-d', '--detector', type=str, default=None,
+                        choices=['idea',
+                                 'idea-3t',
+                                 None],
+                        help='which detector')
+    parser.add_argument('-b', '--db-path', type=str,
+                        default='../data/fcc-sample.db',
+                        help='which sample database to manipulate')
+    parser.add_argument('filepath', type=str,
+                        help='input file path')
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    # Check arguments
+    if args.file_type is None and args.event_type == 'gen':
+        LOGGER.error('Please specify file type for the Gen samples!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    if args.file_type == 'stdhep' and args.campaign is None:
+        LOGGER.error('Please specify campaign for the STDHEP samples!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    if args.event_type == 'delphes' and args.campaign is None:
+        LOGGER.error('Please specify campaign for the Delphes samples!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    if args.event_type == 'full-sim' and args.campaign is None:
+        LOGGER.error('Please specify campaign for the FullSim samples!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    if args.accelerator != 'fcc-hh' and \
+            args.event_type == 'delphes' and args.detector is None:
+        LOGGER.error('Please specify detector for the Delphes samples!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    if args.accelerator != 'fcc-hh' and \
+            args.event_type == 'full-sim' and args.detector is None:
+        LOGGER.error('Please specify detector for the FullSim samples!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    # Check if input file exists
+    if not os.path.isfile(args.filepath):
+        LOGGER.error('Can\'t find input file!')
+        LOGGER.error('Aborting...')
+        sys.exit(1)
+
+    # Create DB engine
+    engine = create_engine(f'sqlite:///{args.db_path}')
+
+    if not os.path.isfile(args.db_path):
+        LOGGER.info('Creating empty database...')
+        SQLModel.metadata.create_all(engine)
+
+    load_event_producer_txt(args, engine)
+
+
+if __name__ == "__main__":
+    main()
