@@ -25,6 +25,7 @@
         $sample['status'] = 'unknown';
       }
     }
+    unset($sample);
   } else {
     // Load the samples from the old txt files
 
@@ -100,6 +101,7 @@
       $sample['n-files-bad'] = (int) str_replace(',', '', $sample['n-files-bad']);
       $sample['n-files-eos'] = (int) str_replace(',', '', $sample['n-files-eos']);
     }
+    unset($sample);
 
     $totalInfo = array();
     if ($evtType === 'gen') {
