@@ -1,72 +1,72 @@
 #!/bin/bash
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-cd $SCRIPT_DIR || exit 1
+cd "${SCRIPT_DIR}" || exit 1
 
 
 source ./venv/bin/activate
 
 
 # Add producers
-./add_producer ${1} -u jsmiesko -n 'Juraj Smiesko'
-./add_producer ${1} -u brfranco -n 'Brieuc Francois'
-./add_producer ${1} -u sailer -n 'Andre Sailer'
-./add_producer ${1} -u aleksa -n 'Martin Aleksa'
-./add_producer ${1} -u azaborow -n 'Anna Zaborowska'
-./add_producer ${1} -u cneubuse
-./add_producer ${1} -u djamin
-./add_producer ${1} -u helsens -n 'Clement Helsens'
-./add_producer ${1} -u jhrdinka
-./add_producer ${1} -u jkiesele
-./add_producer ${1} -u novaj
-./add_producer ${1} -u rastein
-./add_producer ${1} -u selvaggi -n 'Michele Selvaggi'
-./add_producer ${1} -u vavolkl -n 'Valentin Volkl'
-./add_producer ${1} -u eperez -n 'Emmanuel Francois Perez'
-./add_producer ${1} -u lportale -n 'Louis Portales'
-./add_producer ${1} -u bistapf -n 'Birgit Sylvia Stapf'
+./add_producer "${1}" -u jsmiesko -n "Juraj Smiesko"
+./add_producer "${1}" -u brfranco -n "Brieuc Francois"
+./add_producer "${1}" -u sailer -n "Andre Sailer"
+./add_producer "${1}" -u aleksa -n "Martin Aleksa"
+./add_producer "${1}" -u azaborow -n "Anna Zaborowska"
+./add_producer "${1}" -u cneubuse
+./add_producer "${1}" -u djamin
+./add_producer "${1}" -u helsens -n "Clement Helsens"
+./add_producer "${1}" -u jhrdinka
+./add_producer "${1}" -u jkiesele
+./add_producer "${1}" -u novaj
+./add_producer "${1}" -u rastein
+./add_producer "${1}" -u selvaggi -n "Michele Selvaggi"
+./add_producer "${1}" -u vavolkl -n "Valentin Volkl"
+./add_producer "${1}" -u eperez -n "Emmanuel Francois Perez"
+./add_producer "${1}" -u lportale -n "Louis Portales"
+./add_producer "${1}" -u bistapf -n "Birgit Sylvia Stapf"
 
 
 # Add stacks
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'fcc-latest' \
     -p '/cvmfs/fcc.cern.ch/sw/latest/setup.sh' || exit 1
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'key4hep-latest' \
     -p '/cvmfs/sw.hsf.org/key4hep/setup.sh' || exit 1
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'key4hep-nightlies' \
     -p '/cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh' || exit 1
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'key4hep-2021-05-12' \
     -p '/cvmfs/sw.hsf.org/spackages2/key4hep-stack/2021-05-12/x86_64-centos7-gcc8.3.0-opt/iyafnfo5muwvpbxcoa4ygwoxi2smkkwa/setup.sh' || exit 1
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'key4hep-2022-12-23' \
     -p '/cvmfs/sw.hsf.org/spackages6/key4hep-stack/2022-12-23/x86_64-centos7-gcc11.2.0-opt/ll3gi/setup.sh' || exit 1
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'key4hep-2023-06-05-fcchh' \
     -p '/cvmfs/sw.hsf.org/key4hep/releases/2023-06-05-fcchh/x86_64-centos7-gcc12.2.0-opt/key4hep-stack/2023-08-28-hsn6vj/setup.sh' || exit 1
-./add_stack ${1} \
+./add_stack "${1}" \
     -n 'key4hep-2025-01-28' \
     -p '/cvmfs/sw.hsf.org/key4hep/setup.sh -r 2025-01-28' || exit 1
 
 
 # Add old FCC-hh FullSim samples
-./add_samples_from_txt_files ${1} \
+./add_samples_from_txt_files "${1}" \
     -a fcc-hh \
     -e full-sim \
     -c v03 \
     -f fcc-root \
     ../data/FCChh/FCCsim_v03.txt || exit 1
 
-./add_samples_from_txt_files ${1} \
+./add_samples_from_txt_files "${1}" \
     -a fcc-hh \
     -e full-sim \
     -c v03-ecal \
     -f fcc-root \
     ../data/FCChh/FCCsim_v03_ecal.txt || exit 1
 
-./add_samples_from_txt_files ${1} \
+./add_samples_from_txt_files "${1}" \
     -a fcc-hh \
     -e full-sim \
     -c v04 \
@@ -75,14 +75,14 @@ source ./venv/bin/activate
 
 
 # Add old FCC-hh Delphes samples
-./add_samples_from_txt_files ${1} \
+./add_samples_from_txt_files "${1}" \
     -a fcc-hh \
     -e delphes \
     -c fcc-v02 \
     -f fcc-root \
     ../data/FCChh/Delphesevents_fcc_v02.txt || exit 1
 
-./add_samples_from_txt_files ${1} \
+./add_samples_from_txt_files "${1}" \
     -a fcc-hh \
     -e delphes \
     -c fcc-v03 \
@@ -91,21 +91,21 @@ source ./venv/bin/activate
 
 
 # Add FCC-hh Delphes samples
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-hh \
     -e delphes \
     -c fcc-v04 \
     -f edm4hep-root \
     ../data/FCChh/Delphesevents_fcc_v04.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-hh \
     -e delphes \
     -c fcc-v05-scenario-i \
     -f edm4hep-root \
     ../data/FCChh/Delphesevents_fcc_v05_scenarioI.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-hh \
     -e delphes \
     -c fcc-v07 \
@@ -113,7 +113,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCChh/Delphesevents_fcc_v07_I.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-hh \
     -e delphes \
     -c fcc-v07 \
@@ -123,7 +123,7 @@ source ./venv/bin/activate
 
 
 # Add FCC-hh generator level samples
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-hh \
     -e gen \
     -f lhe \
@@ -131,27 +131,27 @@ source ./venv/bin/activate
 
 
 # Add FCC-ee generator level samples
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e gen \
     -f lhe \
     ../data/FCCee/LHEevents.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e gen \
     -c spring2021 \
     -f stdhep \
     ../data/FCCee/STDHEP_events_spring2021.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e gen \
     -c winter2023 \
     -f stdhep \
     ../data/FCCee/STDHEP_events_winter2023.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e gen \
     -c winter2023-training \
@@ -160,7 +160,7 @@ source ./venv/bin/activate
 
 
 # Add FCC-ee Delphes samples
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c dev \
@@ -168,7 +168,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_dev_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c spring2021 \
@@ -176,7 +176,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_spring2021_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c spring2021 \
@@ -184,7 +184,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_spring2021_IDEA_3T.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c spring2021 \
@@ -192,7 +192,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_spring2021_IDEA_FullSilicon.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c spring2021-training \
@@ -200,7 +200,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_spring2021_training_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c prefall2022 \
@@ -208,7 +208,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_pre_fall2022_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c prefall2022-training \
@@ -216,7 +216,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_pre_fall2022_training_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -224,7 +224,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -232,7 +232,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_SiTracking.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -240,7 +240,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_better_TOFReso_3ps.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -248,7 +248,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_heavierBP_100pc.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -256,7 +256,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_lighterBP_50pc.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -264,7 +264,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_shiftVXDr_plus500um.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -272,7 +272,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_worse_HCalEReso_ATLAS.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -280,7 +280,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_worse_HCalEReso_CMS.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023 \
@@ -288,7 +288,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_IDEA_worse_singlehitReso_100pc_heavierVTXLOW_100pc.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -296,7 +296,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -304,7 +304,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_SiTracking.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -312,7 +312,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_better_TOFReso_3ps.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -320,7 +320,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_heavierBP_100pc.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -328,7 +328,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_lighterBP_50pc.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -336,7 +336,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_shiftVXDr_plus500um.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -344,7 +344,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_worse_HCalEReso_ATLAS.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
@@ -352,7 +352,7 @@ source ./venv/bin/activate
     -f edm4hep-root \
     ../data/FCCee/Delphesevents_winter2023_training_IDEA_worse_HCalEReso_CMS.json || exit 1
 
-./add_samples_from_json_files ${1} \
+./add_samples_from_json_files "${1}" \
     -a fcc-ee \
     -e delphes \
     -c winter2023-training\
