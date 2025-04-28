@@ -277,6 +277,10 @@ def load_event_producer_json(args: argparse.Namespace,
                 sample['stack-name'] = 'fcc-latest'
             if 'fcc-v05-scenario' in args.campaign:
                 sample['stack-name'] = 'key4hep-2023-06-05-fcchh'
+            if 'fcc-v06' in args.campaign:
+                sample['stack-name'] = 'key4hep-nightlies'
+            if 'fcc-v07' in args.campaign:
+                sample['stack-name'] = 'key4hep-2025-01-28'
         if args.accelerator == 'fcc-ee':
             if 'spring2021' in args.campaign:
                 sample['stack-name'] = 'key4hep-2021-05-12'
@@ -333,10 +337,13 @@ def main():
                                  'fcc-v03',
                                  'fcc-v04',
                                  'fcc-v05-scenario-i',
+                                 'fcc-v07',
                                  None],
                         help='which campaign')
     parser.add_argument('-d', '--detector', type=str, default=None,
-                        choices=['idea',
+                        choices=['i',
+                                 'ii',
+                                 'idea',
                                  'idea-3t',
                                  'idea-fullsilicone',
                                  'idea-sitracking',
