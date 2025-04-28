@@ -237,6 +237,18 @@
               <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v05-scenario-i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenarioI.php">v0.5 scenario I.</a>
             </li>
             <?php endif ?>
+            <!-- FCC-hh | Delphes | v07_scenarioI -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v07' && $detector === 'i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/I.php">v0.7 scenario I.</a>
+            </li>
+            <?php endif ?>
+            <!-- FCC-hh | Delphes | v07_scenarioII -->
+            <?php if ($layer === 'campaign' || $layer === 'table'): ?>
+            <li class="nav-item">
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v07' && $detector === 'ii'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/II.php">v0.7 scenario II.</a>
+            </li>
+            <?php endif ?>
             <?php endif ?>
             <!-- FCC-hh | Full Sim -->
             <?php if ($layer === 'evt-type' || $evtType === 'full-sim'): ?>

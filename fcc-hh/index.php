@@ -38,6 +38,8 @@ $det = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v03.php">Delphes | v0.3</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v04.php">Delphes | v0.4</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenarioI.php">Delphes | v0.5 scenario I.</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/I.php">Delphes | v0.7 scenario I.</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/II.php">Delphes | v0.7 scenario II.</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/FCCsim_v03.php">Full Sim | v0.3</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/FCCsim_v03_ecal.php">Full Sim | v0.3 ECal</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/FCCsim_v04.php">Full Sim | v0.4</a>

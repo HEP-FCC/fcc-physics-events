@@ -33,6 +33,8 @@ $campaign = 'none';
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v03.php">v0.3</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v04.php">v0.4</a>
         <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v05_scenarioI.php">v0.5 scenario I.</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/I.php">v0.7 scenario I.</a>
+        <a class="list-group-item list-group-item-action" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/II.php">v0.7 scenario II.</a>
       </div>
 
       <h2 class="mt-3">Delphes Card Reference</h2>
