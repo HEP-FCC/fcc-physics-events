@@ -83,8 +83,9 @@
     $sample['stack'] = $stacks[$sample['stack_id']];
     unset($sample['stack_id']);
   }
-  unset($stacks);
   // print_r($stacks);
+  unset($stacks);
+  unset($sample);
 
   // Producers
   $producers = array();
@@ -122,6 +123,7 @@
   }
   // print_r($producers);
   unset($producers);
+  unset($sample);
 
   // echo "<pre>";
   // print_r($samples);
