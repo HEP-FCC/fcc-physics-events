@@ -65,6 +65,29 @@ source ./venv/bin/activate
 ./add_samples_from_json_file ${1} \
     -a fcc-hh \
     -e delphes \
+    -c fcc-v05-scenario-ii \
+    -f edm4hep-root \
+    ../data/FCChh/Delphesevents_fcc_v05_scenarioII.json || exit 1
+
+./add_samples_from_json_file ${1} \
+    -a fcc-hh \
+    -e delphes \
+    -c fcc-v06 \
+    -d i \
+    -f edm4hep-root \
+    ../data/FCChh/Delphesevents_fcc_v06_I.json || exit 1
+
+./add_samples_from_json_file ${1} \
+    -a fcc-hh \
+    -e delphes \
+    -c fcc-v06 \
+    -d ii \
+    -f edm4hep-root \
+    ../data/FCChh/Delphesevents_fcc_v06_II.json || exit 1
+
+./add_samples_from_json_file ${1} \
+    -a fcc-hh \
+    -e delphes \
     -c fcc-v07 \
     -d i \
     -f edm4hep-root \

@@ -259,9 +259,10 @@ def load_event_producer_json(args: argparse.Namespace,
         os.path.getmtime(args.filepath))
 
     if not sample_list:
-        LOGGER.error('Input sample data emty!')
-        LOGGER.error('Aborting...')
-        sys.exit(1)
+        LOGGER.warning('Input sample data empty!')
+        LOGGER.warning('  - filepath: %s', args.filepath)
+        LOGGER.warning('Quiting...')
+        sys.exit(0)
 
     # Corrections (to be removed)
     for sample in sample_list:
@@ -337,6 +338,8 @@ def main():
                                  'fcc-v03',
                                  'fcc-v04',
                                  'fcc-v05-scenario-i',
+                                 'fcc-v05-scenario-ii',
+                                 'fcc-v06',
                                  'fcc-v07',
                                  None],
                         help='which campaign')
@@ -406,6 +409,7 @@ def main():
     # Check if input file exists
     if not os.path.isfile(args.filepath):
         LOGGER.error('Can\'t find input file!')
+        LOGGER.error('  - filepath: %s', args.filepath)
         LOGGER.error('Aborting...')
         sys.exit(1)
 
