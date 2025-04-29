@@ -428,8 +428,8 @@ def main():
     Entry point
     '''
     parser = argparse.ArgumentParser(
-        prog='generate_samples_db',
-        description='(Re)Generate FCC samples database'
+        prog='update_dirac_samples',
+        description='Update FCC samples database '
     )
 
     parser.add_argument('-v', '--verbose', action='store_true',

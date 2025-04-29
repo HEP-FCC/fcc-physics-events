@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 '''
-Create FCC samples database.
+Add samples from JSON produced by EventProducer to the FCC samples database.
 '''
 import os
 import sys
