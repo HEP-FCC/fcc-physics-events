@@ -15,7 +15,7 @@
 
         <div class="mt-3 container-lg text-center">
           <p class="text-body-secondary">
-            &copy; Copyright 2024, CERN.
+            &copy; Copyright 2025, CERN.
           </p>
         </div>
       </div>

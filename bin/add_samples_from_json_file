@@ -267,7 +267,7 @@ def load_event_producer_json(args: argparse.Namespace,
     # Corrections (to be removed)
     for sample in sample_list:
         # Sample size
-        sample['size'] = sample['size'] / 10e9
+        sample['size'] = sample['size'] / 1024 / 1024 / 1024
 
         if args.campaign is None:
             continue

@@ -22,10 +22,16 @@
   $queryBase .= '"event-type" = "' . $evtType . '" AND ';
   $queryBase .= '"file-type" = "' . $fileType . '" AND ';
   if ($campaign === 'none') {
-    $queryBase .= '"campaign" IS NULL;';
+    $queryBase .= '"campaign" IS NULL AND ';
   } else {
-    $queryBase .= '"campaign" = "' . $campaign . '";';
+    $queryBase .= '"campaign" = "' . $campaign . '" AND ';
   }
+  if (!isset($det) || $det === 'none') {
+    $queryBase .= '"detector" IS NULL;';
+  } else {
+    $queryBase .= '"detector" = "' . $det . '";';
+  }
+  // echo $queryBase;
 
   $samples = array();
   $totalInfo = array();
@@ -47,7 +53,8 @@
   // Total info
   $ret = $sampleDB->query('SELECT SUM("n-events"), SUM("n-files-good"), ' .
                           'SUM("n-files-bad"), SUM("n-files-eos"), ' .
-                          'SUM("size") FROM sample WHERE ' . $queryBase);
+                          'SUM("size"), SUM("sum-of-weights") ' .
+                          'FROM sample WHERE ' . $queryBase);
   if (!$ret) {
     die('<div class="alert alert-danger" role="alert">' .
         'ERROR: Database error occurred:<br>' .
@@ -62,6 +69,7 @@
     $totalInfo['n-files-bad'] = $row['SUM("n-files-bad")'] ?? -1;
     $totalInfo['n-files-eos'] = $row['SUM("n-files-eos")'] ?? -1;
     $totalInfo['size'] = $row['SUM("size")'] ?? -1;
+    $totalInfo['sum-of-weights'] = $row['SUM("sum-of-weights")'] ?? -1;
     break;
   }
 
@@ -246,7 +254,7 @@
                   <div class="col p-3 text-left">
                     <b>Total size</b><br>
                     <?php
-                      echo number_format($sample['size'], 2, '.', '&thinsp;'), '&nbsp;GB';
+                      echo number_format($sample['size'], 2, '.', '&thinsp;'), '&nbsp;GiB';
                     ?>
                   </div>
                 </div>
@@ -303,7 +311,7 @@
                     <?= $sample['status'] ?>
                     <?php endif ?>
                   </div>
-                  <div class="col-2 p-3 text-left">
+                  <div class="col-3 p-3 text-left">
                     <b>Last activity</b><br>
                     <?= date('Y-M-d H:i T', strtotime($sample['last-update'])) ?>
                   </div>
@@ -332,7 +340,7 @@
               <td>Number of all events</td>
               <td><?php echo number_format($totalInfo['n-events'], 0, '.', '&thinsp;'); ?></td>
             </tr>
-            <?php if (array_key_exists("sum-of-weights", $totalInfo)): ?>
+            <?php if ($totalInfo['sum-of-weights'] > 0): ?>
             <tr>
               <td>Sum of all weights</td>
               <td><?php echo sprintf('%g', $totalInfo["sum-of-weights"]) ?></td>
@@ -354,7 +362,7 @@
               <td>Total size</td>
               <td>
                 <?php
-                  echo number_format($totalInfo['size'], 2, '.', '&thinsp;'), '&nbsp;GB';
+                  echo number_format($totalInfo['size'], 2, '.', '&thinsp;'), '&nbsp;GiB';
                 ?>
               </td>
             </tr>
