@@ -246,25 +246,25 @@
             <!-- FCC-hh | Delphes | v06_scenarioI -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v06' && $detector === 'i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v06/I.php">v0.6 I.</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v06' && $det === 'i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v06/I.php">v0.6 I.</a>
             </li>
             <?php endif ?>
             <!-- FCC-hh | Delphes | v06_scenarioII -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v06' && $detector === 'ii'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v06/II.php">v0.6 II.</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v06' && $det === 'ii'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v06/II.php">v0.6 II.</a>
             </li>
             <?php endif ?>
             <!-- FCC-hh | Delphes | v07_scenarioI -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v07' && $detector === 'i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/I.php">v0.7 I.</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v07' && $det === 'i'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/I.php">v0.7 I.</a>
             </li>
             <?php endif ?>
             <!-- FCC-hh | Delphes | v07_scenarioII -->
             <?php if ($layer === 'campaign' || $layer === 'table'): ?>
             <li class="nav-item">
-              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v07' && $detector === 'ii'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/II.php">v0.7 II.</a>
+              <a class="ms-1 nav-link text-light<?php if ($campaign === 'fcc-v07' && $det === 'ii'): ?> active bg-green<?php endif ?>" href="<?= BASE_URL ?>/fcc-hh/Delphesevents_fcc_v07/II.php">v0.7 II.</a>
             </li>
             <?php endif ?>
             <?php endif ?>

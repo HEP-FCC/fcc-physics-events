@@ -6,7 +6,7 @@ $acc = 'fcc-hh';
 $evtType = 'delphes';
 $fileType = 'edm4hep-root';
 $campaign = 'fcc-v07';
-$detector = 'i';
+$det = 'i';
 
 $dataFilePath = BASE_PATH . '/data/FCChh/Delphesevents_fcc_v07_I.txt';
 $description = 'Delphes FCC-hh Physics events v0.7 scenario I. in EDM4Hep format.';

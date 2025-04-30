@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?php
       $title = '';
+
+      if ($det === 'i') {
+        $title .= 'Scenario I. | ';
+      }
+      if ($det === 'ii') {
+        $title .= 'Scenario II. | ';
+      }
+
       if ($campaign === 'v03') {
         $title .= 'v0.3 | ';
       }
@@ -24,21 +32,25 @@
         $title .= 'v0.4 | ';
       }
       if ($campaign === 'fcc-v05-scenario-i') {
-        $title .= 'v0.5 scenario I. | ';
+        $title .= 'v0.5 Scenario I. | ';
       }
       if ($campaign === 'fcc-v05-scenario-ii') {
-        $title .= 'v0.5 scenario II. | ';
+        $title .= 'v0.5 Scenario II. | ';
       }
       if ($campaign === 'fcc-v06') {
         $title .= 'v0.6 | ';
       }
+      if ($campaign === 'fcc-v07') {
+        $title .= 'v0.7 | ';
+      }
+
       if ($fileType === 'lhe') {
         $title .= 'Les Houches | ';
       }
-
       if ($evtType === 'delphes') {
         $title .= 'Delphes | ';
       }
+
       if ($evtType === 'gen') {
         $title .= 'Gen | ';
       }
@@ -97,16 +109,27 @@
           $title .= ' | v0.4';
         }
         if ($campaign === 'fcc-v05-scenario-i') {
-          $title .= ' | v0.5 scenario I.';
+          $title .= ' | v0.5 Scenario I.';
         }
         if ($campaign === 'fcc-v05-scenario-ii') {
-          $title .= ' | v0.5 scenario II.';
+          $title .= ' | v0.5 Scenario II.';
         }
         if ($campaign === 'fcc-v06') {
           $title .= ' | v0.6';
         }
+        if ($campaign === 'fcc-v07') {
+          $title .= ' | v0.7';
+        }
+
         if ($fileType === 'lhe') {
           $title .= ' | Les Houches';
+        }
+
+        if ($det === 'i') {
+          $title .= '| Scenario I.';
+        }
+        if ($det === 'ii') {
+          $title .= '| Scenario II.';
         }
 
         $title .= ' Samples';
