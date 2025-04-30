@@ -126,10 +126,10 @@
         }
 
         if ($det === 'i') {
-          $title .= '| Scenario I.';
+          $title .= ' | Scenario I.';
         }
         if ($det === 'ii') {
-          $title .= '| Scenario II.';
+          $title .= ' | Scenario II.';
         }
 
         $title .= ' Samples';
