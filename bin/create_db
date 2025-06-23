@@ -1,11 +1,9 @@
 #!/bin/bash
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "${SCRIPT_DIR}" || exit 1
 
-
-source ./venv/bin/activate
-
+echo Trying to load the virtual environment with Unix syntax.. && source ./venv/bin/activate || echo Trying to load the virtual environment with Windows syntax instead.. && source ./.venv/Scripts/activate
 
 # Add producers
 ./add_producer ${1} -u jsmiesko -n "Juraj Smiesko"
@@ -25,7 +23,6 @@ source ./venv/bin/activate
 ./add_producer ${1} -u eperez -n "Emmanuel Francois Perez"
 ./add_producer ${1} -u lportale -n "Louis Portales"
 ./add_producer ${1} -u bistapf -n "Birgit Sylvia Stapf"
-
 
 # Add stacks
 ./add_stack ${1} \
@@ -49,7 +46,6 @@ source ./venv/bin/activate
 ./add_stack ${1} \
     -n 'key4hep-2025-01-28' \
     -p '/cvmfs/sw.hsf.org/key4hep/setup.sh -r 2025-01-28' || exit 1
-
 
 # Add/update the samples
 ./update_db || exit 1
