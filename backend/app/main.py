@@ -28,7 +28,6 @@ async def lifespan(app: FastAPI) -> Any:  # noqa: ARG001
     await database.aclose()
 
 
-# Initialize database connection
 DB_DSN = os.environ.get(
     "DATABASE_URL",
     "postgres://fcc_user:fcc_password@localhost:5432/fcc_physics_samples",
@@ -36,7 +35,6 @@ DB_DSN = os.environ.get(
 database = Database(dsn=DB_DSN)
 query_parser = QueryParser(database=database)
 
-# Initialize FastAPI app
 app = FastAPI(
     title="FCC Physics Events",
     description="An API for querying FCC physics simulation sample data.",
@@ -44,7 +42,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Set all CORS enabled origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Adjust for production environments
@@ -54,7 +51,6 @@ app.add_middleware(
 )
 
 
-# API Endpoints
 @app.get("/")
 async def root() -> dict[str, str]:
     """Root endpoint providing a welcome message."""
@@ -80,41 +76,50 @@ async def search_samples(
     return await database.search_samples(query)
 
 
-# Endpoints for populating UI elements (e.g., dropdowns)
-@app.get("/accelerator-types/", response_model=list[AcceleratorTypeInDB])
+@app.get("/accelerator-types/")
 async def get_accelerator_types() -> list[AcceleratorTypeInDB]:
     """Fetch all accelerator types from the database."""
     return await database.get_all_accelerator_types()
 
 
-@app.get("/frameworks/", response_model=list[FrameworkInDB])
+@app.get("/frameworks/")
 async def get_frameworks() -> list[FrameworkInDB]:
     """Fetch all simulation frameworks from the database."""
     return await database.get_all_frameworks()
 
 
-@app.get("/campaigns/", response_model=list[CampaignInDB])
+@app.get("/campaigns/")
 async def get_campaigns() -> list[CampaignInDB]:
     """Fetch all campaigns from the database."""
     return await database.get_all_campaigns()
 
 
-@app.get("/detectors/", response_model=list[DetectorInDB])
+@app.get("/detectors/")
 async def get_detectors() -> list[DetectorInDB]:
     """Fetch all detectors from the database."""
     return await database.get_all_detectors()
 
 
-@app.get("/gql-query/", response_model=list[SampleInDB])
-async def gql_query() -> list[SampleInDB]:
-    # Hardcoded query example
-    query = 'detector~"IDEA" AND campaign="Winter2023"'
+@app.get("/gclql-query/")
+async def gql_query(query: str) -> list[SampleInDB]:
+    """
+    Execute a GCLQL query against the database.
 
+    Args:
+        query: A string containing the GCLQL query to execute
+
+    Returns:
+        A list of sample records matching the query
+
+    Example:
+        /gclql-query/?query=detector~"IDEA" AND campaign="Winter2023"
+    """
     try:
-        sql, params = query_parser.parse_query(query)
-
+        sql_query, params = query_parser.parse_query(query)
+        print("QUERY:", sql_query)
+        print("PARAMS:", params)
         async with database.session() as conn:
-            records = await conn.fetch(sql, *params)
+            records = await conn.fetch(sql_query, *params)
             return [SampleInDB.model_validate(dict(record)) for record in records]
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -3,6 +3,7 @@ This file contains the Database class, which manages an asyncpg connection
 pool and provides higher-level database operations with session management.
 """
 
+from pathlib import Path
 from typing import Any, TypeVar
 
 import asyncpg
@@ -62,6 +63,15 @@ class Database:
                 dsn=self.dsn, min_size=5, max_size=20
             )
             print("Database connection pool created successfully.")
+
+            print("Creating schema..")
+            schema_file = Path(__file__).parent / "fcc-physics-samples.sql"
+            with open(schema_file, encoding="utf-8") as f:
+                schema_sql = f.read()
+
+            async with self.session() as conn:
+                await conn.execute(schema_sql)
+
         except Exception as e:
             print(f"Error creating database connection pool: {e}")
             raise

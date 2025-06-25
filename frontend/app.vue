@@ -3,6 +3,6 @@
     <!-- <NuxtRouteAnnouncer />
     <NuxtWelcome /> -->
     <HelloWorld />
-    <TableExample />
+    <!-- <TableExample /> -->
   </UApp>
 </template>
