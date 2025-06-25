@@ -6,16 +6,15 @@ This script adds several detector samples to test the fuzzy search functionality
 
 import asyncio
 import os
-from typing import Any
 
-import asyncpg  # type: ignore
+import asyncpg
 
-# Construct the DSN from environment variables
-DB_DSN = (
+# Construct the DSN from environment variables, with a fallback for local dev
+DB_DSN = os.environ.get(
+    "DATABASE_URL",
     f"postgres://{os.getenv('POSTGRES_USER', 'fcc_user')}:"
     f"{os.getenv('POSTGRES_PASSWORD', 'fcc_password')}@"
-    # Use 'localhost' if running from the host machine
-    f"localhost:5432/{os.getenv('POSTGRES_DB', 'fcc_physics_samples')}"
+    f"localhost:5432/{os.getenv('POSTGRES_DB', 'fcc_physics_samples')}",
 )
 
 
@@ -23,9 +22,7 @@ async def populate_detectors() -> None:
     """Connects to the database and adds detector samples for fuzzy search testing."""
     conn: asyncpg.Connection | None = None
     try:
-        print(
-            f"Connecting to database at {DB_DSN.replace(os.getenv('POSTGRES_PASSWORD', 'fcc_password'), '***')}..."
-        )
+        print("Connecting to database...")
         conn = await asyncpg.connect(dsn=DB_DSN)
         print("Connection successful.")
 
@@ -43,17 +40,17 @@ async def populate_detectors() -> None:
         ]
 
         # Insert detectors
-        print("Adding detector samples...")
+        print(f"Adding {len(detectors)} detector samples...")
         async with conn.transaction():
-            for detector_name in detectors:
-                await conn.execute(
-                    "INSERT INTO detectors (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
-                    detector_name,
-                )
+            # Using ON CONFLICT (name) DO NOTHING is idempotent
+            await conn.executemany(
+                "INSERT INTO detectors (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
+                [(name,) for name in detectors],
+            )
 
         # Verify the insertion
         detector_count = await conn.fetchval("SELECT COUNT(*) FROM detectors")
-        print(f"Total detectors in database: {detector_count}")
+        print(f"Total detectors now in database: {detector_count}")
 
         print("Detector samples added successfully.")
 
