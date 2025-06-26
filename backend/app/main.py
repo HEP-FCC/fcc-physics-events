@@ -2,7 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from starlette.middleware.cors import CORSMiddleware
 
 from app.gclql_query_parser import QueryParser
@@ -13,9 +13,10 @@ from .db.schemas import (
     CampaignInDB,
     DetectorInDB,
     FrameworkInDB,
-    SampleInDB,
+    ProcessInDB,
     SearchQuery,
 )
+from .fcc_dict_parser import FccDictParser
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ DB_DSN = os.environ.get(
 )
 database = Database(dsn=DB_DSN)
 query_parser = QueryParser(database=database)
+fcc_parser = FccDictParser(db=database)
 
 app = FastAPI(
     title="FCC Physics Events",
@@ -57,12 +59,35 @@ async def root() -> dict[str, str]:
     return {"message": "Welcome to the FCC Physics Events API"}
 
 
-@app.get("/search/", response_model=list[SampleInDB])
-async def search_samples(
-    query: SearchQuery = Depends(),
-) -> list[SampleInDB]:
+@app.post("/upload/")
+async def upload_file(file: UploadFile = File(...), accelerator_type: str = "fcc-ee"):
     """
-    Search for physics samples with optional filtering on various fields.
+    Upload a JSON file with physics processes to be parsed and added to the database.
+
+    Args:
+        file: The JSON file to upload
+        accelerator_type: The accelerator type name (default: fcc-ee)
+    """
+    if file.content_type != "application/json":
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Please upload a JSON file."
+        )
+    try:
+        contents = await file.read()
+        await fcc_parser.parse_and_insert(contents, accelerator_type)
+        return {
+            "message": f"Successfully uploaded and processed {file.filename} for {accelerator_type}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
+
+
+@app.get("/search/", response_model=list[ProcessInDB])
+async def search_processes(
+    query: SearchQuery = Depends(),
+) -> list[ProcessInDB]:
+    """
+    Search for physics processes with optional filtering on various fields.
 
     This endpoint allows you to combine multiple search criteria. By default,
     it uses case-insensitive regular expressions for matching.
@@ -73,7 +98,7 @@ async def search_samples(
     Example a `curl` command for this endpoint:
     `curl -X 'GET' 'http://localhost:8000/search/?detector_name=IDEA.*' -H 'accept: application/json'`
     """
-    return await database.search_samples(query)
+    return await database.search_processes(query)
 
 
 @app.get("/accelerator-types/")
@@ -101,7 +126,7 @@ async def get_detectors() -> list[DetectorInDB]:
 
 
 @app.get("/gclql-query/")
-async def gql_query(query: str) -> list[SampleInDB]:
+async def gql_query(query: str) -> list[ProcessInDB]:
     """
     Execute a GCLQL query against the database.
 
@@ -120,6 +145,40 @@ async def gql_query(query: str) -> list[SampleInDB]:
         print("PARAMS:", params)
         async with database.session() as conn:
             records = await conn.fetch(sql_query, *params)
-            return [SampleInDB.model_validate(dict(record)) for record in records]
+            return [ProcessInDB.model_validate(dict(record)) for record in records]
     except ValueError as e:
+        print(e.with_traceback(e.__traceback__))
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/processes/{process_id}/files")
+async def get_process_files(process_id: int) -> dict[str, Any]:
+    """
+    Fetch just the files metadata for a specific process.
+
+    This endpoint is optimized for retrieving the potentially large 'files' field
+    from the process metadata separately from the main process data.
+    """
+    async with database.session() as conn:
+        record = await conn.fetchrow(
+            """
+            SELECT
+                p.process_id,
+                p.name,
+                p.metadata->'files' as files
+            FROM processes p
+            WHERE p.process_id = $1
+            """,
+            process_id
+        )
+
+        if record is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Process with ID {process_id} not found"
+            )
+
+        return {
+            "process_id": record["process_id"],
+            "name": record["name"],
+            "files": record["files"]
+        }

@@ -3,7 +3,7 @@ Standalone script to initialize the database schema and insert sample data.
 
 This script should be run once before the first application start. It connects
 to the database defined by the DATABASE_URL environment variable and executes the
-SQL commands from `fcc-physics-samples.sql`.
+SQL commands from `fcc-physics-events.sql`.
 """
 
 import asyncio

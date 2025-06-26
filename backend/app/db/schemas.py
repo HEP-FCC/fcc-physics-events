@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, model_validator
 # Search Query Schema
 # =============================================================================
 class SearchQuery(BaseModel):
-    """Defines the available parameters for searching samples."""
+    """Defines the available parameters for searching processes."""
 
     sample_name: str | None = Field(
         default=None, description="Regex/Fuzzy pattern for Sample name"
@@ -133,7 +133,7 @@ class DetectorInDB(DetectorBase):
 # =============================================================================
 # Sample Schemas
 # =============================================================================
-class SampleBase(BaseModel):
+class ProcessBase(BaseModel):
     name: str = Field(..., max_length=255)
     accelerator_type_id: int
     framework_id: int
@@ -142,12 +142,12 @@ class SampleBase(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class SampleCreate(SampleBase):
+class ProcessCreate(ProcessBase):
     pass
 
 
-class SampleInDB(SampleBase):
-    sample_id: int
+class ProcessInDB(ProcessBase):
+    process_id: int
     created_at: datetime.datetime
     metadata_search_text: str
     detector_name: str

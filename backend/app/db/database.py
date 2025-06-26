@@ -15,7 +15,7 @@ from .schemas import (
     CampaignInDB,
     DetectorInDB,
     FrameworkInDB,
-    SampleInDB,
+    ProcessInDB,
     SearchQuery,
 )
 
@@ -65,7 +65,7 @@ class Database:
             print("Database connection pool created successfully.")
 
             print("Creating schema..")
-            schema_file = Path(__file__).parent / "fcc-physics-samples.sql"
+            schema_file = Path(__file__).parent / "fcc-physics-events.sql"
             with open(schema_file, encoding="utf-8") as f:
                 schema_sql = f.read()
 
@@ -99,36 +99,53 @@ class Database:
             self._pool = None
             print("Database connection pool closed.")
 
-    async def search_samples(self, search_params: SearchQuery) -> list[SampleInDB]:
+    async def search_processes(self, search_params: SearchQuery) -> list[ProcessInDB]:
         """
-        Dynamically search for samples based on multiple optional criteria.
+        Dynamically search for processes based on multiple optional criteria.
 
         Args:
             search_params: A Pydantic model containing all possible search fields
                            and matching options (exact, fuzzy, regex).
 
         Returns:
-            A list of matching samples.
+            A list of matching processes.
         """
         # The base query joins all necessary tables for filtering
         base_query = """
-            SELECT s.* FROM samples s
-            LEFT JOIN detectors d ON s.detector_id = d.detector_id
-            LEFT JOIN campaigns c ON s.campaign_id = c.campaign_id
-            LEFT JOIN frameworks f ON s.framework_id = f.framework_id
-            LEFT JOIN accelerator_types at ON s.accelerator_type_id = at.accelerator_type_id
+            SELECT
+                p.process_id,
+                p.name,
+                p.accelerator_type_id,
+                p.framework_id,
+                p.campaign_id,
+                p.detector_id,
+                p.metadata_search_text,
+                p.created_at,
+                d.name as detector_name,
+                c.name as campaign_name,
+                f.name as framework_name,
+                at.name as accelerator_name,
+                CASE
+                    WHEN p.metadata ? 'files' THEN jsonb_remove(p.metadata, '{files}')
+                    ELSE p.metadata
+                END as metadata
+            FROM processes p
+            LEFT JOIN detectors d ON p.detector_id = d.detector_id
+            LEFT JOIN campaigns c ON p.campaign_id = c.campaign_id
+            LEFT JOIN frameworks f ON p.framework_id = f.framework_id
+            LEFT JOIN accelerator_types at ON p.accelerator_type_id = at.accelerator_type_id
         """
         conditions = []
         params: list[Any] = []
 
         # Map API-level field names to database columns
         search_fields = {
-            "s.name": search_params.sample_name,
+            "p.name": search_params.sample_name,
             "d.name": search_params.detector_name,
             "c.name": search_params.campaign_name,
             "f.name": search_params.framework_name,
             "at.name": search_params.accelerator_type_name,
-            "s.metadata_search_text": search_params.metadata_contains,
+            "p.metadata_search_text": search_params.metadata_contains,
         }
 
         # Helper to dynamically and safely add a condition and its parameters
@@ -160,20 +177,20 @@ class Database:
 
         # Construct the final query
         if not conditions:
-            # If no filters, return all samples without expensive joins
-            query = "SELECT * FROM samples ORDER BY sample_id"
+            # If no filters, return all processes without expensive joins
+            query = "SELECT * FROM processes ORDER BY process_id"
         else:
             # If filters exist, append them to the base query with joins
             query = (
                 base_query
                 + " WHERE "
                 + " AND ".join(conditions)
-                + " ORDER BY s.sample_id"
+                + " ORDER BY p.process_id"
             )
 
         async with self.session() as conn:
             records = await conn.fetch(query, *params)
-            return [SampleInDB.model_validate(dict(record)) for record in records]
+            return [ProcessInDB.model_validate(dict(record)) for record in records]
 
     # Higher-level database operations for Accelerator Types
     async def get_all_accelerator_types(self) -> list[AcceleratorTypeInDB]:
@@ -229,7 +246,7 @@ class Database:
                 WHERE
                     t.table_schema = 'public' AND
                     t.table_type = 'BASE TABLE' AND
-                    t.table_name IN ('samples', 'detectors', 'campaigns', 'frameworks', 'accelerator_types')
+                    t.table_name IN ('processes', 'detectors', 'campaigns', 'frameworks', 'accelerator_types')
                 GROUP BY
                     t.table_name
             """)
@@ -241,15 +258,15 @@ class Database:
                     # For most tables, use table_name.column_name mapping
                     if column == "name":
                         # Special case for name columns - use logical names
-                        if table == "samples":
+                        if table == "processes":
                             mapping["name"] = f"{table}.{column}"
                         else:
                             # Remove 's' from end of table name for singular form
                             singular = table[:-1] if table.endswith("s") else table
                             mapping[singular] = f"{table}.{column}"
-                    elif column == "metadata" and table == "samples":
+                    elif column == "metadata" and table == "processes":
                         mapping["metadata"] = f"{table}.{column}"
-                    elif column == "metadata_search_text" and table == "samples":
+                    elif column == "metadata_search_text" and table == "processes":
                         mapping["metadata_search_text"] = f"{table}.{column}"
 
             return mapping

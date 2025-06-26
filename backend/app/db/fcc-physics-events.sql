@@ -1,4 +1,4 @@
--- fcc-physics-samples.sql
+-- fcc-physics-events.sql
 -- =============================================================================
 --      PostgreSQL Schema for FCC Physics Data Model
 -- =============================================================================
@@ -61,10 +61,10 @@ $$;
 
 COMMENT ON FUNCTION jsonb_values_to_text IS 'Extracts all text values from a JSONB object for searching.';
 
--- Main table for physics samples
-CREATE TABLE IF NOT EXISTS samples (
-    sample_id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+-- Main table for physics processes
+CREATE TABLE IF NOT EXISTS processes (
+    process_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
     accelerator_type_id INTEGER REFERENCES accelerator_types(accelerator_type_id) ON DELETE SET NULL,
     framework_id INTEGER REFERENCES frameworks(framework_id) ON DELETE SET NULL,
     campaign_id INTEGER REFERENCES campaigns(campaign_id) ON DELETE SET NULL,
@@ -75,21 +75,39 @@ CREATE TABLE IF NOT EXISTS samples (
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
-COMMENT ON TABLE samples IS 'Stores individual samples with complete physics context';
+COMMENT ON TABLE processes IS 'Stores individual processes with complete physics context';
 
 -- Step 4: Create Indexes for Performance
 -- ---------------------------------------
 
 -- Standard B-tree indexes for foreign keys to speed up joins
-CREATE INDEX IF NOT EXISTS idx_samples_accelerator_type_id ON samples(accelerator_type_id);
-CREATE INDEX IF NOT EXISTS idx_samples_framework_id ON samples(framework_id);
-CREATE INDEX IF NOT EXISTS idx_samples_campaign_id ON samples(campaign_id);
-CREATE INDEX IF NOT EXISTS idx_samples_detector_id ON samples(detector_id);
+CREATE INDEX IF NOT EXISTS idx_processes_accelerator_type_id ON processes(accelerator_type_id);
+CREATE INDEX IF NOT EXISTS idx_processes_framework_id ON processes(framework_id);
+CREATE INDEX IF NOT EXISTS idx_processes_campaign_id ON processes(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_processes_detector_id ON processes(detector_id);
 
 -- GIN (Generalized Inverted Index) with trigram operations for fast fuzzy search and ILIKE/regex
-CREATE INDEX IF NOT EXISTS samples_metadata_search_gin_idx ON samples USING GIN (metadata_search_text gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_samples_name_gin ON samples USING GIN (name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS processes_metadata_search_gin_idx ON processes USING GIN (metadata_search_text gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_processes_name_gin ON processes USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_detectors_name_gin ON detectors USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_campaigns_name_gin ON campaigns USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_frameworks_name_gin ON frameworks USING GIN (name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_accelerator_types_name_gin ON accelerator_types USING GIN (name gin_trgm_ops);
+
+
+-- Step 5: Add Software Stacks Table
+-- -----------------------------------------
+
+CREATE TABLE IF NOT EXISTS stacks (
+    stack_id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    file_path TEXT NOT NULL,
+    version VARCHAR(255),
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+);
+
+COMMENT ON TABLE stacks IS 'Stores software stack configurations with paths to setup scripts';
+
+-- Create indexes for the stacks table
+CREATE INDEX IF NOT EXISTS idx_stacks_name_gin ON stacks USING GIN (name gin_trgm_ops);

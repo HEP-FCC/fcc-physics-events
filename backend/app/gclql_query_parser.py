@@ -210,10 +210,10 @@ class SqlTranslator:
             sql_op = "ILIKE"
             self.params.append(f"%{value}%")
         elif op == "~":
-            sql_op = "~*"  # Use ~* for case-insensitive regex match
+            sql_op = "~*"
             self.params.append(value)
         elif op == "!~":
-            sql_op = "!~*"  # Use !~* for case-insensitive regex match
+            sql_op = "!~*"
             self.params.append(value)
         else:
             sql_op = op
@@ -282,7 +282,7 @@ class QueryParser:
         self.translator: SqlTranslator | None = None
 
         self.table_aliases = {
-            "samples": "s",
+            "processes": "s",
             "detectors": "d",
             "campaigns": "c",
             "frameworks": "f",
@@ -290,12 +290,28 @@ class QueryParser:
         }
 
         self.base_sql = f"""
-            SELECT s.*, d.name as detector_name, c.name as campaign_name, f.name as framework_name, at.name as accelerator_name
-            FROM samples s
-            LEFT JOIN detectors {self.table_aliases["detectors"]} ON s.detector_id = d.detector_id
-            LEFT JOIN campaigns {self.table_aliases["campaigns"]} ON s.campaign_id = c.campaign_id
-            LEFT JOIN frameworks {self.table_aliases["frameworks"]} ON s.framework_id = f.framework_id
-            LEFT JOIN accelerator_types {self.table_aliases["accelerator_types"]} ON s.accelerator_type_id = at.accelerator_type_id
+            SELECT
+                p.process_id,
+                p.name,
+                p.accelerator_type_id,
+                p.framework_id,
+                p.campaign_id,
+                p.detector_id,
+                p.metadata_search_text,
+                p.created_at,
+                d.name as detector_name,
+                c.name as campaign_name,
+                f.name as framework_name,
+                at.name as accelerator_name,
+                CASE
+                    WHEN p.metadata ? 'files' THEN p.metadata - 'files'
+                    ELSE p.metadata
+                END as metadata
+            FROM processes p
+            LEFT JOIN detectors {self.table_aliases["detectors"]} ON p.detector_id = d.detector_id
+            LEFT JOIN campaigns {self.table_aliases["campaigns"]} ON p.campaign_id = c.campaign_id
+            LEFT JOIN frameworks {self.table_aliases["frameworks"]} ON p.framework_id = f.framework_id
+            LEFT JOIN accelerator_types {self.table_aliases["accelerator_types"]} ON p.accelerator_type_id = at.accelerator_type_id
             WHERE
         """
         # Table aliases mapping
