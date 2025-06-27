@@ -1,62 +1,50 @@
 /**
- * API Client for interacting with the backend services
+ * API Client for interacting with the backend services.
  */
+import type { PaginatedResponse } from "~/types/sample";
+
 export class ApiClient {
   private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    // Get from Nuxt config if not provided
-    this.baseUrl = baseUrl || useRuntimeConfig().public.apiBaseUrl;
+    const config = useRuntimeConfig();
+    this.baseUrl = baseUrl || config.public.apiBaseUrl;
   }
 
   /**
-   * Search for samples based on query
+   * Searches for samples based on a GCLQL query string with pagination.
+   * @param query The GCLQL query string.
+   * @param limit The maximum number of results to return.
+   * @param offset The number of results to skip.
+   * @returns A promise that resolves to a paginated response object.
    */
-  async searchSamples(query: string): Promise<any> {
+  async searchSamples(query: string, limit: number, offset: number): Promise<PaginatedResponse> {
     try {
       // Use URLSearchParams to properly encode the query string
-      const params = new URLSearchParams({ query });
-      const response = await fetch(`${this.baseUrl}/gclql-query/?${params}`);
+      const params = new URLSearchParams({
+        q: query,
+        limit: String(limit),
+        offset: String(offset),
+      });
+      const response = await fetch(`${this.baseUrl}/query/?${params}`);
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      // Get the response data and ensure we return it in the expected format
-      const data = await response.json();
-
-      console.log(data);
-
-      // The gclql-query endpoint returns an array directly, so we need to wrap it
-      // in an object with a samples property
-      return { samples: Array.isArray(data) ? data : [] };
-    } catch (error) {
-      console.error("Failed to search samples:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get sample by ID
-   */
-  async getSampleById(id: number): Promise<any> {
-    try {
-      const response = await fetch(`${this.baseUrl}/samples/${id}`);
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(`API error: ${response.status} - ${errorData.detail || "Unknown error"}`);
       }
 
       return await response.json();
     } catch (error) {
-      console.error(`Failed to get sample ${id}:`, error);
+      console.error("Failed to search samples:", error);
+      // Re-throw the error so the component can catch it
       throw error;
     }
   }
 }
 
-// Composable to use the API client
+/**
+ * Composable function to get an instance of the ApiClient.
+ */
 export function getApiClient() {
-  const config = useRuntimeConfig();
-  return new ApiClient(config.public.apiBaseUrl);
+  return new ApiClient();
 }

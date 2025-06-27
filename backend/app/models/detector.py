@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class DetectorBase(BaseModel):
     name: str
     # Foreign key is optional because of ON DELETE SET NULL
-    accelerator_type_id: int | None = None
+    accelerator_id: int | None = None
 
 
 # Model for creating a new detector

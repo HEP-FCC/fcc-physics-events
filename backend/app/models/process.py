@@ -9,7 +9,7 @@ class ProcessBase(BaseModel):
     name: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     # Foreign keys are optional because of ON DELETE SET NULL in the database
-    accelerator_type_id: int | None = None
+    accelerator_id: int | None = None
     framework_id: int | None = None
     campaign_id: int | None = None
     detector_id: int | None = None

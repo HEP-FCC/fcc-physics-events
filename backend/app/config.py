@@ -3,11 +3,15 @@ This file contains helper functions for the config.
 """
 
 from pathlib import Path
+from typing import cast
 
-from pyhocon import ConfigFactory
-from pyhocon import ConfigTree as Config
+from pyhocon import ConfigFactory, ConfigTree
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.conf"
+
+
+class Config(ConfigTree):  # type: ignore
+    pass
 
 
 def get_config_from_default_location() -> Config:
@@ -17,7 +21,7 @@ def get_config_from_default_location() -> Config:
             f"Default configuration file not found at {DEFAULT_CONFIG_PATH}"
         )
 
-    return ConfigFactory.parse_file(str(DEFAULT_CONFIG_PATH))
+    return cast(Config, ConfigFactory.parse_file(str(DEFAULT_CONFIG_PATH)))
 
 
 def get_config(path: str | None = None) -> Config:
@@ -34,6 +38,6 @@ def get_config(path: str | None = None) -> Config:
         config_path = Path(path)
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found at {path}")
-        return ConfigFactory.parse_file(str(config_path))
+        return cast(Config, ConfigFactory.parse_file(str(config_path)))
     else:
         return get_config_from_default_location()
