@@ -1,0 +1,39 @@
+"""
+This file contains helper functions for the config.
+"""
+
+from pathlib import Path
+
+from pyhocon import ConfigFactory
+from pyhocon import ConfigTree as Config
+
+DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.conf"
+
+
+def get_config_from_default_location() -> Config:
+    """Load configuration from the default location."""
+    if not DEFAULT_CONFIG_PATH.exists():
+        raise FileNotFoundError(
+            f"Default configuration file not found at {DEFAULT_CONFIG_PATH}"
+        )
+
+    return ConfigFactory.parse_file(str(DEFAULT_CONFIG_PATH))
+
+
+def get_config(path: str | None = None) -> Config:
+    """
+    Load configuration from the specified path or default location.
+
+    Args:
+        path: Optional path to a configuration file
+
+    Returns:
+        Loaded configuration as a ConfigTree
+    """
+    if path:
+        config_path = Path(path)
+        if not config_path.exists():
+            raise FileNotFoundError(f"Configuration file not found at {path}")
+        return ConfigFactory.parse_file(str(config_path))
+    else:
+        return get_config_from_default_location()

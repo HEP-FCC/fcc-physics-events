@@ -1,5 +1,5 @@
 """
-This file is a hack to make typed struct logger without needing
+This file contains a hack to make typed struct logger without needing
 to import two things every time.
 """
 
