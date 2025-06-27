@@ -3,16 +3,16 @@ This file contains the Database class, which manages an asyncpg connection
 pool and provides higher-level PostgreSQL database functions with session management.
 """
 
-from logging import Logger
 from pathlib import Path
 from typing import Any
 
 import asyncpg
-import structlog
 from asyncpg.pool import Pool
 from pyhocon import ConfigTree
 
-logger: Logger = structlog.get_logger()
+from app.logging import get_logger
+
+logger = get_logger()
 
 
 class AsyncSessionContextManager:
