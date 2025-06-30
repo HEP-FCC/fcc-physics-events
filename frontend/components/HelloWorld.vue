@@ -56,8 +56,7 @@ const allMetadataExpanded = computed(() => {
 });
 
 const searchPlaceholderPaddingWidth = computed(() => {
-    if (!urlFilterQuery.value) return "1ch";
-    return `${urlFilterQuery.value.length}ch`;
+    return `${!urlFilterQuery.value ? 1.5 : urlFilterQuery.value.length - 1}ch`;
 });
 
 const searchPlaceholderText = computed(() => {
