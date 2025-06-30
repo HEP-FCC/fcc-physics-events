@@ -56,18 +56,15 @@ const allMetadataExpanded = computed(() => {
 });
 
 const searchPlaceholderPaddingWidth = computed(() => {
-    return `${!urlFilterQuery.value ? 1.5 : urlFilterQuery.value.length - 1}ch`;
+    return `${urlFilterQuery.value ? urlFilterQuery.value.length - 1 : 1.5}ch`;
 });
 
 const searchPlaceholderText = computed(() => {
-    if (urlFilterQuery.value) {
-        return "Add additional search terms...";
-    }
-    return 'e.g., detector:"IDEA" AND metadata.status:"done"';
+    return urlFilterQuery.value ? "Add additional search terms..." : 'e.g., detector:"IDEA" AND metadata.status:"done"';
 });
 
 async function performSearch() {
-    // Only search if we have a valid query.
+    // Only search if we have a valid query
     if (!combinedSearchQuery.value.trim()) {
         searchState.events = [];
         pagination.totalEvents = 0;
