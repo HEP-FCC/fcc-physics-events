@@ -1,26 +1,75 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, computed, onMounted } from "vue";
 import { watchDebounced } from "@vueuse/core";
 import { getApiClient } from "../composables/getApiClient";
-import type { Sample, PaginatedResponse } from "../types/sample";
+import type { Event, PaginatedResponse } from "../types/event";
+import Metadata from "./Metadata.vue";
 
-const searchQuery = ref("");
-const searchState = reactive({
+const props = defineProps<{
+    initialFilters: Record<string, string>;
+}>();
+
+const userSearchQuery = ref("");
+const searchInputRef = ref<HTMLInputElement | null>(null);
+
+const searchState = reactive<{
+    isLoading: boolean;
+    events: Event[];
+    error: string | null;
+}>({
     isLoading: false,
-    events: [] as Sample[],
-    error: null as string | null,
+    events: [],
+    error: null,
 });
+
 const pagination = reactive({
     currentPage: 1,
     pageSize: 20,
     totalEvents: 0,
 });
+
 const expandedRows = reactive(new Set<number>());
+const lastToggleAction = ref<"expand" | "collapse" | null>(null);
 
 const apiClient = getApiClient();
 
+const urlFilterQuery = computed(() => {
+    return Object.entries(props.initialFilters)
+        .map(([field, value]) => `${field}:"${value}"`)
+        .join(" AND ");
+});
+
+const combinedSearchQuery = computed(() => {
+    const urlPart = urlFilterQuery.value;
+    const userPart = userSearchQuery.value.trim();
+
+    if (urlPart && userPart) {
+        return `${urlPart} AND ${userPart}`;
+    }
+    return urlPart || userPart;
+});
+
+const allMetadataExpanded = computed(() => {
+    const currentEventIds = searchState.events.map((event: Event) => event.process_id);
+    if (currentEventIds.length === 0) return false;
+    return currentEventIds.every((id: number) => expandedRows.has(id));
+});
+
+const searchPlaceholderPaddingWidth = computed(() => {
+    if (!urlFilterQuery.value) return "1ch";
+    return `${urlFilterQuery.value.length}ch`;
+});
+
+const searchPlaceholderText = computed(() => {
+    if (urlFilterQuery.value) {
+        return "Add additional search terms...";
+    }
+    return 'e.g., detector:"IDEA" AND metadata.status:"done"';
+});
+
 async function performSearch() {
-    if (!searchQuery.value.trim()) {
+    // Only search if we have a valid query.
+    if (!combinedSearchQuery.value.trim()) {
         searchState.events = [];
         pagination.totalEvents = 0;
         return;
@@ -32,7 +81,7 @@ async function performSearch() {
     try {
         const offset = (pagination.currentPage - 1) * pagination.pageSize;
         const response: PaginatedResponse = await apiClient.searchSamples(
-            searchQuery.value,
+            combinedSearchQuery.value,
             pagination.pageSize,
             offset,
         );
@@ -47,120 +96,136 @@ async function performSearch() {
     }
 }
 
-// Toggle visibility of metadata details for a specific event
 function toggleMetadata(processId: number) {
     if (expandedRows.has(processId)) {
         expandedRows.delete(processId);
     } else {
         expandedRows.add(processId);
     }
+
+    const currentEventIds = searchState.events.map((event: Event) => event.process_id);
+    const noneExpanded = currentEventIds.every((id: number) => !expandedRows.has(id));
+
+    if (noneExpanded && lastToggleAction.value === "expand") {
+        lastToggleAction.value = "collapse";
+    }
 }
 
-// Helper functions for metadata rendering
-function isLongStringField(key: string, value: any): boolean {
-    if (typeof value !== "string") return false;
-    // Known long fields or strings longer than 50 characters
-    const longFields = ["path", "software-stack", "description", "url", "command"];
-    return longFields.includes(key.toLowerCase()) || value.length > 50;
+// Handle row click, but ignore if text is being selected or a button was clicked
+function handleRowClick(event: MouseEvent, processId: number) {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+        return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input")) {
+        return;
+    }
+
+    toggleMetadata(processId);
 }
 
-function isShortField(key: string, value: any): boolean {
-    if (typeof value === "number") return true;
-    if (typeof value === "boolean") return true;
-    if (typeof value === "string" && value.length <= 20) return true;
-    return false;
+// Toggle metadata for all events on the current page.
+function toggleAllMetadata() {
+    const currentEventIds: Array<number> = searchState.events.map((event: Event) => event.process_id);
+    const allAreExpanded = currentEventIds.length > 0 && currentEventIds.every((id: number) => expandedRows.has(id));
+
+    if (allAreExpanded) {
+        currentEventIds.forEach((id) => expandedRows.delete(id));
+        lastToggleAction.value = "collapse";
+    } else {
+        currentEventIds.forEach((id) => expandedRows.add(id));
+        lastToggleAction.value = "expand";
+    }
 }
 
-function formatFieldName(key: string): string {
-    return key.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+// Handle page size changes and trigger a new search.
+function handlePageSizeChange() {
+    pagination.currentPage = 1;
+    performSearch();
 }
 
-// Sort and group metadata fields for consistent display
-function getSortedMetadata(metadata: Record<string, any>) {
-    const entries = Object.entries(metadata);
-
-    // Filter out fields that are already displayed in the main event row
-    const mainDisplayFields = new Set([
-        "process-name",
-        "detector_name",
-        "framework_name",
-        "campaign_name",
-        "accelerator_name",
-        "process_id",
-    ]);
-    const filteredEntries = entries.filter(([key]) => !mainDisplayFields.has(key));
-
-    // Define the specific order: description first, comment second, software-stack and path at the end
-    const priorityOrder = ["description", "comment"];
-    const endOrder = ["software-stack", "path"];
-
-    // Separate entries by priority
-    const priorityFields: [string, any][] = [];
-    const endFields: [string, any][] = [];
-    const remainingFields: [string, any][] = [];
-
-    filteredEntries.forEach(([key, value]) => {
-        if (priorityOrder.includes(key)) {
-            priorityFields.push([key, value]);
-        } else if (endOrder.includes(key)) {
-            endFields.push([key, value]);
-        } else {
-            remainingFields.push([key, value]);
-        }
-    });
-
-    // Sort priority fields by their defined order
-    priorityFields.sort(([a], [b]) => priorityOrder.indexOf(a) - priorityOrder.indexOf(b));
-
-    // Sort remaining fields alphabetically
-    remainingFields.sort(([a], [b]) => a.localeCompare(b));
-
-    // Sort end fields by their defined order
-    endFields.sort(([a], [b]) => endOrder.indexOf(a) - endOrder.indexOf(b));
-
-    return [...priorityFields, ...remainingFields, ...endFields];
-}
-
-// Watch page changes to trigger search with new pagination offset
 watch(() => pagination.currentPage, performSearch);
 
-// Debounced search: reset to page 1 and search when query changes
-watchDebounced(
-    searchQuery,
+// // Watch for changes in the initial URL filters to trigger a new search.
+watch(
+    () => props.initialFilters,
     () => {
-        if (pagination.currentPage === 1) {
-            // Already on page 1, search directly
-            performSearch();
-        } else {
-            // Reset to page 1 (triggers page watcher to search)
+        pagination.currentPage = 1;
+        performSearch();
+    },
+    { deep: true },
+);
+
+// Always set the results page to first page after search
+// Perform search 500ms after user stop typing the query
+watchDebounced(
+    userSearchQuery,
+    () => {
+        if (pagination.currentPage !== 1) {
             pagination.currentPage = 1;
+        } else {
+            performSearch();
         }
     },
     { debounce: 500 },
 );
+
+// Perform initial search on mount only if there are URL filters
+onMounted(() => {
+    if (Object.keys(props.initialFilters).length > 0) {
+        performSearch();
+    }
+});
 </script>
 
 <template>
     <UContainer class="py-4 sm:py-6 lg:py-8">
         <div class="space-y-6">
-            <!-- Header Section -->
             <UCard>
                 <template #header>
                     <h1 class="text-3xl font-bold">FCC Physics Events Search</h1>
                 </template>
 
                 <div class="space-y-4">
-                    <UInput
-                        v-model="searchQuery"
-                        placeholder='e.g., detector:"IDEA" AND metadata.status="done"'
-                        size="lg"
-                        icon="i-heroicons-magnifying-glass"
-                        class="w-full"
-                    />
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-gray-700">
+                            Search Query
+                            <span v-if="urlFilterQuery" class="text-xs text-blue-600 ml-1">
+                                (Blue part is locked from URL)
+                            </span>
+                        </label>
+                        <div class="relative">
+                            <input
+                                ref="searchInputRef"
+                                v-model="userSearchQuery"
+                                :placeholder="searchPlaceholderText"
+                                class="w-full pr-3 py-3 text-base border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 bg-transparent relative"
+                                autocomplete="off"
+                                spellcheck="false"
+                                style="z-index: 2"
+                                :style="{ paddingLeft: searchPlaceholderPaddingWidth }"
+                            />
+                            <div
+                                v-if="urlFilterQuery"
+                                class="absolute top-0 left-0 flex items-center h-full pointer-events-none"
+                                style="z-index: 1"
+                            >
+                                <div class="flex items-center pl-2.5 pr-1 h-full">
+                                    <span
+                                        class="flex items-center bg-blue-100 border border-blue-200 rounded px-2 py-1 text-sm text-blue-800 font-medium whitespace-nowrap"
+                                    >
+                                        🔒 {{ urlFilterQuery }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <UAlert
                         v-if="searchState.error"
-                        color="red"
+                        color="error"
                         variant="soft"
                         icon="i-heroicons-exclamation-triangle"
                         :title="searchState.error"
@@ -171,67 +236,114 @@ watchDebounced(
                 </div>
             </UCard>
 
-            <!-- Loading State -->
             <UCard v-if="searchState.isLoading">
                 <div class="space-y-4">
                     <USkeleton v-for="i in 5" :key="i" class="h-12 w-full" />
                 </div>
             </UCard>
 
-            <!-- Results Section -->
             <div v-else-if="searchState.events.length > 0" class="space-y-6">
-                <!-- Top Pagination -->
                 <div class="flex justify-between items-center">
-                    <div class="text-sm text-gray-600">
-                        Showing
-                        <strong
-                            >{{ (pagination.currentPage - 1) * pagination.pageSize + 1 }}-{{
-                                Math.min(pagination.currentPage * pagination.pageSize, pagination.totalEvents)
-                            }}</strong
+                    <div class="flex items-center gap-4">
+                        <div class="text-md text-gray-600">
+                            Showing
+                            <strong
+                                >{{ (pagination.currentPage - 1) * pagination.pageSize + 1 }}-{{
+                                    Math.min(pagination.currentPage * pagination.pageSize, pagination.totalEvents)
+                                }}</strong
+                            >
+                            of <strong>{{ pagination.totalEvents }}</strong> results
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-md text-gray-600">Results per page:</span>
+                            <UInput
+                                v-model.number="pagination.pageSize"
+                                type="number"
+                                min="1"
+                                max="100"
+                                size="md"
+                                class="w-20"
+                                @change="handlePageSizeChange"
+                            />
+                        </div>
+                        <UButton
+                            :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                            color="primary"
+                            variant="outline"
+                            size="sm"
+                            class="cursor-pointer"
+                            @click="toggleAllMetadata"
                         >
-                        of <strong>{{ pagination.totalEvents }}</strong> results
+                            {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
+                        </UButton>
                     </div>
                     <UPagination
-                        v-model:page="pagination.currentPage"
+                        v-model="pagination.currentPage"
                         :total="pagination.totalEvents"
-                        :items-per-page="pagination.pageSize"
+                        :page-count="pagination.pageSize"
                     />
                 </div>
 
-                <!-- Event Results -->
                 <div class="space-y-2">
-                    <UCard v-for="event in searchState.events" :key="event.process_id" class="overflow-hidden">
-                        <!-- Compact Process Information Row -->
+                    <UCard
+                        v-for="event in searchState.events"
+                        :key="event.process_id"
+                        class="overflow-hidden select-text cursor-pointer"
+                        @click="handleRowClick($event, event.process_id)"
+                    >
                         <div class="px-4 py-1">
                             <div class="flex items-center justify-between gap-4">
-                                <!-- Left side: Process name and badges -->
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-3 flex-wrap">
-                                        <!-- Process Name -->
-                                        <h3 class="font-semibold text-base text-gray-900 truncate min-w-0 flex-shrink">
-                                            <span class="text-slate-500">Process:</span>
-                                            <span class="ml-1 text-gray-900">{{ event.name }}</span>
-                                        </h3>
+                                    <div class="flex items-center">
+                                        <div class="w-88 flex-shrink-0">
+                                            <h3 class="font-semibold text-base text-gray-900">
+                                                <span class="text-slate-500">Process:</span>
+                                                <span class="ml-1 text-gray-900">{{ event.name }}</span>
+                                            </h3>
+                                        </div>
 
-                                        <!-- Compact badges in a single row -->
-                                        <div class="flex items-center gap-3 flex-wrap">
-                                            <UBadge v-if="event.detector_name" color="blue" variant="subtle" size="s">
-                                                <span class="text-blue-600">Detector:</span>
-                                                <span class="ml-1">{{ event.detector_name }}</span>
-                                            </UBadge>
-                                            <UBadge v-if="event.framework_name" color="green" variant="subtle" size="s">
+                                        <div class="w-42 flex-shrink-0">
+                                            <UBadge
+                                                v-if="event.framework_name"
+                                                color="success"
+                                                variant="subtle"
+                                                size="md"
+                                            >
                                                 <span class="text-green-600">Framework:</span>
                                                 <span class="ml-1">{{ event.framework_name }}</span>
                                             </UBadge>
-                                            <UBadge v-if="event.campaign_name" color="amber" variant="subtle" size="s">
+                                        </div>
+
+                                        <div class="w-60 flex-shrink-0">
+                                            <UBadge
+                                                v-if="event.campaign_name"
+                                                color="warning"
+                                                variant="subtle"
+                                                size="md"
+                                            >
                                                 <span class="text-amber-600">Campaign:</span>
                                                 <span class="ml-1">{{ event.campaign_name }}</span>
                                             </UBadge>
+                                        </div>
+
+                                        <div class="w-32 flex-shrink-0">
+                                            <UBadge
+                                                v-if="event.detector_name"
+                                                color="neutral"
+                                                variant="subtle"
+                                                size="md"
+                                            >
+                                                <span class="text-blue-600">Detector:</span>
+                                                <span class="ml-1">{{ event.detector_name }}</span>
+                                            </UBadge>
+                                        </div>
+
+                                        <div class="w-40 flex-shrink-0">
                                             <UBadge
                                                 v-if="event.accelerator_name"
-                                                color="purple"
+                                                color="neutral"
                                                 variant="subtle"
-                                                size="s"
+                                                size="md"
                                             >
                                                 <span class="text-purple-600">Accelerator:</span>
                                                 <span class="ml-1">{{ event.accelerator_name }}</span>
@@ -240,106 +352,37 @@ watchDebounced(
                                     </div>
                                 </div>
 
-                                <!-- Right side: Expand button -->
                                 <UButton
                                     :icon="
                                         expandedRows.has(event.process_id)
                                             ? 'i-heroicons-chevron-up'
                                             : 'i-heroicons-chevron-down'
                                     "
-                                    color="gray"
+                                    color="primary"
                                     variant="ghost"
-                                    size="sm"
+                                    size="md"
+                                    class="cursor-pointer"
                                     :aria-label="`${
                                         expandedRows.has(event.process_id) ? 'Hide' : 'Show'
                                     } metadata for ${event.name}`"
-                                    @click="toggleMetadata(event.process_id)"
+                                    @click.stop="toggleMetadata(event.process_id)"
                                 />
                             </div>
                         </div>
 
-                        <!-- Expandable Metadata Section -->
-                        <div v-if="expandedRows.has(event.process_id)" class="border-t border-gray-200 bg-gray-50">
-                            <div class="p-4">
-                                <div class="space-y-3">
-                                    <!-- Special handling for description and comment - show side by side -->
-                                    <div
-                                        v-if="event.metadata.description || event.metadata.comment"
-                                        class="grid gap-3"
-                                        :class="
-                                            event.metadata.description && event.metadata.comment
-                                                ? 'grid-cols-2'
-                                                : 'grid-cols-1'
-                                        "
-                                    >
-                                        <div v-if="event.metadata.description" class="space-y-1">
-                                            <label class="text-sm font-medium text-gray-700">Description</label>
-                                            <div class="bg-white rounded border px-2 py-1">
-                                                <span class="text-sm text-gray-800">{{
-                                                    event.metadata.description
-                                                }}</span>
-                                            </div>
-                                        </div>
-                                        <div v-if="event.metadata.comment" class="space-y-1">
-                                            <label class="text-sm font-medium text-gray-700">Comment</label>
-                                            <div class="bg-white rounded border px-2 py-1">
-                                                <span class="text-sm text-gray-800">{{ event.metadata.comment }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Render remaining metadata fields intelligently based on content -->
-                                    <template v-for="[key, value] in getSortedMetadata(event.metadata)" :key="key">
-                                        <!-- Skip description and comment as they're handled above -->
-                                        <template v-if="key !== 'description' && key !== 'comment'">
-                                            <!-- Long string fields (path, software-stack) - full width -->
-                                            <div v-if="isLongStringField(key, value)" class="space-y-1">
-                                                <label class="text-sm font-medium text-gray-700 capitalize">
-                                                    {{ formatFieldName(key) }}
-                                                </label>
-                                                <div class="bg-white rounded border p-2">
-                                                    <code class="text-xs text-gray-800 break-all">{{ value }}</code>
-                                                </div>
-                                            </div>
-
-                                            <!-- Short fields - compact badge style with larger font -->
-                                            <div v-else-if="isShortField(key, value)" class="inline-block mr-3 mb-2">
-                                                <UBadge color="gray" variant="soft" size="md">
-                                                    <span class="text-gray-600 font-medium text-sm"
-                                                        >{{ formatFieldName(key) }}:</span
-                                                    >
-                                                    <span class="ml-1 font-normal text-sm">{{ value }}</span>
-                                                </UBadge>
-                                            </div>
-
-                                            <!-- Medium fields - semi-compact -->
-                                            <div v-else class="space-y-1">
-                                                <label class="text-sm font-medium text-gray-700 capitalize">
-                                                    {{ formatFieldName(key) }}
-                                                </label>
-                                                <div class="bg-white rounded border px-2 py-1">
-                                                    <span class="text-sm text-gray-800">{{ value }}</span>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
+                        <Metadata :event="event" v-if="expandedRows.has(event.process_id)" />
                     </UCard>
                 </div>
 
-                <!-- Bottom Pagination -->
                 <div class="flex justify-center">
                     <UPagination
-                        v-model:page="pagination.currentPage"
+                        v-model="pagination.currentPage"
                         :total="pagination.totalEvents"
-                        :items-per-page="pagination.pageSize"
+                        :page-count="pagination.pageSize"
                     />
                 </div>
             </div>
 
-            <!-- Empty State -->
             <UCard v-else class="text-center py-12">
                 <div class="space-y-3">
                     <div class="text-4xl">🔍</div>

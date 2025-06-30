@@ -2,7 +2,7 @@
  * Defines the structure of a Process/Sample object received from the backend API.
  * This interface corresponds to the `ProcessWithDetails` Pydantic model.
  */
-export interface Sample {
+export interface Event {
   process_id: number;
   name: string;
   metadata: Record<string, any>;
@@ -24,5 +24,5 @@ export interface Sample {
  */
 export interface PaginatedResponse {
   total: number;
-  items: Sample[];
+  items: Event[];
 }
