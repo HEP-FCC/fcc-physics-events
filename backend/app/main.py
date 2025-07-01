@@ -110,7 +110,9 @@ async def execute_gclql_query(
 
 @app.get("/frameworks/", response_model=list[DropdownItem])
 async def get_frameworks(
-    accelerator_name: str | None = Query(None, description="Filter by accelerator name"),
+    accelerator_name: str | None = Query(
+        None, description="Filter by accelerator name"
+    ),
     campaign_name: str | None = Query(None, description="Filter by campaign name"),
     detector_name: str | None = Query(None, description="Filter by detector name"),
 ) -> Any:
@@ -132,7 +134,9 @@ async def get_frameworks(
 
 @app.get("/campaigns/", response_model=list[DropdownItem])
 async def get_campaigns(
-    accelerator_name: str | None = Query(None, description="Filter by accelerator name"),
+    accelerator_name: str | None = Query(
+        None, description="Filter by accelerator name"
+    ),
     framework_name: str | None = Query(None, description="Filter by framework name"),
     detector_name: str | None = Query(None, description="Filter by detector name"),
 ) -> Any:
@@ -154,7 +158,9 @@ async def get_campaigns(
 
 @app.get("/detectors/", response_model=list[DropdownItem])
 async def get_detectors(
-    accelerator_name: str | None = Query(None, description="Filter by accelerator name"),
+    accelerator_name: str | None = Query(
+        None, description="Filter by accelerator name"
+    ),
     framework_name: str | None = Query(None, description="Filter by framework name"),
     campaign_name: str | None = Query(None, description="Filter by campaign name"),
 ) -> Any:

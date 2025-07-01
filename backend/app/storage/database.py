@@ -217,7 +217,7 @@ class Database:
         """Helper function to get an entity ID by name."""
         id_column = f"{table_name.rstrip('s')}_id"
         query = f"SELECT {id_column} FROM {table_name} WHERE name = $1"
-        
+
         record = await conn.fetchrow(query, name)
         return int(record[id_column]) if record else None
 
@@ -237,40 +237,50 @@ class Database:
             accelerator_id = None
             campaign_id = None
             detector_id = None
-            
+
             if accelerator_name is not None:
-                accelerator_id = await self._get_entity_id_by_name(conn, "accelerators", accelerator_name)
+                accelerator_id = await self._get_entity_id_by_name(
+                    conn, "accelerators", accelerator_name
+                )
                 if accelerator_id is None:
                     return []  # No matching accelerator found
-            
+
             if campaign_name is not None:
-                campaign_id = await self._get_entity_id_by_name(conn, "campaigns", campaign_name)
+                campaign_id = await self._get_entity_id_by_name(
+                    conn, "campaigns", campaign_name
+                )
                 if campaign_id is None:
                     return []  # No matching campaign found
-            
+
             if detector_name is not None:
-                detector_id = await self._get_entity_id_by_name(conn, "detectors", detector_name)
+                detector_id = await self._get_entity_id_by_name(
+                    conn, "detectors", detector_name
+                )
                 if detector_id is None:
                     return []  # No matching detector found
 
-            if accelerator_id is not None or campaign_id is not None or detector_id is not None:
+            if (
+                accelerator_id is not None
+                or campaign_id is not None
+                or detector_id is not None
+            ):
                 query += " INNER JOIN processes p ON f.framework_id = p.framework_id"
-                
+
                 if accelerator_id is not None:
                     conditions.append(f"p.accelerator_id = ${len(params) + 1}")
                     params.append(accelerator_id)
-                
+
                 if campaign_id is not None:
                     conditions.append(f"p.campaign_id = ${len(params) + 1}")
                     params.append(campaign_id)
-                
+
                 if detector_id is not None:
                     conditions.append(f"p.detector_id = ${len(params) + 1}")
                     params.append(detector_id)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY f.name"
 
             records = await conn.fetch(query, *params)
@@ -292,40 +302,50 @@ class Database:
             accelerator_id = None
             framework_id = None
             detector_id = None
-            
+
             if accelerator_name is not None:
-                accelerator_id = await self._get_entity_id_by_name(conn, "accelerators", accelerator_name)
+                accelerator_id = await self._get_entity_id_by_name(
+                    conn, "accelerators", accelerator_name
+                )
                 if accelerator_id is None:
                     return []  # No matching accelerator found
-            
+
             if framework_name is not None:
-                framework_id = await self._get_entity_id_by_name(conn, "frameworks", framework_name)
+                framework_id = await self._get_entity_id_by_name(
+                    conn, "frameworks", framework_name
+                )
                 if framework_id is None:
                     return []  # No matching framework found
-            
+
             if detector_name is not None:
-                detector_id = await self._get_entity_id_by_name(conn, "detectors", detector_name)
+                detector_id = await self._get_entity_id_by_name(
+                    conn, "detectors", detector_name
+                )
                 if detector_id is None:
                     return []  # No matching detector found
 
-            if accelerator_id is not None or framework_id is not None or detector_id is not None:
+            if (
+                accelerator_id is not None
+                or framework_id is not None
+                or detector_id is not None
+            ):
                 query += " INNER JOIN processes p ON c.campaign_id = p.campaign_id"
-                
+
                 if accelerator_id is not None:
                     conditions.append(f"p.accelerator_id = ${len(params) + 1}")
                     params.append(accelerator_id)
-                
+
                 if framework_id is not None:
                     conditions.append(f"p.framework_id = ${len(params) + 1}")
                     params.append(framework_id)
-                
+
                 if detector_id is not None:
                     conditions.append(f"p.detector_id = ${len(params) + 1}")
                     params.append(detector_id)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY c.name"
 
             records = await conn.fetch(query, *params)
@@ -347,19 +367,25 @@ class Database:
             accelerator_id = None
             framework_id = None
             campaign_id = None
-            
+
             if accelerator_name is not None:
-                accelerator_id = await self._get_entity_id_by_name(conn, "accelerators", accelerator_name)
+                accelerator_id = await self._get_entity_id_by_name(
+                    conn, "accelerators", accelerator_name
+                )
                 if accelerator_id is None:
                     return []  # No matching accelerator found
-            
+
             if framework_name is not None:
-                framework_id = await self._get_entity_id_by_name(conn, "frameworks", framework_name)
+                framework_id = await self._get_entity_id_by_name(
+                    conn, "frameworks", framework_name
+                )
                 if framework_id is None:
                     return []  # No matching framework found
-            
+
             if campaign_name is not None:
-                campaign_id = await self._get_entity_id_by_name(conn, "campaigns", campaign_name)
+                campaign_id = await self._get_entity_id_by_name(
+                    conn, "campaigns", campaign_name
+                )
                 if campaign_id is None:
                     return []  # No matching campaign found
 
@@ -371,18 +397,18 @@ class Database:
             # For framework and campaign filtering, use processes table
             if framework_id is not None or campaign_id is not None:
                 query += " INNER JOIN processes p ON d.detector_id = p.detector_id"
-                
+
                 if framework_id is not None:
                     conditions.append(f"p.framework_id = ${len(params) + 1}")
                     params.append(framework_id)
-                
+
                 if campaign_id is not None:
                     conditions.append(f"p.campaign_id = ${len(params) + 1}")
                     params.append(campaign_id)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY d.name"
 
             records = await conn.fetch(query, *params)
@@ -404,40 +430,52 @@ class Database:
             framework_id = None
             campaign_id = None
             detector_id = None
-            
+
             if framework_name is not None:
-                framework_id = await self._get_entity_id_by_name(conn, "frameworks", framework_name)
+                framework_id = await self._get_entity_id_by_name(
+                    conn, "frameworks", framework_name
+                )
                 if framework_id is None:
                     return []  # No matching framework found
-            
+
             if campaign_name is not None:
-                campaign_id = await self._get_entity_id_by_name(conn, "campaigns", campaign_name)
+                campaign_id = await self._get_entity_id_by_name(
+                    conn, "campaigns", campaign_name
+                )
                 if campaign_id is None:
                     return []  # No matching campaign found
-            
+
             if detector_name is not None:
-                detector_id = await self._get_entity_id_by_name(conn, "detectors", detector_name)
+                detector_id = await self._get_entity_id_by_name(
+                    conn, "detectors", detector_name
+                )
                 if detector_id is None:
                     return []  # No matching detector found
 
-            if framework_id is not None or campaign_id is not None or detector_id is not None:
-                query += " INNER JOIN processes p ON a.accelerator_id = p.accelerator_id"
-                
+            if (
+                framework_id is not None
+                or campaign_id is not None
+                or detector_id is not None
+            ):
+                query += (
+                    " INNER JOIN processes p ON a.accelerator_id = p.accelerator_id"
+                )
+
                 if framework_id is not None:
                     conditions.append(f"p.framework_id = ${len(params) + 1}")
                     params.append(framework_id)
-                
+
                 if campaign_id is not None:
                     conditions.append(f"p.campaign_id = ${len(params) + 1}")
                     params.append(campaign_id)
-                
+
                 if detector_id is not None:
                     conditions.append(f"p.detector_id = ${len(params) + 1}")
                     params.append(detector_id)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
-            
+
             query += " ORDER BY a.name"
 
             records = await conn.fetch(query, *params)
