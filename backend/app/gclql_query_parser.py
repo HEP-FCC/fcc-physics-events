@@ -131,7 +131,9 @@ class SqlTranslator:
             "name",
             "detector",
             "campaign",
+            "campaign_name",
             "framework",
+            "framework_name",
             "accelerator",
             "metadata_text",
         ]

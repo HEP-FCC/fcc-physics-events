@@ -4,6 +4,7 @@ import { watchDebounced } from "@vueuse/core";
 import { getApiClient } from "../composables/getApiClient";
 import type { Event, PaginatedResponse } from "../types/event";
 import Metadata from "./Metadata.vue";
+import NavigationMenu from "./NavigationMenu.vue";
 
 const props = defineProps<{
     initialFilters: Record<string, string>;
@@ -53,10 +54,6 @@ const allMetadataExpanded = computed(() => {
     const currentEventIds = searchState.events.map((event: Event) => event.process_id);
     if (currentEventIds.length === 0) return false;
     return currentEventIds.every((id: number) => expandedRows.has(id));
-});
-
-const searchPlaceholderPaddingWidth = computed(() => {
-    return `${urlFilterQuery.value ? urlFilterQuery.value.length - 1 : 1.5}ch`;
 });
 
 const searchPlaceholderText = computed(() => {
@@ -142,6 +139,17 @@ function handlePageSizeChange() {
     performSearch();
 }
 
+// Format filter names for display
+function formatFilterName(key: string): string {
+    const nameMap: Record<string, string> = {
+        framework_name: "Framework",
+        campaign_name: "Campaign",
+        detector: "Detector",
+        detector_name: "Detector",
+    };
+    return nameMap[key] || key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
 watch(() => pagination.currentPage, performSearch);
 
 // // Watch for changes in the initial URL filters to trigger a new search.
@@ -184,39 +192,25 @@ onMounted(() => {
                     <h1 class="text-3xl font-bold">FCC Physics Events Search</h1>
                 </template>
 
-                <div class="space-y-4">
+                <!-- Navigation Menu moved here -->
+                <NavigationMenu />
+
+                <div class="space-y-4 mt-4">
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-gray-700">
                             Search Query
-                            <span v-if="urlFilterQuery" class="text-xs text-blue-600 ml-1">
-                                (Blue part is locked from URL)
+                            <span v-if="urlFilterQuery" class="text-xs text-gray-600 ml-1">
+                                (Additional filters from navigation applied automatically)
                             </span>
                         </label>
-                        <div class="relative">
-                            <input
-                                ref="searchInputRef"
-                                v-model="userSearchQuery"
-                                :placeholder="searchPlaceholderText"
-                                class="w-full pr-3 py-3 text-base border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 bg-transparent relative"
-                                autocomplete="off"
-                                spellcheck="false"
-                                style="z-index: 2"
-                                :style="{ paddingLeft: searchPlaceholderPaddingWidth }"
-                            />
-                            <div
-                                v-if="urlFilterQuery"
-                                class="absolute top-0 left-0 flex items-center h-full pointer-events-none"
-                                style="z-index: 1"
-                            >
-                                <div class="flex items-center pl-2.5 pr-1 h-full">
-                                    <span
-                                        class="flex items-center bg-blue-100 border border-blue-200 rounded px-2 py-1 text-sm text-blue-800 font-medium whitespace-nowrap"
-                                    >
-                                        🔒 {{ urlFilterQuery }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                        <UInput
+                            ref="searchInputRef"
+                            v-model="userSearchQuery"
+                            :placeholder="searchPlaceholderText"
+                            size="lg"
+                            icon="i-heroicons-magnifying-glass"
+                            class="w-full"
+                        />
                     </div>
 
                     <UAlert

@@ -6,7 +6,6 @@ const props = defineProps<{
     event: Event;
 }>();
 
-
 // Computed property to determine the grid layout for description and comment.
 const gridClass = computed(() => {
     const hasDescription = !!props.event.metadata.description;
@@ -16,7 +15,6 @@ const gridClass = computed(() => {
     }
     return "grid-cols-1";
 });
-
 
 function isLongStringField(key: string, value: any): boolean {
     if (typeof value !== "string") return false;
@@ -28,6 +26,19 @@ function isShortField(key: string, value: any): boolean {
     if (typeof value === "number" || typeof value === "boolean") return true;
     if (typeof value === "string" && value.length <= 20) return true;
     return false;
+}
+
+function isSizeField(key: string): boolean {
+    return key.toLowerCase() === "size";
+}
+
+function formatSizeInGiB(bytes: any): string {
+    const num = Number(bytes);
+    if (isNaN(num) || num < 0) {
+        return "N/A";
+    }
+    const gib = num / (1024 * 1024 * 1024);
+    return `${gib.toFixed(2)} GiB`;
 }
 
 function formatFieldName(key: string): string {
@@ -103,8 +114,15 @@ const sortedMetadata = computed(() => {
                         </div>
                     </div>
 
+                    <div v-else-if="isSizeField(key)" class="inline-block mr-3 mb-2">
+                        <UBadge color="neutral" variant="soft" size="md">
+                            <span class="text-gray-600 font-medium text-sm">{{ formatFieldName(key) }}:</span>
+                            <span class="ml-1 font-normal text-sm">{{ formatSizeInGiB(value) }}</span>
+                        </UBadge>
+                    </div>
+
                     <div v-else-if="isShortField(key, value)" class="inline-block mr-3 mb-2">
-                        <UBadge color="gray" variant="soft" size="md">
+                        <UBadge color="neutral" variant="soft" size="md">
                             <span class="text-gray-600 font-medium text-sm">{{ formatFieldName(key) }}:</span>
                             <span class="ml-1 font-normal text-sm">{{ value }}</span>
                         </UBadge>

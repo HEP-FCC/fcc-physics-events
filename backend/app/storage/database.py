@@ -18,6 +18,7 @@ from app.logging import get_logger
 from app.models.accelerator import AcceleratorCreate
 from app.models.campaign import CampaignCreate
 from app.models.detector import DetectorCreate
+from app.models.dropdown import DropdownItem
 from app.models.framework import FrameworkCreate
 from app.models.process import ProcessCreate
 
@@ -98,7 +99,9 @@ class Database:
             "name": "p.name",
             "detector": "d.name",
             "campaign": "c.name",
+            "campaign_name": "c.name",
             "framework": "f.name",
+            "framework_name": "f.name",
             "accelerator": "at.name",
             # This virtual field allows full-text search on all metadata values.
             "metadata_text": "jsonb_values_to_text(p.metadata)",
@@ -207,3 +210,235 @@ class Database:
                     metadata_json,
                 )
         logger.info("Successfully parsed and inserted all data.")
+
+    async def _get_entity_id_by_name(
+        self, conn: asyncpg.Connection, table_name: str, name: str
+    ) -> int | None:
+        """Helper function to get an entity ID by name."""
+        id_column = f"{table_name.rstrip('s')}_id"
+        query = f"SELECT {id_column} FROM {table_name} WHERE name = $1"
+        
+        record = await conn.fetchrow(query, name)
+        return int(record[id_column]) if record else None
+
+    async def get_frameworks(
+        self,
+        accelerator_name: str | None = None,
+        campaign_name: str | None = None,
+        detector_name: str | None = None,
+    ) -> list[DropdownItem]:
+        """Gets all frameworks for the navigation dropdown, optionally filtered by other entities."""
+        query = "SELECT DISTINCT f.framework_id as id, f.name FROM frameworks f"
+        params: list[int] = []
+        conditions: list[str] = []
+
+        async with self.session() as conn:
+            # Convert names to IDs if provided
+            accelerator_id = None
+            campaign_id = None
+            detector_id = None
+            
+            if accelerator_name is not None:
+                accelerator_id = await self._get_entity_id_by_name(conn, "accelerators", accelerator_name)
+                if accelerator_id is None:
+                    return []  # No matching accelerator found
+            
+            if campaign_name is not None:
+                campaign_id = await self._get_entity_id_by_name(conn, "campaigns", campaign_name)
+                if campaign_id is None:
+                    return []  # No matching campaign found
+            
+            if detector_name is not None:
+                detector_id = await self._get_entity_id_by_name(conn, "detectors", detector_name)
+                if detector_id is None:
+                    return []  # No matching detector found
+
+            if accelerator_id is not None or campaign_id is not None or detector_id is not None:
+                query += " INNER JOIN processes p ON f.framework_id = p.framework_id"
+                
+                if accelerator_id is not None:
+                    conditions.append(f"p.accelerator_id = ${len(params) + 1}")
+                    params.append(accelerator_id)
+                
+                if campaign_id is not None:
+                    conditions.append(f"p.campaign_id = ${len(params) + 1}")
+                    params.append(campaign_id)
+                
+                if detector_id is not None:
+                    conditions.append(f"p.detector_id = ${len(params) + 1}")
+                    params.append(detector_id)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY f.name"
+
+            records = await conn.fetch(query, *params)
+            return [DropdownItem.model_validate(dict(record)) for record in records]
+
+    async def get_campaigns(
+        self,
+        accelerator_name: str | None = None,
+        framework_name: str | None = None,
+        detector_name: str | None = None,
+    ) -> list[DropdownItem]:
+        """Gets all campaigns for the navigation dropdown, optionally filtered by other entities."""
+        query = "SELECT DISTINCT c.campaign_id as id, c.name FROM campaigns c"
+        params: list[int] = []
+        conditions: list[str] = []
+
+        async with self.session() as conn:
+            # Convert names to IDs if provided
+            accelerator_id = None
+            framework_id = None
+            detector_id = None
+            
+            if accelerator_name is not None:
+                accelerator_id = await self._get_entity_id_by_name(conn, "accelerators", accelerator_name)
+                if accelerator_id is None:
+                    return []  # No matching accelerator found
+            
+            if framework_name is not None:
+                framework_id = await self._get_entity_id_by_name(conn, "frameworks", framework_name)
+                if framework_id is None:
+                    return []  # No matching framework found
+            
+            if detector_name is not None:
+                detector_id = await self._get_entity_id_by_name(conn, "detectors", detector_name)
+                if detector_id is None:
+                    return []  # No matching detector found
+
+            if accelerator_id is not None or framework_id is not None or detector_id is not None:
+                query += " INNER JOIN processes p ON c.campaign_id = p.campaign_id"
+                
+                if accelerator_id is not None:
+                    conditions.append(f"p.accelerator_id = ${len(params) + 1}")
+                    params.append(accelerator_id)
+                
+                if framework_id is not None:
+                    conditions.append(f"p.framework_id = ${len(params) + 1}")
+                    params.append(framework_id)
+                
+                if detector_id is not None:
+                    conditions.append(f"p.detector_id = ${len(params) + 1}")
+                    params.append(detector_id)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY c.name"
+
+            records = await conn.fetch(query, *params)
+            return [DropdownItem.model_validate(dict(record)) for record in records]
+
+    async def get_detectors(
+        self,
+        accelerator_name: str | None = None,
+        framework_name: str | None = None,
+        campaign_name: str | None = None,
+    ) -> list[DropdownItem]:
+        """Gets all detectors for the navigation dropdown, optionally filtered by other entities."""
+        query = "SELECT DISTINCT d.detector_id as id, d.name FROM detectors d"
+        params: list[int] = []
+        conditions: list[str] = []
+
+        async with self.session() as conn:
+            # Convert names to IDs if provided
+            accelerator_id = None
+            framework_id = None
+            campaign_id = None
+            
+            if accelerator_name is not None:
+                accelerator_id = await self._get_entity_id_by_name(conn, "accelerators", accelerator_name)
+                if accelerator_id is None:
+                    return []  # No matching accelerator found
+            
+            if framework_name is not None:
+                framework_id = await self._get_entity_id_by_name(conn, "frameworks", framework_name)
+                if framework_id is None:
+                    return []  # No matching framework found
+            
+            if campaign_name is not None:
+                campaign_id = await self._get_entity_id_by_name(conn, "campaigns", campaign_name)
+                if campaign_id is None:
+                    return []  # No matching campaign found
+
+            # Always consider accelerator filtering via direct relationship
+            if accelerator_id is not None:
+                conditions.append(f"d.accelerator_id = ${len(params) + 1}")
+                params.append(accelerator_id)
+
+            # For framework and campaign filtering, use processes table
+            if framework_id is not None or campaign_id is not None:
+                query += " INNER JOIN processes p ON d.detector_id = p.detector_id"
+                
+                if framework_id is not None:
+                    conditions.append(f"p.framework_id = ${len(params) + 1}")
+                    params.append(framework_id)
+                
+                if campaign_id is not None:
+                    conditions.append(f"p.campaign_id = ${len(params) + 1}")
+                    params.append(campaign_id)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY d.name"
+
+            records = await conn.fetch(query, *params)
+            return [DropdownItem.model_validate(dict(record)) for record in records]
+
+    async def get_accelerators(
+        self,
+        framework_name: str | None = None,
+        campaign_name: str | None = None,
+        detector_name: str | None = None,
+    ) -> list[DropdownItem]:
+        """Gets all accelerators for the navigation dropdown, optionally filtered by other entities."""
+        query = "SELECT DISTINCT a.accelerator_id as id, a.name FROM accelerators a"
+        params: list[int] = []
+        conditions: list[str] = []
+
+        async with self.session() as conn:
+            # Convert names to IDs if provided
+            framework_id = None
+            campaign_id = None
+            detector_id = None
+            
+            if framework_name is not None:
+                framework_id = await self._get_entity_id_by_name(conn, "frameworks", framework_name)
+                if framework_id is None:
+                    return []  # No matching framework found
+            
+            if campaign_name is not None:
+                campaign_id = await self._get_entity_id_by_name(conn, "campaigns", campaign_name)
+                if campaign_id is None:
+                    return []  # No matching campaign found
+            
+            if detector_name is not None:
+                detector_id = await self._get_entity_id_by_name(conn, "detectors", detector_name)
+                if detector_id is None:
+                    return []  # No matching detector found
+
+            if framework_id is not None or campaign_id is not None or detector_id is not None:
+                query += " INNER JOIN processes p ON a.accelerator_id = p.accelerator_id"
+                
+                if framework_id is not None:
+                    conditions.append(f"p.framework_id = ${len(params) + 1}")
+                    params.append(framework_id)
+                
+                if campaign_id is not None:
+                    conditions.append(f"p.campaign_id = ${len(params) + 1}")
+                    params.append(campaign_id)
+                
+                if detector_id is not None:
+                    conditions.append(f"p.detector_id = ${len(params) + 1}")
+                    params.append(detector_id)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+            
+            query += " ORDER BY a.name"
+
+            records = await conn.fetch(query, *params)
+            return [DropdownItem.model_validate(dict(record)) for record in records]

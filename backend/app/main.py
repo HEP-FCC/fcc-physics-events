@@ -12,6 +12,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.config import get_config
 from app.gclql_query_parser import QueryParser
+from app.models.dropdown import DropdownItem
 from app.models.process import ProcessWithDetails
 from app.storage.database import Database
 
@@ -104,4 +105,93 @@ async def execute_gclql_query(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"An error occurred during query execution: {e}"
+        )
+
+
+@app.get("/frameworks/", response_model=list[DropdownItem])
+async def get_frameworks(
+    accelerator_name: str | None = Query(None, description="Filter by accelerator name"),
+    campaign_name: str | None = Query(None, description="Filter by campaign name"),
+    detector_name: str | None = Query(None, description="Filter by detector name"),
+) -> Any:
+    """
+    Get all available frameworks for the navigation dropdown.
+    Optionally filter by accelerator, campaign, or detector.
+    """
+    try:
+        return await database.get_frameworks(
+            accelerator_name=accelerator_name,
+            campaign_name=campaign_name,
+            detector_name=detector_name,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred while fetching frameworks: {e}"
+        )
+
+
+@app.get("/campaigns/", response_model=list[DropdownItem])
+async def get_campaigns(
+    accelerator_name: str | None = Query(None, description="Filter by accelerator name"),
+    framework_name: str | None = Query(None, description="Filter by framework name"),
+    detector_name: str | None = Query(None, description="Filter by detector name"),
+) -> Any:
+    """
+    Get all available campaigns for the navigation dropdown.
+    Optionally filter by accelerator, framework, or detector.
+    """
+    try:
+        return await database.get_campaigns(
+            accelerator_name=accelerator_name,
+            framework_name=framework_name,
+            detector_name=detector_name,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred while fetching campaigns: {e}"
+        )
+
+
+@app.get("/detectors/", response_model=list[DropdownItem])
+async def get_detectors(
+    accelerator_name: str | None = Query(None, description="Filter by accelerator name"),
+    framework_name: str | None = Query(None, description="Filter by framework name"),
+    campaign_name: str | None = Query(None, description="Filter by campaign name"),
+) -> Any:
+    """
+    Get all available detectors for the navigation dropdown.
+    Optionally filter by accelerator, framework, or campaign.
+    """
+    try:
+        return await database.get_detectors(
+            accelerator_name=accelerator_name,
+            framework_name=framework_name,
+            campaign_name=campaign_name,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"An error occurred while fetching detectors: {e}"
+        )
+
+
+@app.get("/accelerators/", response_model=list[DropdownItem])
+async def get_accelerators(
+    framework_name: str | None = Query(None, description="Filter by framework name"),
+    campaign_name: str | None = Query(None, description="Filter by campaign name"),
+    detector_name: str | None = Query(None, description="Filter by detector name"),
+) -> Any:
+    """
+    Get all available accelerators for the navigation dropdown.
+    Optionally filter by framework, campaign, or detector.
+    """
+    try:
+        return await database.get_accelerators(
+            framework_name=framework_name,
+            campaign_name=campaign_name,
+            detector_name=detector_name,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while fetching accelerators: {e}",
         )

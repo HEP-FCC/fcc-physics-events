@@ -1,9 +1,19 @@
 <template>
-  <div>
-    <HelloWorld :initial-filters="{}" />
-  </div>
+    <div>
+        <HelloWorld :initial-filters="{}" />
+    </div>
 </template>
 
 <script setup lang="ts">
-// No script needed here anymore, but keeping it for consistency
+// Set page title and meta for the main page
+useHead({
+    title: "FCC Physics Events Search",
+    meta: [
+        {
+            name: "description",
+            content:
+                "Search and explore FCC physics simulation events and data across different frameworks, campaigns, and detectors",
+        },
+    ],
+});
 </script>
