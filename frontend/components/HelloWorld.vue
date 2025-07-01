@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed, onMounted } from "vue";
-import { watchDebounced } from "@vueuse/core";
+import { ref, reactive, watch, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
 import { getApiClient } from "../composables/getApiClient";
 import type { Event, PaginatedResponse } from "../types/event";
 import Metadata from "./Metadata.vue";
@@ -15,22 +15,29 @@ const searchInputRef = ref<HTMLInputElement | null>(null);
 
 const searchState = reactive<{
     isLoading: boolean;
+    isLoadingMore: boolean;
     events: Event[];
     error: string | null;
+    hasMore: boolean;
 }>({
     isLoading: false,
+    isLoadingMore: false,
     events: [],
     error: null,
+    hasMore: true,
 });
 
 const pagination = reactive({
     currentPage: 1,
     pageSize: 20,
     totalEvents: 0,
+    totalPages: 0,
+    loadedPages: new Set<number>(),
 });
 
 const expandedRows = reactive(new Set<number>());
 const lastToggleAction = ref<"expand" | "collapse" | null>(null);
+const infiniteScrollEnabled = ref(true);
 
 const apiClient = getApiClient();
 
@@ -60,32 +67,206 @@ const searchPlaceholderText = computed(() => {
     return urlFilterQuery.value ? "Add additional search terms..." : 'e.g., detector:"IDEA" AND metadata.status:"done"';
 });
 
-async function performSearch() {
+const currentDisplayRange = computed(() => {
+    if (infiniteScrollEnabled.value) {
+        // In infinite scroll mode, show total loaded vs total available
+        const totalDisplayed = searchState.events.length;
+        const start = totalDisplayed > 0 ? 1 : 0;
+        return {
+            start,
+            end: totalDisplayed,
+            total: pagination.totalEvents,
+        };
+    } else {
+        // In pagination mode, show current page range
+        const start = (pagination.currentPage - 1) * pagination.pageSize + 1;
+        const end = Math.min(pagination.currentPage * pagination.pageSize, pagination.totalEvents);
+        return {
+            start: searchState.events.length > 0 ? start : 0,
+            end,
+            total: pagination.totalEvents,
+        };
+    }
+});
+
+const canLoadMore = computed(() => {
+    return searchState.hasMore && infiniteScrollEnabled.value && !searchState.isLoading && !searchState.isLoadingMore;
+});
+
+async function performSearch(resetResults = true) {
     // Only search if we have a valid query
     if (!combinedSearchQuery.value.trim()) {
         searchState.events = [];
         pagination.totalEvents = 0;
+        pagination.totalPages = 0;
+        pagination.loadedPages.clear();
+        searchState.hasMore = false;
         return;
     }
 
-    searchState.isLoading = true;
+    const isInitialLoad = resetResults;
+
+    if (isInitialLoad) {
+        searchState.isLoading = true;
+        searchState.events = [];
+        pagination.loadedPages.clear();
+        // Only reset to page 1 if we're doing a fresh search (not pagination)
+        if (infiniteScrollEnabled.value) {
+            pagination.currentPage = 1;
+        }
+    } else {
+        searchState.isLoadingMore = true;
+    }
+
     searchState.error = null;
 
     try {
-        const offset = (pagination.currentPage - 1) * pagination.pageSize;
+        const pageToLoad = isInitialLoad
+            ? infiniteScrollEnabled.value
+                ? 1
+                : pagination.currentPage
+            : pagination.currentPage;
+        const offset = (pageToLoad - 1) * pagination.pageSize;
+
         const response: PaginatedResponse = await apiClient.searchSamples(
             combinedSearchQuery.value,
             pagination.pageSize,
             offset,
         );
-        searchState.events = response.items;
+
+        if (isInitialLoad || !infiniteScrollEnabled.value) {
+            // Replace results for initial load or pagination mode
+            searchState.events = response.items;
+            pagination.totalEvents = response.total;
+            pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
+            pagination.loadedPages.clear();
+            pagination.loadedPages.add(pageToLoad);
+        } else {
+            // Append new results for infinite scroll mode
+            searchState.events.push(...response.items);
+            pagination.loadedPages.add(pageToLoad);
+        }
+
+        // Update pagination state
         pagination.totalEvents = response.total;
+        pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
+
+        // Check if there are more pages to load
+        searchState.hasMore = pagination.currentPage < pagination.totalPages;
     } catch (err) {
         searchState.error = err instanceof Error ? err.message : "Failed to fetch events.";
-        searchState.events = [];
-        pagination.totalEvents = 0;
+        if (isInitialLoad) {
+            searchState.events = [];
+            pagination.totalEvents = 0;
+            pagination.totalPages = 0;
+        }
+        searchState.hasMore = false;
     } finally {
-        searchState.isLoading = false;
+        if (isInitialLoad) {
+            searchState.isLoading = false;
+        } else {
+            searchState.isLoadingMore = false;
+        }
+    }
+}
+
+async function loadMoreData() {
+    if (searchState.isLoadingMore || !canLoadMore.value || !searchState.hasMore) {
+        return;
+    }
+
+    // Load the next page
+    pagination.currentPage += 1;
+    await performSearch(false);
+}
+
+async function jumpToPage(page: number) {
+    if (infiniteScrollEnabled.value) {
+        // In infinite scroll mode, disable it temporarily and load all pages up to target
+        infiniteScrollEnabled.value = false;
+
+        const targetPage = Math.max(1, Math.min(page, pagination.totalPages));
+
+        if (!pagination.loadedPages.has(targetPage)) {
+            searchState.isLoading = true;
+            searchState.events = [];
+            pagination.loadedPages.clear();
+
+            try {
+                const promises = [];
+                for (let p = 1; p <= targetPage; p++) {
+                    const offset = (p - 1) * pagination.pageSize;
+                    promises.push(apiClient.searchSamples(combinedSearchQuery.value, pagination.pageSize, offset));
+                }
+
+                const responses = await Promise.all(promises);
+                const allItems = responses.flatMap((response) => response.items);
+
+                searchState.events = allItems;
+
+                for (let p = 1; p <= targetPage; p++) {
+                    pagination.loadedPages.add(p);
+                }
+            } catch (err) {
+                searchState.error = err instanceof Error ? err.message : "Failed to fetch events.";
+            } finally {
+                searchState.isLoading = false;
+            }
+        }
+
+        pagination.currentPage = targetPage;
+
+        setTimeout(() => {
+            infiniteScrollEnabled.value = true;
+        }, 1000);
+
+        await nextTick();
+        const targetIndex = (targetPage - 1) * pagination.pageSize;
+        const eventCards = document.querySelectorAll("[data-event-card]");
+        if (eventCards[targetIndex]) {
+            eventCards[targetIndex].scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    } else {
+        // In pagination mode, load the specific page
+        const targetPage = Math.max(1, Math.min(page, pagination.totalPages));
+        pagination.currentPage = targetPage;
+
+        // Load the specific page data
+        searchState.isLoading = true;
+        searchState.error = null;
+
+        try {
+            const offset = (targetPage - 1) * pagination.pageSize;
+            const response: PaginatedResponse = await apiClient.searchSamples(
+                combinedSearchQuery.value,
+                pagination.pageSize,
+                offset,
+            );
+
+            searchState.events = response.items;
+            pagination.totalEvents = response.total;
+            pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
+            pagination.loadedPages.clear();
+            pagination.loadedPages.add(targetPage);
+
+            // Check if there are more pages
+            searchState.hasMore = targetPage < pagination.totalPages;
+        } catch (err) {
+            searchState.error = err instanceof Error ? err.message : "Failed to fetch events.";
+            searchState.events = [];
+        } finally {
+            searchState.isLoading = false;
+        }
+    }
+}
+
+function toggleMode() {
+    infiniteScrollEnabled.value = !infiniteScrollEnabled.value;
+
+    if (!infiniteScrollEnabled.value) {
+        // Switching to pagination mode - reset to show only first page
+        pagination.currentPage = 1;
+        performSearch(true);
     }
 }
 
@@ -136,28 +317,21 @@ function toggleAllMetadata() {
 // Handle page size changes and trigger a new search.
 function handlePageSizeChange() {
     pagination.currentPage = 1;
-    performSearch();
+    performSearch(true);
 }
 
-// Format filter names for display
-function formatFilterName(key: string): string {
-    const nameMap: Record<string, string> = {
-        framework_name: "Framework",
-        campaign_name: "Campaign",
-        detector: "Detector",
-        detector_name: "Detector",
-    };
-    return nameMap[key] || key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-}
+// Set up infinite scroll on window/document
+useInfiniteScroll(window, loadMoreData, {
+    distance: 200, // Trigger when 200px from bottom
+    canLoadMore: () => canLoadMore.value,
+});
 
-watch(() => pagination.currentPage, performSearch);
-
-// // Watch for changes in the initial URL filters to trigger a new search.
+// Watch for changes in the initial URL filters to trigger a new search.
 watch(
     () => props.initialFilters,
     () => {
         pagination.currentPage = 1;
-        performSearch();
+        performSearch(true);
     },
     { deep: true },
 );
@@ -169,17 +343,27 @@ watchDebounced(
     () => {
         if (pagination.currentPage !== 1) {
             pagination.currentPage = 1;
-        } else {
-            performSearch();
         }
+        performSearch(true);
     },
     { debounce: 500 },
+);
+
+// Watch for page changes when in pagination mode
+watch(
+    () => pagination.currentPage,
+    (newPage, oldPage) => {
+        // Only trigger if in pagination mode and the page actually changed
+        if (!infiniteScrollEnabled.value && newPage !== oldPage) {
+            jumpToPage(newPage);
+        }
+    },
 );
 
 // Perform initial search on mount only if there are URL filters
 onMounted(() => {
     if (Object.keys(props.initialFilters).length > 0) {
-        performSearch();
+        performSearch(true);
     }
 });
 </script>
@@ -237,12 +421,11 @@ onMounted(() => {
                     <div class="flex items-center gap-4">
                         <div class="text-md text-gray-600">
                             Showing
-                            <strong
-                                >{{ (pagination.currentPage - 1) * pagination.pageSize + 1 }}-{{
-                                    Math.min(pagination.currentPage * pagination.pageSize, pagination.totalEvents)
-                                }}</strong
-                            >
-                            of <strong>{{ pagination.totalEvents }}</strong> results
+                            <strong>{{ currentDisplayRange.start }}-{{ currentDisplayRange.end }}</strong>
+                            of <strong>{{ currentDisplayRange.total }}</strong> results
+                            <span v-if="searchState.hasMore" class="text-sm text-gray-500">
+                                ({{ pagination.loadedPages.size }} of {{ pagination.totalPages }} pages loaded)
+                            </span>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-md text-gray-600">Results per page:</span>
@@ -266,18 +449,30 @@ onMounted(() => {
                         >
                             {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
                         </UButton>
+                        <UButton
+                            :icon="
+                                infiniteScrollEnabled ? 'i-heroicons-arrows-up-down' : 'i-heroicons-document-duplicate'
+                            "
+                            :color="infiniteScrollEnabled ? 'primary' : 'neutral'"
+                            variant="outline"
+                            size="sm"
+                            @click="toggleMode"
+                        >
+                            {{ infiniteScrollEnabled ? "Infinite Scroll" : "Pagination" }}
+                        </UButton>
                     </div>
-                    <UPagination
-                        v-model="pagination.currentPage"
-                        :total="pagination.totalEvents"
-                        :page-count="pagination.pageSize"
-                    />
+
+                    <!-- Only show pagination in pagination mode -->
+                    <div v-if="!infiniteScrollEnabled" class="flex justify-center">
+                        <UPagination v-model:page="pagination.currentPage" :total="pagination.totalEvents" />
+                    </div>
                 </div>
 
                 <div class="space-y-2">
                     <UCard
-                        v-for="event in searchState.events"
+                        v-for="(event, index) in searchState.events"
                         :key="event.process_id"
+                        :data-event-card="index"
                         class="overflow-hidden select-text cursor-pointer"
                         @click="handleRowClick($event, event.process_id)"
                     >
@@ -287,7 +482,6 @@ onMounted(() => {
                                     <div class="flex items-center">
                                         <div class="w-88 flex-shrink-0">
                                             <h3 class="font-semibold text-base text-gray-900">
-                                                <span class="text-slate-500">Process:</span>
                                                 <span class="ml-1 text-gray-900">{{ event.name }}</span>
                                             </h3>
                                         </div>
@@ -317,12 +511,7 @@ onMounted(() => {
                                         </div>
 
                                         <div class="w-32 flex-shrink-0">
-                                            <UBadge
-                                                v-if="event.detector_name"
-                                                color="neutral"
-                                                variant="subtle"
-                                                size="md"
-                                            >
+                                            <UBadge v-if="event.detector_name" color="info" variant="subtle" size="md">
                                                 <span class="text-blue-600">Detector:</span>
                                                 <span class="ml-1">{{ event.detector_name }}</span>
                                             </UBadge>
@@ -331,7 +520,7 @@ onMounted(() => {
                                         <div class="w-40 flex-shrink-0">
                                             <UBadge
                                                 v-if="event.accelerator_name"
-                                                color="neutral"
+                                                color="secondary"
                                                 variant="subtle"
                                                 size="md"
                                             >
@@ -362,23 +551,56 @@ onMounted(() => {
 
                         <Metadata :event="event" v-if="expandedRows.has(event.process_id)" />
                     </UCard>
+
+                    <!-- Infinite scroll loading animation (only in infinite scroll mode) -->
+                    <div v-if="searchState.isLoadingMore && infiniteScrollEnabled" class="flex justify-center py-8">
+                        <div class="flex items-center space-x-3">
+                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+                            <span class="text-sm text-gray-600">Loading more results...</span>
+                            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500"></div>
+                        </div>
+                    </div>
+
+                    <!-- Manual load more button (only in infinite scroll mode when auto-loading is disabled) -->
+                    <div
+                        v-else-if="searchState.hasMore && infiniteScrollEnabled && !canLoadMore"
+                        class="flex justify-center py-6"
+                    >
+                        <UButton
+                            color="primary"
+                            variant="outline"
+                            size="lg"
+                            icon="i-heroicons-chevron-down"
+                            :loading="searchState.isLoadingMore"
+                            @click="loadMoreData"
+                        >
+                            Load More Results ({{ pagination.totalEvents - searchState.events.length }} remaining)
+                        </UButton>
+                    </div>
+
+                    <!-- End of results indicator (only in infinite scroll mode) -->
+                    <div
+                        v-else-if="!searchState.hasMore && searchState.events.length > 0 && infiniteScrollEnabled"
+                        class="flex justify-center py-6"
+                    >
+                        <div class="text-center">
+                            <div class="text-gray-500 text-sm">
+                                <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
+                                All {{ pagination.totalEvents }} results loaded
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="flex justify-center">
-                    <UPagination
-                        v-model="pagination.currentPage"
-                        :total="pagination.totalEvents"
-                        :page-count="pagination.pageSize"
-                    />
+                <!-- Bottom pagination (only in pagination mode) -->
+                <div v-if="!infiniteScrollEnabled" class="flex justify-center pt-4">
+                    <UPagination v-model:page="pagination.currentPage" :total="pagination.totalEvents" />
                 </div>
             </div>
 
             <UCard v-else class="text-center py-12">
-                <div class="space-y-3">
-                    <div class="text-4xl">🔍</div>
-                    <h3 class="text-lg font-semibold text-gray-900">No events found</h3>
-                    <p class="text-gray-500">Enter a query above to begin searching for physics events.</p>
-                </div>
+                <p class="text-lg font-medium">No events found.</p>
+                <p class="text-sm text-gray-600">Try adjusting your search query.</p>
             </UCard>
         </div>
     </UContainer>
