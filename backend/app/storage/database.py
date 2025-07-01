@@ -98,11 +98,13 @@ class Database:
         return {
             "name": "p.name",
             "detector": "d.name",
+            "detector_name": "d.name",
             "campaign": "c.name",
             "campaign_name": "c.name",
             "framework": "f.name",
             "framework_name": "f.name",
             "accelerator": "at.name",
+            "accelerator_name": "at.name",
             # This virtual field allows full-text search on all metadata values.
             "metadata_text": "jsonb_values_to_text(p.metadata)",
             # This field allows querying specific keys within the JSONB object.

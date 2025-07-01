@@ -19,14 +19,14 @@ gcp_logging_grammar = r"""
     ?item: "(" expr ")" | comparison | global_search
     global_search: value
     comparison: field OP value
-    field: CNAME ("." CNAME)*
+    field: FIELD_NAME ("." FIELD_NAME)*
     value: ESCAPED_STRING | SIGNED_NUMBER | UNQUOTED_STRING
     AND.2: "AND" | "and"
     OR.2: "OR" | "or"
     NOT.2: "NOT" | "not"
-    UNQUOTED_STRING: /[a-zA-Z0-9_.*-][a-zA-Z0-9_.*-:]*/
+    FIELD_NAME: /[a-zA-Z_][a-zA-Z0-9_-]*/
+    UNQUOTED_STRING: /[a-zA-Z0-9_.*-]+/
     OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "~" | "!~"
-    %import common.CNAME
     %import common.ESCAPED_STRING
     %import common.SIGNED_NUMBER
     %import common.WS
@@ -38,7 +38,9 @@ gcp_logging_grammar = r"""
 class Field:
     parts: tuple[str, ...]
 
-    def to_sql(self, schema_mapping: dict[str, str]) -> str:
+    def to_sql(
+        self, schema_mapping: dict[str, str], value: Any = None, op: str | None = None
+    ) -> str:
         base_field = self.parts[0]
         if base_field not in schema_mapping:
             raise ValueError(f"Field '{base_field}' is not valid.")
@@ -46,11 +48,24 @@ class Field:
         if base_field == "metadata" and len(self.parts) > 1:
             json_path_parts = self.parts[1:]
             path_expression = "->".join([f"'{part}'" for part in json_path_parts[:-1]])
-            return (
+
+            # Determine if we need to cast based on the value type and operator
+            json_field = (
                 f"{sql_column}->{path_expression}->>'{json_path_parts[-1]}'"
                 if len(json_path_parts) > 1
                 else f"{sql_column}->>'{json_path_parts[0]}'"
             )
+
+            # If comparing with a number and using equality/comparison operators, cast to numeric
+            if (
+                value is not None
+                and isinstance(value, int | float)
+                and op in ("=", "!=", ">", "<", ">=", "<=", ":")
+            ):
+                # Cast the JSON text value to numeric for comparison
+                return f"({json_field})::numeric"
+
+            return json_field
         return sql_column
 
 
@@ -130,11 +145,13 @@ class SqlTranslator:
         self.global_search_fields = [
             "name",
             "detector",
+            "detector_name",
             "campaign",
             "campaign_name",
             "framework",
             "framework_name",
             "accelerator",
+            "accelerator_name",
             "metadata_text",
         ]
         self.params = []
@@ -154,12 +171,10 @@ class SqlTranslator:
         raise TypeError(f"Unknown AST node type: {type(node)}")
 
     def _translate_comparison(self, node: Comparison) -> str:
-        sql_field, op, value, self.param_index = (
-            node.field.to_sql(self.schema_mapping),
-            node.op,
-            node.value,
-            self.param_index + 1,
-        )
+        sql_field = node.field.to_sql(self.schema_mapping, node.value, node.op)
+        op = node.op
+        value = node.value
+        self.param_index += 1
         placeholder = f"${self.param_index}"
         if op == ":" or op == "=":
             sql_op, param_value = "=", value

@@ -1,386 +1,203 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
-import { getApiClient, type DropdownItem } from "../composables/getApiClient";
-import type { DropdownMenuItem } from "@nuxt/ui";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import type { DropdownItem, DropdownType } from "../types/navigation";
+import { useNavigationConfig, type NavigationDropdownConfig } from "../composables/useNavigationConfig";
 
 const route = useRoute();
 const router = useRouter();
-const apiClient = getApiClient();
 
-// Reactive state for dropdown data
-const dropdownData = ref<{
-    frameworks: DropdownItem[];
-    campaigns: DropdownItem[];
-    detectors: DropdownItem[];
-}>({
-    frameworks: [],
-    campaigns: [],
-    detectors: [],
-});
+const { navigationConfig, dropdownKeys, parseCurrentPath } = useNavigationConfig();
 
-const isLoading = ref<{
-    frameworks: boolean;
-    campaigns: boolean;
-    detectors: boolean;
-}>({
-    frameworks: true,
-    campaigns: true,
-    detectors: true,
-});
-
-// Get current active selections from the route
-const currentSelection = computed(() => {
-    const params = route.params.slug || [];
-    return {
-        framework: params[0] || null,
-        campaign: params[1] || null,
-        detector: params[2] || null,
-    };
-});
-
-// Create dropdown items for UI
-const frameworkItems = computed((): DropdownMenuItem[][] => {
-    const items: DropdownMenuItem[][] = [
-        [
+// Create reactive dropdowns from navigation config
+const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
+    Object.fromEntries(
+        Object.entries(navigationConfig).map(([key, config]) => [
+            key,
             {
-                label: "All Frameworks",
-                icon: "i-heroicons-home",
-                onSelect: () => navigateToPath(null, currentSelection.value.campaign, currentSelection.value.detector),
-            },
-        ],
-    ];
+                ...config,
+                items: [] as DropdownItem[],
+                isLoading: false,
+                isOpen: false,
+            }
+        ])
+    ) as Record<DropdownType, NavigationDropdownConfig>
+);
 
-    if (dropdownData.value.frameworks.length > 0) {
-        items.push(
-            dropdownData.value.frameworks.map((framework) => ({
-                label: framework.name,
-                icon: "i-heroicons-cpu-chip",
-                onSelect: () =>
-                    navigateToPath(framework.name, currentSelection.value.campaign, currentSelection.value.detector),
-            })),
-        );
-    } else if (!isLoading.value.frameworks) {
-        items.push([
-            {
-                label: "No frameworks available",
-                disabled: true,
-                icon: "i-heroicons-exclamation-triangle",
-            },
-        ]);
+const currentPath = computed(() => {
+    const params = Array.isArray(route.params.slug) ? route.params.slug : [];
+    return parseCurrentPath(params);
+});
+
+function navigateTo(type: DropdownType, value: string) {
+    const current = currentPath.value;
+    // Create pathParts array in the correct order
+    const pathParts = dropdownKeys.value.map((t) => current[t]);
+    const typeIndex = dropdownKeys.value.indexOf(type);
+
+    // Create a new path up to the selected type
+    let newPathParts = pathParts.slice(0, typeIndex);
+    newPathParts.push(value);
+
+    // Filter out nulls and join to form the path
+    const newPath = `/${newPathParts.filter((p) => p).join("/")}`;
+    router.push(newPath);
+}
+
+function clearSelection(type: DropdownType) {
+    const current = currentPath.value;
+    // Create pathParts array in the correct order
+    const pathParts = dropdownKeys.value.map((t) => current[t]);
+    const typeIndex = dropdownKeys.value.indexOf(type);
+
+    // Create a new path that excludes the cleared type and everything after it
+    let newPathParts = pathParts.slice(0, typeIndex);
+
+    if (newPathParts.length === 0) {
+        router.push("/");
+    } else {
+        const newPath = `/${newPathParts.filter((p) => p).join("/")}`;
+        router.push(newPath);
     }
+}
 
-    return items;
-});
+function closeAllDropdowns() {
+    Object.values(dropdowns.value).forEach((d) => (d.isOpen = false));
+}
 
-const campaignItems = computed((): DropdownMenuItem[][] => {
-    const items: DropdownMenuItem[][] = [
-        [
-            {
-                label: "All Campaigns",
-                icon: "i-heroicons-home",
-                onSelect: () => navigateToPath(currentSelection.value.framework, null, currentSelection.value.detector),
-            },
-        ],
-    ];
-
-    if (dropdownData.value.campaigns.length > 0) {
-        items.push(
-            dropdownData.value.campaigns.map((campaign) => ({
-                label: campaign.name,
-                icon: "i-heroicons-calendar",
-                onSelect: () =>
-                    navigateToPath(currentSelection.value.framework, campaign.name, currentSelection.value.detector),
-            })),
-        );
-    } else if (!isLoading.value.campaigns) {
-        const message = currentSelection.value.framework
-            ? `No campaigns for ${currentSelection.value.framework}`
-            : "No campaigns available";
-        items.push([
-            {
-                label: message,
-                disabled: true,
-                icon: "i-heroicons-exclamation-triangle",
-            },
-        ]);
+function toggleDropdown(type: DropdownType) {
+    const wasOpen = dropdowns.value[type].isOpen;
+    closeAllDropdowns();
+    if (!wasOpen) {
+        dropdowns.value[type].isOpen = true;
     }
+}
 
-    return items;
-});
+function handleClickOutside(event: Event) {
+    const target = event.target as HTMLElement;
+    if (!target.closest(".relative")) {
+        closeAllDropdowns();
+    }
+}
 
-const detectorItems = computed((): DropdownMenuItem[][] => {
-    const items: DropdownMenuItem[][] = [
-        [
-            {
-                label: "All Detectors",
-                icon: "i-heroicons-home",
-                onSelect: () => navigateToPath(currentSelection.value.framework, currentSelection.value.campaign, null),
-            },
-        ],
-    ];
+async function loadDropdownData() {
+    const current = currentPath.value;
 
-    if (dropdownData.value.detectors.length > 0) {
-        items.push(
-            dropdownData.value.detectors.map((detector) => ({
-                label: detector.name,
-                icon: "i-heroicons-eye",
-                onSelect: () =>
-                    navigateToPath(currentSelection.value.framework, currentSelection.value.campaign, detector.name),
-            })),
-        );
-    } else if (!isLoading.value.detectors) {
-        let message = "No detectors available";
-        if (currentSelection.value.framework && currentSelection.value.campaign) {
-            message = `No detectors for ${currentSelection.value.framework}/${currentSelection.value.campaign}`;
-        } else if (currentSelection.value.framework) {
-            message = `No detectors for ${currentSelection.value.framework}`;
+    // Dynamically generate filter map based on dropdowns configuration order
+    const filterMap = {} as Record<DropdownType, any>;
+    for (const type of dropdownKeys.value) {
+        filterMap[type] = {};
+        // Add filters for all other dropdown types
+        for (const otherType of dropdownKeys.value) {
+            if (otherType !== type) {
+                const filterKey = `${otherType}_name`;
+                filterMap[type][filterKey] = current[otherType];
+            }
         }
-        items.push([
-            {
-                label: message,
-                disabled: true,
-                icon: "i-heroicons-exclamation-triangle",
-            },
-        ]);
     }
 
-    return items;
-});
-
-// Navigation function
-function navigateToPath(framework: string | null, campaign: string | null, detector: string | null) {
-    const pathSegments = [];
-
-    if (framework) pathSegments.push(framework);
-    if (campaign) pathSegments.push(campaign);
-    if (detector) pathSegments.push(detector);
-
-    const path = pathSegments.length > 0 ? `/${pathSegments.join("/")}` : "/";
-    router.push(path);
-}
-
-// Clear all selections
-function clearAllSelections() {
-    router.push("/");
-}
-
-// Fetch frameworks (always unfiltered as it's the first level)
-async function fetchFrameworks() {
-    isLoading.value.frameworks = true;
-    try {
-        dropdownData.value.frameworks = await apiClient.getFrameworks();
-    } catch (error) {
-        console.error("Failed to fetch frameworks:", error);
-        // Fallback to hardcoded data
-        dropdownData.value.frameworks = [
-            { id: 1, name: "Delphes" },
-            { id: 2, name: "DD4hep" },
-            { id: 3, name: "Gaudi" },
-        ];
-    } finally {
-        isLoading.value.frameworks = false;
-    }
-}
-
-// Fetch campaigns filtered by selected framework
-async function fetchCampaigns() {
-    isLoading.value.campaigns = true;
-    try {
-        const filters: any = {};
-        if (currentSelection.value.framework) {
-            filters.framework_name = currentSelection.value.framework;
+    for (const type in dropdowns.value) {
+        const dropdown = dropdowns.value[type as DropdownType];
+        dropdown.isLoading = true;
+        try {
+            const filters = Object.fromEntries(
+                Object.entries(filterMap[type as DropdownType]).filter(([_, v]) => v != null),
+            );
+            dropdown.items = await dropdown.apiCall(filters);
+        } catch (error) {
+            console.error(`Failed to load ${type}s:`, error);
+            dropdown.items = [];
+        } finally {
+            dropdown.isLoading = false;
         }
-
-        dropdownData.value.campaigns = await apiClient.getCampaigns(filters);
-    } catch (error) {
-        console.error("Failed to fetch campaigns:", error);
-        // Fallback to hardcoded data
-        dropdownData.value.campaigns = [
-            { id: 1, name: "winter2023" },
-            { id: 2, name: "spring2024" },
-            { id: 3, name: "summer2024" },
-        ];
-    } finally {
-        isLoading.value.campaigns = false;
     }
 }
 
-// Fetch detectors filtered by selected framework and campaign
-async function fetchDetectors() {
-    isLoading.value.detectors = true;
-    try {
-        const filters: any = {};
-        if (currentSelection.value.framework) {
-            filters.framework_name = currentSelection.value.framework;
-        }
-        if (currentSelection.value.campaign) {
-            filters.campaign_name = currentSelection.value.campaign;
-        }
-
-        dropdownData.value.detectors = await apiClient.getDetectors(filters);
-    } catch (error) {
-        console.error("Failed to fetch detectors:", error);
-        // Fallback to hardcoded data
-        dropdownData.value.detectors = [
-            { id: 1, name: "IDEA" },
-            { id: 2, name: "CLD" },
-            { id: 3, name: "ALLEGRO" },
-        ];
-    } finally {
-        isLoading.value.detectors = false;
-    }
-}
-
-// Fetch all dropdown data in the correct order
-async function fetchDropdownData() {
-    // Always fetch frameworks first (unfiltered)
-    await fetchFrameworks();
-    // Fetch campaigns filtered by framework
-    await fetchCampaigns();
-    // Fetch detectors filtered by framework and campaign
-    await fetchDetectors();
-}
-
-// Get button variants based on active state
-function getButtonVariant(isActive: boolean) {
-    return isActive ? "solid" : "outline";
-}
-
-function getButtonColor(isActive: boolean) {
-    return isActive ? "primary" : "neutral";
-}
-
-// Get display text for buttons
-const frameworkDisplayText = computed(() => {
-    if (currentSelection.value.framework) {
-        const framework = dropdownData.value.frameworks.find((f) => f.name === currentSelection.value.framework);
-        return framework?.name || currentSelection.value.framework;
-    }
-    return "Framework";
-});
-
-const campaignDisplayText = computed(() => {
-    if (currentSelection.value.campaign) {
-        const campaign = dropdownData.value.campaigns.find((c) => c.name === currentSelection.value.campaign);
-        return campaign?.name || currentSelection.value.campaign;
-    }
-    return "Campaign";
-});
-
-const detectorDisplayText = computed(() => {
-    if (currentSelection.value.detector) {
-        const detector = dropdownData.value.detectors.find((d) => d.name === currentSelection.value.detector);
-        return detector?.name || currentSelection.value.detector;
-    }
-    return "Detector";
-});
-
-// Check if any filters are active
-const hasActiveFilters = computed(() => {
-    return !!(currentSelection.value.framework || currentSelection.value.campaign || currentSelection.value.detector);
-});
-
-// Fetch data on mount
 onMounted(() => {
-    fetchDropdownData();
+    loadDropdownData();
+    document.addEventListener("click", handleClickOutside);
 });
 
-// Watch for changes in the current selection to refetch dependent dropdowns
-watch(
-    () => currentSelection.value.framework,
-    async (newFramework, oldFramework) => {
-        if (newFramework !== oldFramework) {
-            // When framework changes, refetch campaigns and detectors
-            await fetchCampaigns();
-            await fetchDetectors();
-        }
-    },
-);
+onUnmounted(() => {
+    document.removeEventListener("click", handleClickOutside);
+});
 
-watch(
-    () => currentSelection.value.campaign,
-    async (newCampaign, oldCampaign) => {
-        if (newCampaign !== oldCampaign) {
-            // When campaign changes, refetch detectors
-            await fetchDetectors();
-        }
-    },
-);
+watch(currentPath, loadDropdownData, { deep: true });
 </script>
 
 <template>
-    <div
-        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-gray-200"
-    >
-        <!-- Navigation Dropdowns -->
-        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div class="text-sm font-medium text-gray-700 hidden sm:block">
-                Filter by:
-                <span class="text-xs text-gray-500 font-normal ml-1">(left to right)</span>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-                <!-- Framework Dropdown -->
-                <UDropdownMenu :items="frameworkItems" :content="{ align: 'start' }" :ui="{ content: 'w-48' }">
+    <div class="bg-white border-b border-gray-200 mb-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-8 py-4">
+                <!-- Dynamic Dropdowns -->
+                <div v-for="(dropdown, type) in dropdowns" :key="type" class="relative">
                     <UButton
-                        :variant="getButtonVariant(!!currentSelection.framework)"
-                        :color="getButtonColor(!!currentSelection.framework)"
-                        :loading="isLoading.frameworks"
+                        :color="currentPath[type as DropdownType] ? 'primary' : 'neutral'"
+                        :variant="currentPath[type as DropdownType] ? 'solid' : 'ghost'"
                         trailing-icon="i-heroicons-chevron-down-20-solid"
-                        size="sm"
+                        :loading="dropdown.isLoading"
+                        @click="toggleDropdown(type as DropdownType)"
                     >
-                        {{ frameworkDisplayText }}
+                        <UIcon :name="dropdown.icon" class="mr-2" />
+                        {{ currentPath[type as DropdownType] || dropdown.label }}
                     </UButton>
-                </UDropdownMenu>
 
-                <!-- Campaign Dropdown -->
-                <UDropdownMenu :items="campaignItems" :content="{ align: 'start' }" :ui="{ content: 'w-48' }">
-                    <UButton
-                        :variant="getButtonVariant(!!currentSelection.campaign)"
-                        :color="getButtonColor(!!currentSelection.campaign)"
-                        :loading="isLoading.campaigns"
-                        trailing-icon="i-heroicons-chevron-down-20-solid"
-                        size="sm"
-                        :disabled="isLoading.campaigns"
+                    <div
+                        v-if="dropdown.isOpen"
+                        class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50"
                     >
-                        <template v-if="isLoading.campaigns">
-                            <UIcon name="i-heroicons-arrow-path" class="animate-spin mr-1" />
+                        <div class="p-2">
+                            <div v-if="currentPath[type as DropdownType]" class="mb-2">
+                                <button
+                                    @click="
+                                        clearSelection(type as DropdownType);
+                                        dropdown.isOpen = false;
+                                    "
+                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
+                                >
+                                    <UIcon name="i-heroicons-x-mark" class="mr-2" />
+                                    {{ dropdown.clearLabel }}
+                                </button>
+                            </div>
+
+                            <div v-if="dropdown.isLoading" class="p-2">
+                                <USkeleton class="h-4 w-24" />
+                            </div>
+
+                            <div v-else class="space-y-1">
+                                <button
+                                    v-for="item in dropdown.items"
+                                    :key="item.id"
+                                    @click="
+                                        navigateTo(type as DropdownType, item.name);
+                                        dropdown.isOpen = false;
+                                    "
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
+                                    :class="{ 'bg-primary-50 text-primary-700': currentPath[type as DropdownType] === item.name }"
+                                >
+                                    {{ item.name }}
+                                </button>
+                                <div v-if="!dropdown.items.length" class="px-3 py-2 text-sm text-gray-500">
+                                    No options available.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Path Breadcrumb -->
+                <div class="flex items-center space-x-2 text-sm text-gray-500 ml-auto">
+                    <span v-if="!Object.values(currentPath).some((v) => v)"> All Events </span>
+                    <template v-else>
+                        <span>Filtered by:</span>
+                        <template v-for="(dropdown, type) in dropdowns" :key="type">
+                            <UBadge v-if="currentPath[type as DropdownType]" color="primary" variant="soft">
+                                {{ dropdown.label }}: {{ currentPath[type as DropdownType] }}
+                            </UBadge>
                         </template>
-                        {{ campaignDisplayText }}
-                    </UButton>
-                </UDropdownMenu>
-
-                <!-- Detector Dropdown -->
-                <UDropdownMenu :items="detectorItems" :content="{ align: 'start' }" :ui="{ content: 'w-48' }">
-                    <UButton
-                        :variant="getButtonVariant(!!currentSelection.detector)"
-                        :color="getButtonColor(!!currentSelection.detector)"
-                        :loading="isLoading.detectors"
-                        trailing-icon="i-heroicons-chevron-down-20-solid"
-                        size="sm"
-                        :disabled="isLoading.detectors"
-                    >
-                        <template v-if="isLoading.detectors">
-                            <UIcon name="i-heroicons-arrow-path" class="animate-spin mr-1" />
-                        </template>
-                        {{ detectorDisplayText }}
-                    </UButton>
-                </UDropdownMenu>
-            </div>
-        </div>
-
-        <!-- Clear Filters Button -->
-        <div class="flex items-center gap-2">
-            <UButton
-                v-if="hasActiveFilters"
-                variant="ghost"
-                color="neutral"
-                size="sm"
-                icon="i-heroicons-x-mark-20-solid"
-                @click="clearAllSelections"
-            >
-                Clear All
-            </UButton>
+                    </template>
+                </div>
+            </nav>
         </div>
     </div>
 </template>
