@@ -58,7 +58,7 @@ export function useNavigationConfig() {
      */
     function parseRouteParams(params: string[]): Record<string, string> {
         const filters: Record<string, string> = {};
-        
+
         dropdownKeys.value.forEach((type, index) => {
             if (params.length > index && params[index]) {
                 const filterKey = `${type}_name`;
@@ -74,7 +74,7 @@ export function useNavigationConfig() {
      */
     function parseCurrentPath(params: string[]): Record<DropdownType, string | null> {
         const pathObj: Record<DropdownType, string | null> = {} as Record<DropdownType, string | null>;
-        
+
         dropdownKeys.value.forEach((type, index) => {
             pathObj[type] = params[index] || null;
         });
@@ -86,9 +86,7 @@ export function useNavigationConfig() {
      * Generate readable page title from active filters
      */
     function generatePageTitle(filters: Record<string, string>): string {
-        const filterNames = dropdownKeys.value
-            .map(type => filters[`${type}_name`])
-            .filter(Boolean);
+        const filterNames = dropdownKeys.value.map((type) => filters[`${type}_name`]).filter(Boolean);
 
         if (filterNames.length > 0) {
             return `FCC Physics Events - ${filterNames.join(" / ")}`;
@@ -120,4 +118,4 @@ export function useNavigationConfig() {
 }
 
 // Export the derived DropdownType for use in other files
-export type DropdownType = keyof ReturnType<typeof useNavigationConfig>['navigationConfig'];
+export type DropdownType = keyof ReturnType<typeof useNavigationConfig>["navigationConfig"];

@@ -19,9 +19,9 @@ const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
                 items: [] as DropdownItem[],
                 isLoading: false,
                 isOpen: false,
-            }
-        ])
-    ) as Record<DropdownType, NavigationDropdownConfig>
+            },
+        ]),
+    ) as Record<DropdownType, NavigationDropdownConfig>,
 );
 
 const currentPath = computed(() => {
