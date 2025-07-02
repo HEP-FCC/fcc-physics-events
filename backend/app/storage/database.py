@@ -17,10 +17,10 @@ from app.fcc_dict_parser import ProcessCollection
 from app.logging import get_logger
 from app.models.accelerator import AcceleratorCreate
 from app.models.campaign import CampaignCreate
+from app.models.dataset import DatasetCreate
 from app.models.detector import DetectorCreate
 from app.models.dropdown import DropdownItem
-from app.models.framework import FrameworkCreate
-from app.models.process import ProcessCreate
+from app.models.stage import StageCreate
 
 logger = get_logger()
 T = TypeVar("T", bound=BaseModel)
@@ -96,19 +96,19 @@ class Database:
         """
         logger.info("Generating static schema mapping for query parser.")
         return {
-            "name": "p.name",
-            "detector": "d.name",
-            "detector_name": "d.name",
+            "name": "d.name",
+            "detector": "det.name",
+            "detector_name": "det.name",
             "campaign": "c.name",
             "campaign_name": "c.name",
-            "framework": "f.name",
-            "framework_name": "f.name",
+            "stage": "s.name",
+            "stage_name": "s.name",
             "accelerator": "at.name",
             "accelerator_name": "at.name",
             # This virtual field allows full-text search on all metadata values.
-            "metadata_text": "jsonb_values_to_text(p.metadata)",
+            "metadata_text": "jsonb_values_to_text(d.metadata)",
             # This field allows querying specific keys within the JSONB object.
-            "metadata": "p.metadata",
+            "metadata": "d.metadata",
         }
 
     async def _get_or_create_entity(
@@ -154,7 +154,7 @@ class Database:
                 path_parts = Path(process_data.path).parts
                 try:
                     accelerator_name = path_parts[4]
-                    framework_name = path_parts[6].replace("Events", "")
+                    stage_name = path_parts[6].replace("Events", "")
                     campaign_name = path_parts[7]
                     detector_name = path_parts[8]
                 except IndexError:
@@ -170,8 +170,8 @@ class Database:
                     name=accelerator_name,
                     description=f"Accelerator for {accelerator_name.upper()} collisions",
                 )
-                framework_id = await self._get_or_create_entity(
-                    conn, FrameworkCreate, "frameworks", name=framework_name
+                stage_id = await self._get_or_create_entity(
+                    conn, StageCreate, "stages", name=stage_name
                 )
                 campaign_id = await self._get_or_create_entity(
                     conn, CampaignCreate, "campaigns", name=campaign_name
@@ -183,32 +183,33 @@ class Database:
                     name=detector_name,
                     accelerator_id=accelerator_id,
                 )
-                process_to_create = ProcessCreate(
+                dataset_to_create = DatasetCreate(
                     name=process_data.process_name,
                     metadata=process_data.model_dump(by_alias=True, exclude={"path"}),
                     accelerator_id=accelerator_id,
-                    framework_id=framework_id,
+                    stage_id=stage_id,
                     campaign_id=campaign_id,
                     detector_id=detector_id,
                 )
-                metadata_json = json.dumps(process_to_create.metadata)
+                metadata_json = json.dumps(dataset_to_create.metadata)
 
                 await conn.execute(
                     """
-                    INSERT INTO processes (name, accelerator_id, framework_id, campaign_id, detector_id, metadata)
+                    INSERT INTO datasets (name, accelerator_id, stage_id, campaign_id, detector_id, metadata)
                     VALUES ($1, $2, $3, $4, $5, $6)
                     ON CONFLICT (name) DO UPDATE
                     SET metadata = EXCLUDED.metadata,
                         accelerator_id = EXCLUDED.accelerator_id,
-                        framework_id = EXCLUDED.framework_id,
+                        stage_id = EXCLUDED.stage_id,
                         campaign_id = EXCLUDED.campaign_id,
-                        detector_id = EXCLUDED.detector_id;
+                        detector_id = EXCLUDED.detector_id,
+                        last_edited_at = (NOW() AT TIME ZONE 'utc');
                     """,
-                    process_to_create.name,
-                    process_to_create.accelerator_id,
-                    process_to_create.framework_id,
-                    process_to_create.campaign_id,
-                    process_to_create.detector_id,
+                    dataset_to_create.name,
+                    dataset_to_create.accelerator_id,
+                    dataset_to_create.stage_id,
+                    dataset_to_create.campaign_id,
+                    dataset_to_create.detector_id,
                     metadata_json,
                 )
         logger.info("Successfully parsed and inserted all data.")
@@ -223,14 +224,14 @@ class Database:
         record = await conn.fetchrow(query, name)
         return int(record[id_column]) if record else None
 
-    async def get_frameworks(
+    async def get_stages(
         self,
         accelerator_name: str | None = None,
         campaign_name: str | None = None,
         detector_name: str | None = None,
     ) -> list[DropdownItem]:
-        """Gets all frameworks for the navigation dropdown, optionally filtered by other entities."""
-        query = "SELECT DISTINCT f.framework_id as id, f.name FROM frameworks f"
+        """Gets all stages for the navigation dropdown, optionally filtered by other entities."""
+        query = "SELECT DISTINCT s.stage_id as id, s.name FROM stages s"
         params: list[int] = []
         conditions: list[str] = []
 
@@ -266,24 +267,24 @@ class Database:
                 or campaign_id is not None
                 or detector_id is not None
             ):
-                query += " INNER JOIN processes p ON f.framework_id = p.framework_id"
+                query += " INNER JOIN datasets d ON s.stage_id = d.stage_id"
 
                 if accelerator_id is not None:
-                    conditions.append(f"p.accelerator_id = ${len(params) + 1}")
+                    conditions.append(f"d.accelerator_id = ${len(params) + 1}")
                     params.append(accelerator_id)
 
                 if campaign_id is not None:
-                    conditions.append(f"p.campaign_id = ${len(params) + 1}")
+                    conditions.append(f"d.campaign_id = ${len(params) + 1}")
                     params.append(campaign_id)
 
                 if detector_id is not None:
-                    conditions.append(f"p.detector_id = ${len(params) + 1}")
+                    conditions.append(f"d.detector_id = ${len(params) + 1}")
                     params.append(detector_id)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
 
-            query += " ORDER BY f.name"
+            query += " ORDER BY s.name"
 
             records = await conn.fetch(query, *params)
             return [DropdownItem.model_validate(dict(record)) for record in records]
@@ -291,7 +292,7 @@ class Database:
     async def get_campaigns(
         self,
         accelerator_name: str | None = None,
-        framework_name: str | None = None,
+        stage_name: str | None = None,
         detector_name: str | None = None,
     ) -> list[DropdownItem]:
         """Gets all campaigns for the navigation dropdown, optionally filtered by other entities."""
@@ -302,7 +303,7 @@ class Database:
         async with self.session() as conn:
             # Convert names to IDs if provided
             accelerator_id = None
-            framework_id = None
+            stage_id = None
             detector_id = None
 
             if accelerator_name is not None:
@@ -312,12 +313,10 @@ class Database:
                 if accelerator_id is None:
                     return []  # No matching accelerator found
 
-            if framework_name is not None:
-                framework_id = await self._get_entity_id_by_name(
-                    conn, "frameworks", framework_name
-                )
-                if framework_id is None:
-                    return []  # No matching framework found
+            if stage_name is not None:
+                stage_id = await self._get_entity_id_by_name(conn, "stages", stage_name)
+                if stage_id is None:
+                    return []  # No matching stage found
 
             if detector_name is not None:
                 detector_id = await self._get_entity_id_by_name(
@@ -328,21 +327,21 @@ class Database:
 
             if (
                 accelerator_id is not None
-                or framework_id is not None
+                or stage_id is not None
                 or detector_id is not None
             ):
-                query += " INNER JOIN processes p ON c.campaign_id = p.campaign_id"
+                query += " INNER JOIN datasets d ON c.campaign_id = d.campaign_id"
 
                 if accelerator_id is not None:
-                    conditions.append(f"p.accelerator_id = ${len(params) + 1}")
+                    conditions.append(f"d.accelerator_id = ${len(params) + 1}")
                     params.append(accelerator_id)
 
-                if framework_id is not None:
-                    conditions.append(f"p.framework_id = ${len(params) + 1}")
-                    params.append(framework_id)
+                if stage_id is not None:
+                    conditions.append(f"d.stage_id = ${len(params) + 1}")
+                    params.append(stage_id)
 
                 if detector_id is not None:
-                    conditions.append(f"p.detector_id = ${len(params) + 1}")
+                    conditions.append(f"d.detector_id = ${len(params) + 1}")
                     params.append(detector_id)
 
             if conditions:
@@ -356,18 +355,18 @@ class Database:
     async def get_detectors(
         self,
         accelerator_name: str | None = None,
-        framework_name: str | None = None,
+        stage_name: str | None = None,
         campaign_name: str | None = None,
     ) -> list[DropdownItem]:
         """Gets all detectors for the navigation dropdown, optionally filtered by other entities."""
-        query = "SELECT DISTINCT d.detector_id as id, d.name FROM detectors d"
+        query = "SELECT DISTINCT det.detector_id as id, det.name FROM detectors det"
         params: list[int] = []
         conditions: list[str] = []
 
         async with self.session() as conn:
             # Convert names to IDs if provided
             accelerator_id = None
-            framework_id = None
+            stage_id = None
             campaign_id = None
 
             if accelerator_name is not None:
@@ -377,12 +376,10 @@ class Database:
                 if accelerator_id is None:
                     return []  # No matching accelerator found
 
-            if framework_name is not None:
-                framework_id = await self._get_entity_id_by_name(
-                    conn, "frameworks", framework_name
-                )
-                if framework_id is None:
-                    return []  # No matching framework found
+            if stage_name is not None:
+                stage_id = await self._get_entity_id_by_name(conn, "stages", stage_name)
+                if stage_id is None:
+                    return []  # No matching stage found
 
             if campaign_name is not None:
                 campaign_id = await self._get_entity_id_by_name(
@@ -393,32 +390,32 @@ class Database:
 
             # Always consider accelerator filtering via direct relationship
             if accelerator_id is not None:
-                conditions.append(f"d.accelerator_id = ${len(params) + 1}")
+                conditions.append(f"det.accelerator_id = ${len(params) + 1}")
                 params.append(accelerator_id)
 
-            # For framework and campaign filtering, use processes table
-            if framework_id is not None or campaign_id is not None:
-                query += " INNER JOIN processes p ON d.detector_id = p.detector_id"
+            # For stage and campaign filtering, use datasets table
+            if stage_id is not None or campaign_id is not None:
+                query += " INNER JOIN datasets d ON det.detector_id = d.detector_id"
 
-                if framework_id is not None:
-                    conditions.append(f"p.framework_id = ${len(params) + 1}")
-                    params.append(framework_id)
+                if stage_id is not None:
+                    conditions.append(f"d.stage_id = ${len(params) + 1}")
+                    params.append(stage_id)
 
                 if campaign_id is not None:
-                    conditions.append(f"p.campaign_id = ${len(params) + 1}")
+                    conditions.append(f"d.campaign_id = ${len(params) + 1}")
                     params.append(campaign_id)
 
             if conditions:
                 query += " WHERE " + " AND ".join(conditions)
 
-            query += " ORDER BY d.name"
+            query += " ORDER BY det.name"
 
             records = await conn.fetch(query, *params)
             return [DropdownItem.model_validate(dict(record)) for record in records]
 
     async def get_accelerators(
         self,
-        framework_name: str | None = None,
+        stage_name: str | None = None,
         campaign_name: str | None = None,
         detector_name: str | None = None,
     ) -> list[DropdownItem]:
@@ -429,16 +426,14 @@ class Database:
 
         async with self.session() as conn:
             # Convert names to IDs if provided
-            framework_id = None
+            stage_id = None
             campaign_id = None
             detector_id = None
 
-            if framework_name is not None:
-                framework_id = await self._get_entity_id_by_name(
-                    conn, "frameworks", framework_name
-                )
-                if framework_id is None:
-                    return []  # No matching framework found
+            if stage_name is not None:
+                stage_id = await self._get_entity_id_by_name(conn, "stages", stage_name)
+                if stage_id is None:
+                    return []  # No matching stage found
 
             if campaign_name is not None:
                 campaign_id = await self._get_entity_id_by_name(
@@ -455,24 +450,22 @@ class Database:
                     return []  # No matching detector found
 
             if (
-                framework_id is not None
+                stage_id is not None
                 or campaign_id is not None
                 or detector_id is not None
             ):
-                query += (
-                    " INNER JOIN processes p ON a.accelerator_id = p.accelerator_id"
-                )
+                query += " INNER JOIN datasets d ON a.accelerator_id = d.accelerator_id"
 
-                if framework_id is not None:
-                    conditions.append(f"p.framework_id = ${len(params) + 1}")
-                    params.append(framework_id)
+                if stage_id is not None:
+                    conditions.append(f"d.stage_id = ${len(params) + 1}")
+                    params.append(stage_id)
 
                 if campaign_id is not None:
-                    conditions.append(f"p.campaign_id = ${len(params) + 1}")
+                    conditions.append(f"d.campaign_id = ${len(params) + 1}")
                     params.append(campaign_id)
 
                 if detector_id is not None:
-                    conditions.append(f"p.detector_id = ${len(params) + 1}")
+                    conditions.append(f"d.detector_id = ${len(params) + 1}")
                     params.append(detector_id)
 
             if conditions:

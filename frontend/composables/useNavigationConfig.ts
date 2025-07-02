@@ -27,11 +27,11 @@ export function useNavigationConfig() {
     // Define navigation dropdowns in the desired order
     // This is the SINGLE SOURCE OF TRUTH for navigation types
     const navigationConfig = {
-        framework: {
+        stage: {
             icon: "i-heroicons-cpu-chip",
-            label: "Framework",
-            clearLabel: "Clear Framework",
-            apiCall: apiClient.getFrameworks.bind(apiClient),
+            label: "Stage",
+            clearLabel: "Clear Stage",
+            apiCall: apiClient.getStages.bind(apiClient),
         },
         campaign: {
             icon: "i-heroicons-calendar-days",
@@ -89,9 +89,9 @@ export function useNavigationConfig() {
         const filterNames = dropdownKeys.value.map((type) => filters[`${type}_name`]).filter(Boolean);
 
         if (filterNames.length > 0) {
-            return `FCC Physics Events - ${filterNames.join(" / ")}`;
+            return `FCC Physics Datasets - ${filterNames.join(" / ")}`;
         }
-        return "FCC Physics Events Search";
+        return "FCC Physics Datasets Search";
     }
 
     /**
@@ -102,9 +102,9 @@ export function useNavigationConfig() {
             const filterDesc = Object.entries(filters)
                 .map(([key, value]) => `${key.replace("_", " ")}: ${value}`)
                 .join(", ");
-            return `Search FCC physics events filtered by ${filterDesc}`;
+            return `Search FCC physics datasets filtered by ${filterDesc}`;
         }
-        return "Search and explore FCC physics simulation events and data";
+        return "Search and explore FCC physics simulation datasets and data";
     }
 
     return {

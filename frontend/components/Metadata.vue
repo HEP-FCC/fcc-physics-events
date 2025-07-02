@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { Event } from "../types/event";
+import type { Dataset } from "../types/dataset";
 
 const props = defineProps<{
-    event: Event;
+    dataset: Dataset;
 }>();
 
 // Computed property to determine the grid layout for description and comment.
 const gridClass = computed(() => {
-    const hasDescription = !!props.event.metadata.description;
-    const hasComment = !!props.event.metadata.comment;
+    const hasDescription = !!props.dataset.metadata.description;
+    const hasComment = !!props.dataset.metadata.comment;
     if (hasDescription && hasComment) {
         return "grid-cols-2";
     }
@@ -45,18 +45,34 @@ function formatFieldName(key: string): string {
     return key.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
+function formatTimestamp(timestamp: string): string {
+    try {
+        const date = new Date(timestamp);
+        return date.toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZoneName: "short",
+        });
+    } catch (error) {
+        return timestamp;
+    }
+}
+
 // Sort and group metadata fields for a consistent and logical display order.
 const sortedMetadata = computed(() => {
-    const entries = Object.entries(props.event.metadata);
+    const entries = Object.entries(props.dataset.metadata);
 
-    // Fields that are already displayed in the main event row and should be excluded here.
+    // Fields that are already displayed in the main dataset row and should be excluded here.
     const mainDisplayFields = new Set([
-        "process-name",
+        "dataset-name",
         "detector_name",
-        "framework_name",
+        "stage_name",
         "campaign_name",
         "accelerator_name",
-        "process_id",
+        "dataset_id",
         "description",
         "comment",
     ]);
@@ -89,17 +105,37 @@ const sortedMetadata = computed(() => {
     <div class="border-t border-gray-200 bg-gray-50 cursor-default" @click.stop>
         <div class="p-4">
             <div class="space-y-3">
-                <div v-if="event.metadata.description || event.metadata.comment" class="grid gap-3" :class="gridClass">
-                    <div v-if="event.metadata.description" class="space-y-1">
-                        <label class="text-sm font-medium text-gray-700">Description</label>
-                        <div class="bg-white rounded border px-2 py-1">
-                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ event.metadata.description }}</p>
+                <!-- Timestamp Information -->
+                <div class="flex justify-between items-center text-xs text-gray-500 border-b border-gray-200 pb-2">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-1">
+                            <UIcon name="i-heroicons-plus-circle" class="w-3 h-3" />
+                            <span>Created:</span>
+                            <span class="font-medium">{{ formatTimestamp(dataset.created_at) }}</span>
+                        </div>
+                        <div v-if="dataset.last_edited_at" class="flex items-center gap-1">
+                            <UIcon name="i-heroicons-pencil-square" class="w-3 h-3" />
+                            <span>Last edited:</span>
+                            <span class="font-medium">{{ formatTimestamp(dataset.last_edited_at) }}</span>
                         </div>
                     </div>
-                    <div v-if="event.metadata.comment" class="space-y-1">
+                </div>
+
+                <div
+                    v-if="dataset.metadata.description || dataset.metadata.comment"
+                    class="grid gap-3"
+                    :class="gridClass"
+                >
+                    <div v-if="dataset.metadata.description" class="space-y-1">
+                        <label class="text-sm font-medium text-gray-700">Description</label>
+                        <div class="bg-white rounded border px-2 py-1">
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ dataset.metadata.description }}</p>
+                        </div>
+                    </div>
+                    <div v-if="dataset.metadata.comment" class="space-y-1">
                         <label class="text-sm font-medium text-gray-700">Comment</label>
                         <div class="bg-white rounded border px-2 py-1">
-                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ event.metadata.comment }}</p>
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ dataset.metadata.comment }}</p>
                         </div>
                     </div>
                 </div>

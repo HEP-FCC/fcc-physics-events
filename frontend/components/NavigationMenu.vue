@@ -187,7 +187,7 @@ watch(currentPath, loadDropdownData, { deep: true });
 
                 <!-- Current Path Breadcrumb -->
                 <div class="flex items-center space-x-2 text-sm text-gray-500 ml-auto">
-                    <span v-if="!Object.values(currentPath).some((v) => v)"> All Events </span>
+                    <span v-if="!Object.values(currentPath).some((v) => v)"> All Datasets </span>
                     <template v-else>
                         <span>Filtered by:</span>
                         <template v-for="(dropdown, type) in dropdowns" :key="type">

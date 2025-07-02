@@ -148,8 +148,8 @@ class SqlTranslator:
             "detector_name",
             "campaign",
             "campaign_name",
-            "framework",
-            "framework_name",
+            "stage",
+            "stage_name",
             "accelerator",
             "accelerator_name",
             "metadata_text",
@@ -217,10 +217,10 @@ class QueryParser:
     def parse_query(self, query_string: str) -> tuple[str, str, list[Any]]:
         if not self.schema_mapping:
             raise RuntimeError("QueryParser not set up.")
-        from_and_joins = "FROM processes p LEFT JOIN detectors d ON p.detector_id = d.detector_id LEFT JOIN campaigns c ON p.campaign_id = c.campaign_id LEFT JOIN frameworks f ON p.framework_id = f.framework_id LEFT JOIN accelerators at ON p.accelerator_id = at.accelerator_id"
+        from_and_joins = "FROM datasets d LEFT JOIN detectors det ON d.detector_id = det.detector_id LEFT JOIN campaigns c ON d.campaign_id = c.campaign_id LEFT JOIN stages s ON d.stage_id = s.stage_id LEFT JOIN accelerators at ON d.accelerator_id = at.accelerator_id"
         if not query_string.strip():
-            base_select = f"SELECT p.*, d.name as detector_name, c.name as campaign_name, f.name as framework_name, at.name as accelerator_name {from_and_joins}"
-            count_query = "SELECT COUNT(*) FROM processes"
+            base_select = f"SELECT d.*, det.name as detector_name, c.name as campaign_name, s.name as stage_name, at.name as accelerator_name {from_and_joins}"
+            count_query = "SELECT COUNT(*) FROM datasets"
             return base_select, count_query, []
         try:
             ast = cast(
@@ -230,6 +230,6 @@ class QueryParser:
             raise ValueError(f"Invalid query syntax: {e}") from e
         self.translator.reset(self.schema_mapping)
         where_clause = self.translator.translate(ast)
-        base_select = f"SELECT p.*, d.name as detector_name, c.name as campaign_name, f.name as framework_name, at.name as accelerator_name {from_and_joins} WHERE {where_clause}"
+        base_select = f"SELECT d.*, det.name as detector_name, c.name as campaign_name, s.name as stage_name, at.name as accelerator_name {from_and_joins} WHERE {where_clause}"
         count_query = f"SELECT COUNT(*) {from_and_joins} WHERE {where_clause}"
         return base_select, count_query, self.translator.params

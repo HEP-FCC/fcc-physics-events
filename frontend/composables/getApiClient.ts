@@ -1,7 +1,7 @@
 /**
  * API Client for interacting with the backend services.
  */
-import type { PaginatedResponse } from "~/types/event";
+import type { PaginatedResponse } from "~/types/dataset";
 
 export class ApiClient {
     private baseUrl: string;
@@ -12,13 +12,13 @@ export class ApiClient {
     }
 
     /**
-     * Searches for samples based on a GCLQL query string with pagination.
+     * Searches for datasets based on a GCLQL query string with pagination.
      * @param query The GCLQL query string.
      * @param limit The maximum number of results to return.
      * @param offset The number of results to skip.
      * @returns A promise that resolves to a paginated response object.
      */
-    async searchSamples(query: string, limit: number, offset: number): Promise<PaginatedResponse> {
+    async searchDatasets(query: string, limit: number, offset: number): Promise<PaginatedResponse> {
         try {
             // Use URLSearchParams to properly encode the query string
             const params = new URLSearchParams({
@@ -35,18 +35,18 @@ export class ApiClient {
 
             return await response.json();
         } catch (error) {
-            console.error("Failed to search samples:", error);
+            console.error("Failed to search datasets:", error);
             // Re-throw the error so the component can catch it
             throw error;
         }
     }
 
     /**
-     * Fetches available frameworks from the API with optional filters.
+     * Fetches available stages from the API with optional filters.
      * @param filters Optional filters to apply
-     * @returns A promise that resolves to an array of framework objects.
+     * @returns A promise that resolves to an array of stage objects.
      */
-    async getFrameworks(filters?: {
+    async getStages(filters?: {
         accelerator_name?: string;
         campaign_name?: string;
         detector_name?: string;
@@ -57,7 +57,7 @@ export class ApiClient {
             if (filters?.campaign_name) params.append("campaign_name", filters.campaign_name);
             if (filters?.detector_name) params.append("detector_name", filters.detector_name);
 
-            const url = params.toString() ? `${this.baseUrl}/frameworks/?${params}` : `${this.baseUrl}/frameworks/`;
+            const url = params.toString() ? `${this.baseUrl}/stages/?${params}` : `${this.baseUrl}/stages/`;
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -66,7 +66,7 @@ export class ApiClient {
 
             return await response.json();
         } catch (error) {
-            console.error("Failed to fetch frameworks:", error);
+            console.error("Failed to fetch stages:", error);
             throw error;
         }
     }
@@ -78,13 +78,13 @@ export class ApiClient {
      */
     async getCampaigns(filters?: {
         accelerator_name?: string;
-        framework_name?: string;
+        stage_name?: string;
         detector_name?: string;
     }): Promise<Array<{ id: number; name: string }>> {
         try {
             const params = new URLSearchParams();
             if (filters?.accelerator_name) params.append("accelerator_name", filters.accelerator_name);
-            if (filters?.framework_name) params.append("framework_name", filters.framework_name);
+            if (filters?.stage_name) params.append("stage_name", filters.stage_name);
             if (filters?.detector_name) params.append("detector_name", filters.detector_name);
 
             const url = params.toString() ? `${this.baseUrl}/campaigns/?${params}` : `${this.baseUrl}/campaigns/`;
@@ -108,13 +108,13 @@ export class ApiClient {
      */
     async getDetectors(filters?: {
         accelerator_name?: string;
-        framework_name?: string;
+        stage_name?: string;
         campaign_name?: string;
     }): Promise<Array<{ id: number; name: string }>> {
         try {
             const params = new URLSearchParams();
             if (filters?.accelerator_name) params.append("accelerator_name", filters.accelerator_name);
-            if (filters?.framework_name) params.append("framework_name", filters.framework_name);
+            if (filters?.stage_name) params.append("stage_name", filters.stage_name);
             if (filters?.campaign_name) params.append("campaign_name", filters.campaign_name);
 
             const url = params.toString() ? `${this.baseUrl}/detectors/?${params}` : `${this.baseUrl}/detectors/`;
@@ -137,13 +137,13 @@ export class ApiClient {
      * @returns A promise that resolves to an array of accelerator objects.
      */
     async getAccelerators(filters?: {
-        framework_name?: string;
+        stage_name?: string;
         campaign_name?: string;
         detector_name?: string;
     }): Promise<Array<{ id: number; name: string }>> {
         try {
             const params = new URLSearchParams();
-            if (filters?.framework_name) params.append("framework_name", filters.framework_name);
+            if (filters?.stage_name) params.append("stage_name", filters.stage_name);
             if (filters?.campaign_name) params.append("campaign_name", filters.campaign_name);
             if (filters?.detector_name) params.append("detector_name", filters.detector_name);
 

@@ -12,8 +12,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.config import get_config
 from app.gclql_query_parser import QueryParser
+from app.models.dataset import DatasetWithDetails
 from app.models.dropdown import DropdownItem
-from app.models.process import ProcessWithDetails
 from app.storage.database import Database
 
 config = get_config()
@@ -24,7 +24,7 @@ query_parser = QueryParser(database=database)
 # Pydantic model for the paginated response, ensuring a consistent data contract
 class PaginatedResponse(BaseModel):
     total: int
-    items: list[ProcessWithDetails]
+    items: list[DatasetWithDetails]
 
 
 @asynccontextmanager
@@ -37,9 +37,9 @@ async def lifespan(_: FastAPI) -> Any:
 
 
 app = FastAPI(
-    title="FCC Physics Events API",
-    description="An API for querying and managing FCC physics simulation sample data.",
-    version="1.4.0",
+    title="FCC Physics Datasets API",
+    description="An API for querying and managing FCC physics simulation datasets.",
+    version="1.5.0",
     lifespan=lifespan,
 )
 
@@ -55,7 +55,7 @@ app.add_middleware(
 @app.get("/")
 async def root() -> dict[str, str]:
     """Provides a simple welcome message for the API root."""
-    return {"message": "Welcome to the FCC Physics Events API"}
+    return {"message": "Welcome to the FCC Physics Datasets API"}
 
 
 @app.post("/upload-fcc-dict/", status_code=202)
@@ -91,11 +91,11 @@ async def execute_gclql_query(
             total = total_records if total_records is not None else 0
 
             # Then, get the paginated results for the current page
-            paginated_query = f"{base_query} ORDER BY p.process_id LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+            paginated_query = f"{base_query} ORDER BY d.dataset_id LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
             records = await conn.fetch(paginated_query, *params, limit, offset)
 
             items = [
-                ProcessWithDetails.model_validate(dict(record)) for record in records
+                DatasetWithDetails.model_validate(dict(record)) for record in records
             ]
 
             return PaginatedResponse(total=total, items=items)
@@ -108,8 +108,8 @@ async def execute_gclql_query(
         )
 
 
-@app.get("/frameworks/", response_model=list[DropdownItem])
-async def get_frameworks(
+@app.get("/stages/", response_model=list[DropdownItem])
+async def get_stages(
     accelerator_name: str | None = Query(
         None, description="Filter by accelerator name"
     ),
@@ -117,18 +117,18 @@ async def get_frameworks(
     detector_name: str | None = Query(None, description="Filter by detector name"),
 ) -> Any:
     """
-    Get all available frameworks for the navigation dropdown.
+    Get all available stages for the navigation dropdown.
     Optionally filter by accelerator, campaign, or detector.
     """
     try:
-        return await database.get_frameworks(
+        return await database.get_stages(
             accelerator_name=accelerator_name,
             campaign_name=campaign_name,
             detector_name=detector_name,
         )
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"An error occurred while fetching frameworks: {e}"
+            status_code=500, detail=f"An error occurred while fetching stages: {e}"
         )
 
 
@@ -137,17 +137,17 @@ async def get_campaigns(
     accelerator_name: str | None = Query(
         None, description="Filter by accelerator name"
     ),
-    framework_name: str | None = Query(None, description="Filter by framework name"),
+    stage_name: str | None = Query(None, description="Filter by stage name"),
     detector_name: str | None = Query(None, description="Filter by detector name"),
 ) -> Any:
     """
     Get all available campaigns for the navigation dropdown.
-    Optionally filter by accelerator, framework, or detector.
+    Optionally filter by accelerator, stage, or detector.
     """
     try:
         return await database.get_campaigns(
             accelerator_name=accelerator_name,
-            framework_name=framework_name,
+            stage_name=stage_name,
             detector_name=detector_name,
         )
     except Exception as e:
@@ -161,17 +161,17 @@ async def get_detectors(
     accelerator_name: str | None = Query(
         None, description="Filter by accelerator name"
     ),
-    framework_name: str | None = Query(None, description="Filter by framework name"),
+    stage_name: str | None = Query(None, description="Filter by stage name"),
     campaign_name: str | None = Query(None, description="Filter by campaign name"),
 ) -> Any:
     """
     Get all available detectors for the navigation dropdown.
-    Optionally filter by accelerator, framework, or campaign.
+    Optionally filter by accelerator, stage, or campaign.
     """
     try:
         return await database.get_detectors(
             accelerator_name=accelerator_name,
-            framework_name=framework_name,
+            stage_name=stage_name,
             campaign_name=campaign_name,
         )
     except Exception as e:
@@ -182,17 +182,17 @@ async def get_detectors(
 
 @app.get("/accelerators/", response_model=list[DropdownItem])
 async def get_accelerators(
-    framework_name: str | None = Query(None, description="Filter by framework name"),
+    stage_name: str | None = Query(None, description="Filter by stage name"),
     campaign_name: str | None = Query(None, description="Filter by campaign name"),
     detector_name: str | None = Query(None, description="Filter by detector name"),
 ) -> Any:
     """
     Get all available accelerators for the navigation dropdown.
-    Optionally filter by framework, campaign, or detector.
+    Optionally filter by stage, campaign, or detector.
     """
     try:
         return await database.get_accelerators(
-            framework_name=framework_name,
+            stage_name=stage_name,
             campaign_name=campaign_name,
             detector_name=detector_name,
         )

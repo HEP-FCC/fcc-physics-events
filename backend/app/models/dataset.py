@@ -5,35 +5,36 @@ from pydantic import BaseModel, Field, model_validator
 
 
 # Base model with fields for creation and updates
-class ProcessBase(BaseModel):
+class DatasetBase(BaseModel):
     name: str
     metadata: dict[str, Any] = Field(default_factory=dict)
     # Foreign keys are optional because of ON DELETE SET NULL in the database
     accelerator_id: int | None = None
-    framework_id: int | None = None
+    stage_id: int | None = None
     campaign_id: int | None = None
     detector_id: int | None = None
 
 
-# Model for creating a new process (used for API input)
-class ProcessCreate(ProcessBase):
+# Model for creating a new dataset (used for API input)
+class DatasetCreate(DatasetBase):
     pass
 
 
-# The core model representing a process record from the database
-class Process(ProcessBase):
-    process_id: int
+# The core model representing a dataset record from the database
+class Dataset(DatasetBase):
+    dataset_id: int
     created_at: datetime.datetime
+    last_edited_at: datetime.datetime
 
     class Config:
         from_attributes = True
 
 
 # A comprehensive model for API responses, including joined data from other tables
-class ProcessWithDetails(Process):
+class DatasetWithDetails(Dataset):
     detector_name: str | None = None
     campaign_name: str | None = None
-    framework_name: str | None = None
+    stage_name: str | None = None
     accelerator_type_name: str | None = None
 
     @model_validator(mode="before")
