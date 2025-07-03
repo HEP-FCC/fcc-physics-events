@@ -12,9 +12,12 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.config import get_config
 from app.gclql_query_parser import QueryParser
+from app.logging import get_logger
 from app.models.dataset import DatasetWithDetails
 from app.models.dropdown import DropdownItem
 from app.storage.database import Database
+
+logger = get_logger()
 
 config = get_config()
 database = Database()
@@ -25,6 +28,11 @@ query_parser = QueryParser(database=database)
 class PaginatedResponse(BaseModel):
     total: int
     items: list[DatasetWithDetails]
+
+
+# Pydantic model for the dataset IDs request
+class DatasetIdsRequest(BaseModel):
+    dataset_ids: list[int]
 
 
 @asynccontextmanager
@@ -77,13 +85,26 @@ async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
 
 @app.get("/query/", response_model=PaginatedResponse)
 async def execute_gclql_query(
-    q: str, limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)
+    q: str,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    sort_by: str = Query("dataset_id", description="Field to sort by"),
+    sort_order: str = Query("asc", description="Sort order: 'asc' or 'desc'"),
 ) -> Any:
     """
-    Executes a GCLQL-style query against the database with pagination.
+    Executes a GCLQL-style query against the database with pagination and sorting.
+    Supports sorting by any dataset field or metadata JSON field (e.g., 'metadata.key').
     """
     try:
-        base_query, count_query, params = query_parser.parse_query(q)
+        # Validate sort_order parameter
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=400, detail="sort_order must be 'asc' or 'desc'"
+            )
+
+        base_query, count_query, params = query_parser.parse_query(
+            q, sort_by=sort_by, sort_order=sort_order.lower()
+        )
 
         async with database.session() as conn:
             # First, get the total count of matching records for pagination controls
@@ -91,7 +112,9 @@ async def execute_gclql_query(
             total = total_records if total_records is not None else 0
 
             # Then, get the paginated results for the current page
-            paginated_query = f"{base_query} ORDER BY d.dataset_id LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+            paginated_query = (
+                f"{base_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+            )
             records = await conn.fetch(paginated_query, *params, limit, offset)
 
             items = [
@@ -200,4 +223,39 @@ async def get_accelerators(
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while fetching accelerators: {e}",
+        )
+
+
+@app.post("/datasets/", response_model=list[dict[str, Any]])
+async def get_datasets_by_ids(request: DatasetIdsRequest) -> Any:
+    """
+    Get datasets by their IDs with all details and metadata flattened to top-level keys.
+    Takes a list of dataset IDs and returns a list of dataset information.
+    """
+    try:
+        if not request.dataset_ids:
+            return []
+
+        datasets = await database.get_datasets_by_ids(request.dataset_ids)
+        return datasets
+    except Exception as e:
+        logger.error(e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while fetching datasets: {e}",
+        )
+
+
+@app.get("/sorting-fields/", response_model=dict[str, Any])
+async def get_sorting_fields() -> dict[str, Any]:
+    """
+    Get available fields for sorting in the query endpoint.
+    Returns a flat list of all sortable fields for easy UI consumption.
+    """
+    try:
+        return await database.get_sorting_fields()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while fetching sorting fields: {e}",
         )

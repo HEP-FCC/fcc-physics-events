@@ -93,6 +93,11 @@ class Database:
 
         This is more robust than database introspection for a fixed query structure.
         It maps logical query fields to their aliased SQL counterparts.
+
+        Available fields for sorting:
+        - Dataset fields: dataset_id, name, created_at, last_edited_at
+        - Joined fields: detector_name, campaign_name, stage_name, accelerator_name
+        - Metadata fields: metadata.* (any key in the JSONB metadata field)
         """
         logger.info("Generating static schema mapping for query parser.")
         return {
@@ -105,6 +110,10 @@ class Database:
             "metadata": "d.metadata",
             # This virtual field allows full-text search on all metadata values.
             "metadata_text": "jsonb_values_to_text(d.metadata)",
+            # Additional dataset fields available for sorting
+            "dataset_id": "d.dataset_id",
+            "created_at": "d.created_at",
+            "last_edited_at": "d.last_edited_at",
         }
 
     async def _get_or_create_entity(
@@ -179,9 +188,15 @@ class Database:
                     name=detector_name,
                     accelerator_id=accelerator_id,
                 )
+                # Extract metadata and remove the process-name since it's stored in the name field
+                metadata_dict = process_data.model_dump(by_alias=True)
+                metadata_dict.pop(
+                    "process-name", None
+                )  # Remove process-name from metadata
+
                 dataset_to_create = DatasetCreate(
                     name=process_data.process_name,
-                    metadata=process_data.model_dump(by_alias=True),
+                    metadata=metadata_dict,
                     accelerator_id=accelerator_id,
                     stage_id=stage_id,
                     campaign_id=campaign_id,
@@ -471,3 +486,188 @@ class Database:
 
             records = await conn.fetch(query, *params)
             return [DropdownItem.model_validate(dict(record)) for record in records]
+
+    async def get_datasets_by_ids(self, dataset_ids: list[int]) -> list[dict[str, Any]]:
+        """
+        Get datasets by their IDs with all details and related entity names.
+        Returns a list of dictionaries with all dataset fields plus metadata flattened to top-level.
+        """
+        if not dataset_ids:
+            return []
+
+        # Create placeholders for the dataset IDs
+        placeholders = ", ".join(f"${i+1}" for i in range(len(dataset_ids)))
+
+        query = f"""
+            SELECT
+                d.dataset_id,
+                d.name,
+                d.accelerator_id,
+                d.stage_id,
+                d.campaign_id,
+                d.detector_id,
+                d.metadata,
+                d.created_at,
+                d.last_edited_at,
+                a.name as accelerator_name,
+                s.name as stage_name,
+                c.name as campaign_name,
+                det.name as detector_name
+            FROM datasets d
+            LEFT JOIN accelerators a ON d.accelerator_id = a.accelerator_id
+            LEFT JOIN stages s ON d.stage_id = s.stage_id
+            LEFT JOIN campaigns c ON d.campaign_id = c.campaign_id
+            LEFT JOIN detectors det ON d.detector_id = det.detector_id
+            WHERE d.dataset_id IN ({placeholders})
+            ORDER BY d.dataset_id
+        """
+
+        async with self.session() as conn:
+            records = await conn.fetch(query, *dataset_ids)
+
+            result = []
+            for record in records:
+                # Convert record to dict
+                dataset_dict = dict(record)
+
+                # Extract and flatten metadata
+                metadata_str = dataset_dict.pop("metadata", r"{}")
+                metadata = json.loads(metadata_str)
+
+                # Merge metadata keys into the main dictionary
+                # If there's a conflict, the original dataset fields take precedence
+                for key, value in metadata.items():
+                    if key not in dataset_dict:
+                        dataset_dict[key] = value
+
+                result.append(dataset_dict)
+
+            return result
+
+    async def get_sorting_fields(self) -> dict[str, Any]:
+        """
+        Dynamically fetch available sorting fields from the database schema.
+        Returns categorized lists of sortable fields based on the current database structure.
+        """
+        async with self.session() as conn:
+            # Get dataset table columns
+            dataset_columns_query = """
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = 'datasets'
+                AND table_schema = 'public'
+                ORDER BY ordinal_position
+            """
+            dataset_columns = await conn.fetch(dataset_columns_query)
+
+            # Get foreign key relationships from datasets table
+            foreign_keys_query = """
+                SELECT
+                    kcu.column_name,
+                    ccu.table_name AS foreign_table_name,
+                    ccu.column_name AS foreign_column_name
+                FROM information_schema.table_constraints AS tc
+                JOIN information_schema.key_column_usage AS kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                    AND tc.table_schema = kcu.table_schema
+                JOIN information_schema.constraint_column_usage AS ccu
+                    ON ccu.constraint_name = tc.constraint_name
+                    AND ccu.table_schema = tc.table_schema
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_name = 'datasets'
+                AND tc.table_schema = 'public'
+            """
+            foreign_keys = await conn.fetch(foreign_keys_query)
+
+            # Get common metadata fields by analyzing actual data
+            metadata_fields_query = """
+                SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
+                FROM datasets
+                WHERE metadata IS NOT NULL
+                AND metadata != 'null'::jsonb
+                ORDER BY metadata_key
+                LIMIT 50
+            """
+            metadata_keys = await conn.fetch(metadata_fields_query)
+
+            # Get nested metadata fields (one level deep)
+            nested_metadata_query = """
+                SELECT DISTINCT
+                    parent_key || '.' || child_key as nested_key
+                FROM (
+                    SELECT
+                        parent_key,
+                        jsonb_object_keys(parent_value) as child_key
+                    FROM (
+                        SELECT
+                            key as parent_key,
+                            value as parent_value
+                        FROM datasets, jsonb_each(metadata)
+                        WHERE metadata IS NOT NULL
+                        AND metadata != 'null'::jsonb
+                        AND jsonb_typeof(value) = 'object'
+                    ) nested_objects
+                ) nested_keys
+                ORDER BY nested_key
+                LIMIT 50
+            """
+            nested_metadata_keys = await conn.fetch(nested_metadata_query)
+
+            # Build the dataset fields list (excluding foreign keys and metadata)
+            dataset_fields = []
+            foreign_key_columns = set()
+
+            # First, collect all foreign key column names
+            for fk in foreign_keys:
+                foreign_key_columns.add(fk["column_name"])
+
+            # Now filter dataset columns
+            for col in dataset_columns:
+                col_name = col["column_name"]
+                if col_name in foreign_key_columns:
+                    # This is a foreign key column, skip it
+                    continue
+                elif col_name == "metadata":
+                    # Skip metadata column
+                    continue
+                else:
+                    # This is a regular dataset field
+                    dataset_fields.append(col_name)
+
+            # Build joined fields list dynamically from foreign key relationships
+            joined_fields = []
+            for fk in foreign_keys:
+                fk_column = fk["column_name"]
+
+                # Convert foreign key column name to corresponding joined field name
+                # e.g., accelerator_id -> accelerator_name
+                if fk_column.endswith("_id"):
+                    base_name = fk_column[:-3]  # Remove '_id' suffix
+                    joined_field_name = f"{base_name}_name"
+                    joined_fields.append(joined_field_name)
+
+            # Build metadata fields list with 'metadata.' prefix
+            metadata_fields = [
+                f"metadata.{row['metadata_key']}" for row in metadata_keys
+            ]
+
+            # Build nested metadata fields list
+            nested_fields = [
+                f"metadata.{row['nested_key']}" for row in nested_metadata_keys
+            ]
+
+            # Combine all fields into a single flat list
+            all_fields = []
+            all_fields.extend(dataset_fields)
+            all_fields.extend(joined_fields)
+            all_fields.extend(metadata_fields)
+            all_fields.extend(nested_fields)
+
+            # Sort alphabetically for better UX
+            all_fields.sort()
+
+            return {
+                "fields": all_fields,
+                "count": len(all_fields),
+                "info": "All available fields for sorting. Use 'metadata.key' format for JSON fields.",
+            }

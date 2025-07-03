@@ -36,10 +36,31 @@ const pagination = reactive({
 });
 
 const expandedRows = reactive(new Set<number>());
+const selectedDatasets = reactive(new Set<number>());
 const lastToggleAction = ref<"expand" | "collapse" | null>(null);
 const infiniteScrollEnabled = ref(true);
+const isDownloading = ref(false);
+
+// Sorting state
+const sortBy = ref<string>("last_edited_at");
+const sortOrder = ref<"asc" | "desc">("asc");
+const availableSortingFields = ref<string[]>([]);
+const sortingFieldsLoading = ref(false);
 
 const apiClient = getApiClient();
+
+// Fetch available sorting fields
+async function fetchSortingFields() {
+    try {
+        sortingFieldsLoading.value = true;
+        const response = await apiClient.getSortingFields();
+        availableSortingFields.value = response.fields;
+    } catch (error) {
+        console.error("Failed to fetch sorting fields:", error);
+    } finally {
+        sortingFieldsLoading.value = false;
+    }
+}
 
 const urlFilterQuery = computed(() => {
     return Object.entries(props.initialFilters)
@@ -61,6 +82,12 @@ const allMetadataExpanded = computed(() => {
     const currentDatasetIds = searchState.datasets.map((dataset: Dataset) => dataset.dataset_id);
     if (currentDatasetIds.length === 0) return false;
     return currentDatasetIds.every((id: number) => expandedRows.has(id));
+});
+
+const allDatasetsSelected = computed(() => {
+    const currentDatasetIds = searchState.datasets.map((dataset: Dataset) => dataset.dataset_id);
+    if (currentDatasetIds.length === 0) return false;
+    return currentDatasetIds.every((id: number) => selectedDatasets.has(id));
 });
 
 const searchPlaceholderText = computed(() => {
@@ -92,6 +119,32 @@ const currentDisplayRange = computed(() => {
 const canLoadMore = computed(() => {
     return searchState.hasMore && infiniteScrollEnabled.value && !searchState.isLoading && !searchState.isLoadingMore;
 });
+
+// Computed properties for sorting options
+const sortingFieldOptions = computed(() => {
+    return availableSortingFields.value.map((field) => ({
+        label: formatFieldLabel(field),
+        value: field,
+    }));
+});
+
+// Function to toggle sort order
+function toggleSortOrder() {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+}
+
+// Format field labels for better UX
+function formatFieldLabel(field: string): string {
+    if (field.startsWith("metadata.")) {
+        const metadataKey = field.replace("metadata.", "");
+        return `Metadata: ${metadataKey.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}`;
+    }
+
+    return field
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase())
+        .replace(" Name", "");
+}
 
 async function performSearch(resetResults = true) {
     // Only search if we have a valid query
@@ -132,6 +185,8 @@ async function performSearch(resetResults = true) {
             combinedSearchQuery.value,
             pagination.pageSize,
             offset,
+            sortBy.value,
+            sortOrder.value,
         );
 
         if (isInitialLoad || !infiniteScrollEnabled.value) {
@@ -361,12 +416,89 @@ watch(
     },
 );
 
+// Watch for sorting changes
+watch([sortBy, sortOrder], () => {
+    // Remember currently expanded rows before search
+    const currentlyExpanded = new Set(expandedRows);
+
+    pagination.currentPage = 1;
+    performSearch(true).then(() => {
+        // Restore expanded state for datasets that are still in the results
+        const currentDatasetIds = searchState.datasets.map((dataset: Dataset) => dataset.dataset_id);
+        currentDatasetIds.forEach((id: number) => {
+            if (currentlyExpanded.has(id)) {
+                expandedRows.add(id);
+            }
+        });
+    });
+});
+
 // Perform initial search on mount only if there are URL filters
-onMounted(() => {
+onMounted(async () => {
+    // Fetch sorting fields first
+    await fetchSortingFields();
+
     if (Object.keys(props.initialFilters).length > 0) {
         performSearch(true);
     }
 });
+
+async function downloadSelectedDatasets() {
+    if (selectedDatasets.size === 0) {
+        alert("Please select at least one dataset to download.");
+        return;
+    }
+
+    isDownloading.value = true;
+    try {
+        const datasetsToDownload = await apiClient.downloadDatasetsByIds(Array.from(selectedDatasets));
+
+        if (datasetsToDownload.length > 0) {
+            const jsonStr = JSON.stringify(datasetsToDownload, null, 2);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+                now.getDate(),
+            ).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(
+                2,
+                "0",
+            )}-${String(now.getSeconds()).padStart(2, "0")}`;
+            const numberOfDatasets = datasetsToDownload.length;
+            link.download = `fcc_physics_datasets-${numberOfDatasets}-datasets-${timestamp}.json`;
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error("Failed to download datasets:", error);
+        alert("An error occurred while downloading the datasets. Please try again.");
+    } finally {
+        isDownloading.value = false;
+    }
+}
+
+function toggleDatasetSelection(datasetId: number) {
+    if (selectedDatasets.has(datasetId)) {
+        selectedDatasets.delete(datasetId);
+    } else {
+        selectedDatasets.add(datasetId);
+    }
+}
+
+function toggleSelectAll() {
+    const currentDatasetIds = searchState.datasets.map((d) => d.dataset_id);
+    if (allDatasetsSelected.value) {
+        currentDatasetIds.forEach((id) => selectedDatasets.delete(id));
+    } else {
+        currentDatasetIds.forEach((id) => selectedDatasets.add(id));
+    }
+}
 </script>
 
 <template>
@@ -418,43 +550,77 @@ onMounted(() => {
             </UCard>
 
             <div v-else-if="searchState.datasets.length > 0" class="space-y-6">
-                <div class="flex justify-between items-center">
-                    <div class="flex items-center gap-4">
-                        <div class="text-md text-gray-600">
-                            Showing
-                            <strong>{{ currentDisplayRange.start }}-{{ currentDisplayRange.end }}</strong>
-                            of <strong>{{ currentDisplayRange.total }}</strong> results
-                            <span v-if="searchState.hasMore" class="text-sm text-gray-500">
-                                ({{ pagination.loadedPages.size }} of {{ pagination.totalPages }} pages loaded)
-                            </span>
-                        </div>
+                <!-- Main controls header -->
+                <div
+                    class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+                >
+                    <!-- Left side: Actions & View Options -->
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                         <div class="flex items-center gap-2">
-                            <span class="text-md text-gray-600">Results per page:</span>
-                            <UInput
-                                v-model.number="pagination.pageSize"
-                                type="number"
-                                min="1"
-                                max="100"
-                                size="md"
-                                class="w-20"
-                                @change="handlePageSizeChange"
+                            <UCheckbox
+                                :model-value="allDatasetsSelected"
+                                :disabled="searchState.datasets.length === 0"
+                                @change="toggleSelectAll"
                             />
+                            <label class="text-sm font-medium">Select All</label>
                         </div>
+
+                        <UButton
+                            icon="i-heroicons-arrow-down-tray"
+                            color="primary"
+                            variant="solid"
+                            size="sm"
+                            :disabled="selectedDatasets.size === 0"
+                            :loading="isDownloading"
+                            @click="downloadSelectedDatasets"
+                        >
+                            Download ({{ selectedDatasets.size }})
+                        </UButton>
+
+                        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+
                         <UButton
                             :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                            color="primary"
+                            color="neutral"
                             variant="outline"
                             size="sm"
-                            class="cursor-pointer"
                             @click="toggleAllMetadata"
                         >
-                            {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
+                            {{ allMetadataExpanded ? "Hide All" : "Show All" }}
                         </UButton>
+
+                        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+
+                        <!-- Sorting controls -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
+                            <USelectMenu
+                                v-model="sortBy"
+                                :items="sortingFieldOptions"
+                                :loading="sortingFieldsLoading"
+                                placeholder="Select field"
+                                value-key="value"
+                                :search-input="{ placeholder: 'Search fields...' }"
+                                size="sm"
+                                class="w-48"
+                            />
+                            <UButton
+                                :icon="
+                                    sortOrder === 'asc' ? 'i-heroicons-bars-arrow-up' : 'i-heroicons-bars-arrow-down'
+                                "
+                                color="neutral"
+                                variant="outline"
+                                size="sm"
+                                :aria-label="`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`"
+                                @click="toggleSortOrder"
+                            />
+                        </div>
+
                         <UButton
                             :icon="
                                 infiniteScrollEnabled ? 'i-heroicons-arrows-up-down' : 'i-heroicons-document-duplicate'
                             "
-                            :color="infiniteScrollEnabled ? 'primary' : 'neutral'"
+                            color="neutral"
                             variant="outline"
                             size="sm"
                             @click="toggleMode"
@@ -463,9 +629,42 @@ onMounted(() => {
                         </UButton>
                     </div>
 
-                    <!-- Only show pagination in pagination mode -->
-                    <div v-if="!infiniteScrollEnabled" class="flex justify-center">
-                        <UPagination v-model:page="pagination.currentPage" :total="pagination.totalDatasets" />
+                    <!-- Right side: Pagination & Results Info -->
+                    <div class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                        <div class="text-sm text-gray-600 dark:text-gray-300">
+                            Showing
+                            <strong class="font-semibold text-gray-900 dark:text-white">
+                                {{ currentDisplayRange.start }}-{{ currentDisplayRange.end }}
+                            </strong>
+                            of
+                            <strong class="font-semibold text-gray-900 dark:text-white">
+                                {{ currentDisplayRange.total }}
+                            </strong>
+                        </div>
+
+                        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+
+                        <div class="flex items-center gap-1">
+                            <span class="text-sm">Per page:</span>
+                            <UInput
+                                v-model.number="pagination.pageSize"
+                                type="number"
+                                min="1"
+                                max="100"
+                                size="xs"
+                                class="w-16"
+                                @change="handlePageSizeChange"
+                            />
+                        </div>
+
+                        <!-- Pagination component (only in pagination mode) -->
+                        <UPagination
+                            v-if="!infiniteScrollEnabled"
+                            v-model:page="pagination.currentPage"
+                            :total="pagination.totalDatasets"
+                            :page-count="pagination.pageSize"
+                            size="sm"
+                        />
                     </div>
                 </div>
 
@@ -481,6 +680,12 @@ onMounted(() => {
                             <div class="flex items-center justify-between gap-4">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center">
+                                        <div class="flex-shrink-0 pr-4">
+                                            <UCheckbox
+                                                :model-value="selectedDatasets.has(dataset.dataset_id)"
+                                                @click.stop="toggleDatasetSelection(dataset.dataset_id)"
+                                            />
+                                        </div>
                                         <div class="w-88 flex-shrink-0">
                                             <h3 class="font-semibold text-base text-gray-900">
                                                 <span class="ml-1 text-gray-900">{{ dataset.name }}</span>

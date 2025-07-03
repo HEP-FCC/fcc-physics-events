@@ -220,7 +220,9 @@ class QueryParser:
     async def setup(self) -> None:
         self.schema_mapping = await self.database.generate_schema_mapping()
 
-    def parse_query(self, query_string: str) -> tuple[str, str, list[Any]]:
+    def parse_query(
+        self, query_string: str, sort_by: str = "dataset_id", sort_order: str = "asc"
+    ) -> tuple[str, str, list[Any]]:
         if not self.schema_mapping:
             raise RuntimeError("QueryParser not set up.")
 
@@ -232,6 +234,7 @@ class QueryParser:
                     s.name as stage_name,
                     at.name as accelerator_name
                 {self.from_and_joins}
+                {self._build_order_by_clause(sort_by, sort_order)}
             """
             count_query = "SELECT COUNT(*) FROM datasets"
             return base_select, count_query, []
@@ -253,8 +256,59 @@ class QueryParser:
                 at.name as accelerator_name
             {self.from_and_joins}
             WHERE {where_clause}
+            {self._build_order_by_clause(sort_by, sort_order)}
         """
         count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
 
-        print("BASE_SELECT:", base_select)
         return base_select, count_query, self.translator.params
+
+    def _build_order_by_clause(self, sort_by: str, sort_order: str) -> str:
+        """
+        Builds the ORDER BY clause for the query with proper field mapping.
+        Supports sorting by dataset fields, joined table fields, and metadata JSONB fields.
+        """
+        # Validate sort_order
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise ValueError("sort_order must be 'asc' or 'desc'")
+
+        # Handle metadata fields (e.g., "metadata.key" or "metadata.nested.key")
+        if sort_by.startswith("metadata."):
+            parts = sort_by.split(".", 1)  # Split into "metadata" and rest
+            if len(parts) > 1:
+                metadata_path = parts[1]
+                # Split the metadata path by dots to handle nested keys
+                path_parts = metadata_path.split(".")
+
+                if len(path_parts) == 1:
+                    # Simple metadata field: metadata.key
+                    json_field = f"d.metadata->>{path_parts[0]!r}"
+                else:
+                    # Nested metadata field: metadata.nested.key
+                    path_expression = "->".join(
+                        [f"'{part}'" for part in path_parts[:-1]]
+                    )
+                    json_field = f"d.metadata->{path_expression}->>{path_parts[-1]!r}"
+
+                return f"ORDER BY {json_field} {sort_order.upper()}"
+
+        # Handle regular fields using the schema mapping
+        field_obj = Field((sort_by,))
+        try:
+            sql_field = field_obj.to_sql(self.schema_mapping)
+            return f"ORDER BY {sql_field} {sort_order.upper()}"
+        except Exception:
+            # If the field doesn't map, try direct dataset field access
+            # This handles cases like "dataset_id", "created_at", etc.
+            if sort_by in ["dataset_id", "created_at", "last_edited_at", "name"]:
+                return f"ORDER BY d.{sort_by} {sort_order.upper()}"
+            elif sort_by in [
+                "detector_name",
+                "campaign_name",
+                "stage_name",
+                "accelerator_name",
+            ]:
+                # These are already available in the SELECT clause
+                return f"ORDER BY {sort_by} {sort_order.upper()}"
+            else:
+                # Fallback: try to access the field directly
+                return f"ORDER BY d.{sort_by} {sort_order.upper()}"

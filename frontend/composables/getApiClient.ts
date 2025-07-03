@@ -1,7 +1,7 @@
 /**
  * API Client for interacting with the backend services.
  */
-import type { PaginatedResponse } from "~/types/dataset";
+import type { Dataset, PaginatedResponse } from "~/types/dataset";
 
 export class ApiClient {
     private baseUrl: string;
@@ -12,13 +12,21 @@ export class ApiClient {
     }
 
     /**
-     * Searches for datasets based on a GCLQL query string with pagination.
+     * Searches for datasets based on a GCLQL query string with pagination and sorting.
      * @param query The GCLQL query string.
      * @param limit The maximum number of results to return.
      * @param offset The number of results to skip.
+     * @param sortBy The field to sort by (optional).
+     * @param sortOrder The sort order: 'asc' or 'desc' (optional).
      * @returns A promise that resolves to a paginated response object.
      */
-    async searchDatasets(query: string, limit: number, offset: number): Promise<PaginatedResponse> {
+    async searchDatasets(
+        query: string,
+        limit: number,
+        offset: number,
+        sortBy?: string,
+        sortOrder?: "asc" | "desc",
+    ): Promise<PaginatedResponse> {
         try {
             // Use URLSearchParams to properly encode the query string
             const params = new URLSearchParams({
@@ -26,6 +34,15 @@ export class ApiClient {
                 limit: String(limit),
                 offset: String(offset),
             });
+
+            if (sortBy) {
+                params.append("sort_by", sortBy);
+            }
+
+            if (sortOrder) {
+                params.append("sort_order", sortOrder);
+            }
+
             const response = await fetch(`${this.baseUrl}/query/?${params}`);
 
             if (!response.ok) {
@@ -157,6 +174,54 @@ export class ApiClient {
             return await response.json();
         } catch (error) {
             console.error("Failed to fetch accelerators:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Downloads datasets by their IDs as JSON files.
+     * @param datasetIds Array of dataset IDs to download
+     * @returns A promise that resolves to an array of dataset objects with full details
+     */
+    async downloadDatasetsByIds(datasetIds: number[]): Promise<Dataset[]> {
+        try {
+            const response = await fetch(`${this.baseUrl}/datasets/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    dataset_ids: datasetIds,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`API error: ${response.status} - ${errorData.detail || "Unknown error"}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error("Failed to download datasets:", error);
+            throw error;
+        }
+    }
+
+    /**
+     * Fetches available sorting fields from the API.
+     * @returns A promise that resolves to the sorting fields response.
+     */
+    async getSortingFields(): Promise<{ fields: string[]; count: number; info: string }> {
+        try {
+            const response = await fetch(`${this.baseUrl}/sorting-fields/`);
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error("Failed to fetch sorting fields:", error);
             throw error;
         }
     }
