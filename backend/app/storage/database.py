@@ -5,6 +5,8 @@ data import logic.
 """
 
 import json
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -13,7 +15,7 @@ from asyncpg.pool import Pool
 from pydantic import BaseModel
 
 from app.config import Config
-from app.fcc_dict_parser import ProcessCollection
+from app.fcc_dict_parser import DatasetCollection
 from app.logging import get_logger
 from app.models.accelerator import AcceleratorCreate
 from app.models.campaign import CampaignCreate
@@ -149,80 +151,145 @@ class Database:
         """Parses JSON content and upserts the data into the database."""
         try:
             raw_data = json.loads(json_content)
-            collection = ProcessCollection.model_validate(raw_data)
+            collection = DatasetCollection.model_validate(raw_data)
         except json.JSONDecodeError as e:
             raise ValueError("Invalid JSON format") from e
 
         async with self.session() as conn:
-            for process_data in collection.processes:
-                logger.info(f"Processing: {process_data.process_name}")
-                path_parts = Path(process_data.path).parts
-                try:
-                    accelerator_name = path_parts[4]
-                    stage_name = path_parts[6].replace("Events", "")
-                    campaign_name = path_parts[7]
-                    detector_name = path_parts[8]
-                except IndexError:
+            for idx, dataset_data in enumerate(collection.processes):
+                # Generate a fallback name if process_name is missing
+                dataset_name = dataset_data.process_name
+                if not dataset_name:
+                    # Create a unique fallback name using timestamp and index
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    short_uuid = str(uuid.uuid4())[:8]
+                    dataset_name = f"unnamed_dataset_{timestamp}_{short_uuid}_{idx}"
                     logger.warning(
-                        f"Could not parse path for {process_data.process_name}. Skipping."
+                        f"Dataset at index {idx} has no process_name. Using fallback name: {dataset_name}"
                     )
-                    continue
 
-                accelerator_id = await self._get_or_create_entity(
-                    conn,
-                    AcceleratorCreate,
-                    "accelerators",
-                    name=accelerator_name,
-                    description=f"Accelerator for {accelerator_name.upper()} collisions",
-                )
-                stage_id = await self._get_or_create_entity(
-                    conn, StageCreate, "stages", name=stage_name
-                )
-                campaign_id = await self._get_or_create_entity(
-                    conn, CampaignCreate, "campaigns", name=campaign_name
-                )
-                detector_id = await self._get_or_create_entity(
-                    conn,
-                    DetectorCreate,
-                    "detectors",
-                    name=detector_name,
-                    accelerator_id=accelerator_id,
-                )
-                # Extract metadata and remove the process-name since it's stored in the name field
-                metadata_dict = process_data.model_dump(by_alias=True)
-                metadata_dict.pop(
-                    "process-name", None
-                )  # Remove process-name from metadata
+                logger.info(f"Processing: {dataset_name}")
 
-                dataset_to_create = DatasetCreate(
-                    name=process_data.process_name,
-                    metadata=metadata_dict,
-                    accelerator_id=accelerator_id,
-                    stage_id=stage_id,
-                    campaign_id=campaign_id,
-                    detector_id=detector_id,
-                )
-                metadata_json = json.dumps(dataset_to_create.metadata)
+                # Initialize foreign key IDs to None
+                accelerator_id = None
+                stage_id = None
+                campaign_id = None
+                detector_id = None
 
-                await conn.execute(
-                    """
-                    INSERT INTO datasets (name, accelerator_id, stage_id, campaign_id, detector_id, metadata)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                    ON CONFLICT (name) DO UPDATE
-                    SET metadata = EXCLUDED.metadata,
-                        accelerator_id = EXCLUDED.accelerator_id,
-                        stage_id = EXCLUDED.stage_id,
-                        campaign_id = EXCLUDED.campaign_id,
-                        detector_id = EXCLUDED.detector_id,
-                        last_edited_at = (NOW() AT TIME ZONE 'utc');
-                    """,
-                    dataset_to_create.name,
-                    dataset_to_create.accelerator_id,
-                    dataset_to_create.stage_id,
-                    dataset_to_create.campaign_id,
-                    dataset_to_create.detector_id,
-                    metadata_json,
-                )
+                # Try to parse path components if path is available
+                if dataset_data.path:
+                    try:
+                        path_parts = Path(dataset_data.path).parts
+                        accelerator_name = (
+                            path_parts[4] if len(path_parts) > 4 else None
+                        )
+                        stage_name = (
+                            path_parts[6].replace("Events", "")
+                            if len(path_parts) > 6
+                            else None
+                        )
+                        campaign_name = path_parts[7] if len(path_parts) > 7 else None
+                        detector_name = path_parts[8] if len(path_parts) > 8 else None
+
+                        # Only create entities if the names are valid (not None or empty)
+                        if accelerator_name and accelerator_name.strip():
+                            accelerator_id = await self._get_or_create_entity(
+                                conn,
+                                AcceleratorCreate,
+                                "accelerators",
+                                name=accelerator_name.strip(),
+                                description=f"Accelerator for {accelerator_name.upper()} collisions",
+                            )
+
+                        if stage_name and stage_name.strip():
+                            stage_id = await self._get_or_create_entity(
+                                conn, StageCreate, "stages", name=stage_name.strip()
+                            )
+
+                        if campaign_name and campaign_name.strip():
+                            campaign_id = await self._get_or_create_entity(
+                                conn,
+                                CampaignCreate,
+                                "campaigns",
+                                name=campaign_name.strip(),
+                            )
+
+                        if detector_name and detector_name.strip() and accelerator_id:
+                            detector_id = await self._get_or_create_entity(
+                                conn,
+                                DetectorCreate,
+                                "detectors",
+                                name=detector_name.strip(),
+                                accelerator_id=accelerator_id,
+                            )
+
+                    except (IndexError, AttributeError) as e:
+                        logger.warning(
+                            f"Could not parse path components for {dataset_name}: {e}. "
+                            f"Will store dataset with null foreign key references."
+                        )
+                else:
+                    logger.warning(
+                        f"Dataset {dataset_name} has no path. Will store with null foreign key references."
+                    )
+
+                # Get all metadata excluding process_name
+                metadata_dict = dataset_data.get_all_metadata()
+
+                # Handle potential name conflicts in the database
+                final_name = dataset_name
+                conflict_counter = 1
+                while True:
+                    try:
+                        dataset_to_create = DatasetCreate(
+                            name=final_name,
+                            metadata=metadata_dict,
+                            accelerator_id=accelerator_id,
+                            stage_id=stage_id,
+                            campaign_id=campaign_id,
+                            detector_id=detector_id,
+                        )
+                        metadata_json = json.dumps(dataset_to_create.metadata)
+
+                        await conn.execute(
+                            """
+                            INSERT INTO datasets (name, accelerator_id, stage_id, campaign_id, detector_id, metadata)
+                            VALUES ($1, $2, $3, $4, $5, $6)
+                            ON CONFLICT (name) DO UPDATE
+                            SET metadata = EXCLUDED.metadata,
+                                accelerator_id = EXCLUDED.accelerator_id,
+                                stage_id = EXCLUDED.stage_id,
+                                campaign_id = EXCLUDED.campaign_id,
+                                detector_id = EXCLUDED.detector_id,
+                                last_edited_at = (NOW() AT TIME ZONE 'utc');
+                            """,
+                            dataset_to_create.name,
+                            dataset_to_create.accelerator_id,
+                            dataset_to_create.stage_id,
+                            dataset_to_create.campaign_id,
+                            dataset_to_create.detector_id,
+                            metadata_json,
+                        )
+                        break  # Success, exit the retry loop
+                    except Exception as e:
+                        if (
+                            "duplicate key value violates unique constraint"
+                            in str(e).lower()
+                        ):
+                            # Name conflict, try with a different name
+                            final_name = f"{dataset_name}_conflict_{conflict_counter}"
+                            conflict_counter += 1
+                            logger.warning(
+                                f"Name conflict for {dataset_name}, trying {final_name}"
+                            )
+                            if conflict_counter > 10:  # Prevent infinite loops
+                                logger.error(
+                                    f"Too many name conflicts for {dataset_name}, skipping"
+                                )
+                                break
+                        else:
+                            # Some other error, re-raise it
+                            raise
         logger.info("Successfully parsed and inserted all data.")
 
     async def _get_entity_id_by_name(
