@@ -25,6 +25,7 @@ htmlcov
 .cache
 .venv
 .pytest_cache
+.ruff_cache
 
 ## Frontend ##
 
@@ -45,6 +46,5 @@ node_modules
 # Database files
 /database/
 data/
-
 
 

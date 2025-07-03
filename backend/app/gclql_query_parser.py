@@ -42,9 +42,19 @@ class Field:
         self, schema_mapping: dict[str, str], value: Any = None, op: str | None = None
     ) -> str:
         base_field = self.parts[0]
-        if base_field not in schema_mapping:
-            raise ValueError(f"Field '{base_field}' is not valid.")
-        sql_column = schema_mapping[base_field]
+        if base_field[-5:] == "_name":
+            base_field = base_field[:-5]
+
+        # if base_field not in schema_mapping:
+        #     raise ValueError(f"Field '{base_field}' is not valid.")
+
+        sql_column = schema_mapping.get(base_field)
+
+        if not sql_column:
+            # Try to searching the dataset columns
+            sql_column = f"d.{base_field}"
+
+        # Hardcoded "metadata" field name required in the db schema
         if base_field == "metadata" and len(self.parts) > 1:
             json_path_parts = self.parts[1:]
             path_expression = "->".join([f"'{part}'" for part in json_path_parts[:-1]])
@@ -76,9 +86,9 @@ class Comparison:
     value: Any
 
 
-@dataclass(frozen=True)
-class GlobalSearch:
-    value: str
+# @dataclass(frozen=True)
+# class GlobalSearch:
+#     value: str
 
 
 @dataclass(frozen=True)
@@ -98,7 +108,7 @@ class Not:
     term: Any
 
 
-AstNode = Comparison | GlobalSearch | And | Or | Not
+AstNode = Comparison | And | Or | Not  # | GlobalSearch
 
 
 class AstTransformer(Transformer[Token, AstNode]):
@@ -117,8 +127,8 @@ class AstTransformer(Transformer[Token, AstNode]):
     def comparison(self, i: list[Any]) -> Comparison:
         return Comparison(field=i[0], op=str(i[1]), value=i[2])
 
-    def global_search(self, i: list[Any]) -> GlobalSearch:
-        return GlobalSearch(value=i[0])
+    # def global_search(self, i: list[Any]) -> GlobalSearch:
+    #     return GlobalSearch(value=i[0])
 
     def field(self, i: list[Any]) -> Field:
         return Field(parts=tuple(p.value for p in i))
@@ -142,26 +152,14 @@ class SqlTranslator:
 
     def reset(self, schema_mapping: dict[str, str]) -> None:
         self.schema_mapping = schema_mapping
-        self.global_search_fields = [
-            "name",
-            "detector",
-            "detector_name",
-            "campaign",
-            "campaign_name",
-            "stage",
-            "stage_name",
-            "accelerator",
-            "accelerator_name",
-            "metadata_text",
-        ]
         self.params = []
         self.param_index = 0
 
     def translate(self, node: AstNode) -> str:
         if isinstance(node, Comparison):
             return self._translate_comparison(node)
-        if isinstance(node, GlobalSearch):
-            return self._translate_global_search(node)
+        # if isinstance(node, GlobalSearch):
+        #     return self._translate_global_search(node)
         if isinstance(node, Not):
             return f"NOT ({self.translate(node.term)})"
         if isinstance(node, And):
@@ -187,20 +185,20 @@ class SqlTranslator:
         self.params.append(param_value)
         return f"{sql_field} {sql_op} {placeholder}"
 
-    def _translate_global_search(self, node: GlobalSearch) -> str:
-        clauses = []
-        for field_name in self.global_search_fields:
-            if field_name in self.schema_mapping:
-                sql_field, self.param_index = (
-                    self.schema_mapping[field_name],
-                    self.param_index + 1,
-                )
-                placeholder = f"${self.param_index}"
-                clauses.append(f"{sql_field} ILIKE {placeholder}")
-                self.params.append(f"%{node.value}%")
-        if not clauses:
-            raise ValueError("Global search used, but no fields configured for it.")
-        return "(" + " OR ".join(clauses) + ")"
+    # def _translate_global_search(self, node: GlobalSearch) -> str:
+    #     clauses = []
+    #     for field_name in self.global_search_fields:
+    #         if field_name in self.schema_mapping:
+    #             sql_field, self.param_index = (
+    #                 self.schema_mapping[field_name],
+    #                 self.param_index + 1,
+    #             )
+    #             placeholder = f"${self.param_index}"
+    #             clauses.append(f"{sql_field} ILIKE {placeholder}")
+    #             self.params.append(f"%{node.value}%")
+    #     if not clauses:
+    #         raise ValueError("Global search used, but no fields configured for it.")
+    #     return "(" + " OR ".join(clauses) + ")"
 
 
 class QueryParser:
@@ -211,25 +209,52 @@ class QueryParser:
         self.transformer = AstTransformer()
         self.translator = SqlTranslator()
 
+        self.from_and_joins = """
+            FROM datasets d
+            LEFT JOIN detectors det ON d.detector_id = det.detector_id
+            LEFT JOIN campaigns c ON d.campaign_id = c.campaign_id
+            LEFT JOIN stages s ON d.stage_id = s.stage_id
+            LEFT JOIN accelerators at ON d.accelerator_id = at.accelerator_id
+        """
+
     async def setup(self) -> None:
         self.schema_mapping = await self.database.generate_schema_mapping()
 
     def parse_query(self, query_string: str) -> tuple[str, str, list[Any]]:
         if not self.schema_mapping:
             raise RuntimeError("QueryParser not set up.")
-        from_and_joins = "FROM datasets d LEFT JOIN detectors det ON d.detector_id = det.detector_id LEFT JOIN campaigns c ON d.campaign_id = c.campaign_id LEFT JOIN stages s ON d.stage_id = s.stage_id LEFT JOIN accelerators at ON d.accelerator_id = at.accelerator_id"
+
         if not query_string.strip():
-            base_select = f"SELECT d.*, det.name as detector_name, c.name as campaign_name, s.name as stage_name, at.name as accelerator_name {from_and_joins}"
+            base_select = f"""
+                SELECT d.*,
+                    det.name as detector_name,
+                    c.name as campaign_name,
+                    s.name as stage_name,
+                    at.name as accelerator_name
+                {self.from_and_joins}
+            """
             count_query = "SELECT COUNT(*) FROM datasets"
             return base_select, count_query, []
+
         try:
             ast = cast(
                 AstNode, self.transformer.transform(self.parser.parse(query_string))
             )
         except exceptions.LarkError as e:
             raise ValueError(f"Invalid query syntax: {e}") from e
+
         self.translator.reset(self.schema_mapping)
         where_clause = self.translator.translate(ast)
-        base_select = f"SELECT d.*, det.name as detector_name, c.name as campaign_name, s.name as stage_name, at.name as accelerator_name {from_and_joins} WHERE {where_clause}"
-        count_query = f"SELECT COUNT(*) {from_and_joins} WHERE {where_clause}"
+        base_select = f"""
+            SELECT d.*,
+                det.name as detector_name,
+                c.name as campaign_name,
+                s.name as stage_name,
+                at.name as accelerator_name
+            {self.from_and_joins}
+            WHERE {where_clause}
+        """
+        count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
+
+        print("BASE_SELECT:", base_select)
         return base_select, count_query, self.translator.params

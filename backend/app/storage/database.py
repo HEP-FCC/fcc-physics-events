@@ -98,17 +98,13 @@ class Database:
         return {
             "name": "d.name",
             "detector": "det.name",
-            "detector_name": "det.name",
             "campaign": "c.name",
-            "campaign_name": "c.name",
             "stage": "s.name",
-            "stage_name": "s.name",
             "accelerator": "at.name",
-            "accelerator_name": "at.name",
-            # This virtual field allows full-text search on all metadata values.
-            "metadata_text": "jsonb_values_to_text(d.metadata)",
             # This field allows querying specific keys within the JSONB object.
             "metadata": "d.metadata",
+            # This virtual field allows full-text search on all metadata values.
+            "metadata_text": "jsonb_values_to_text(d.metadata)",
         }
 
     async def _get_or_create_entity(
@@ -185,7 +181,7 @@ class Database:
                 )
                 dataset_to_create = DatasetCreate(
                     name=process_data.process_name,
-                    metadata=process_data.model_dump(by_alias=True, exclude={"path"}),
+                    metadata=process_data.model_dump(by_alias=True),
                     accelerator_id=accelerator_id,
                     stage_id=stage_id,
                     campaign_id=campaign_id,
