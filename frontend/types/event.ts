@@ -5,7 +5,7 @@
 export interface Dataset {
     dataset_id: number;
     name: string;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
     created_at: string; // ISO 8601 date string
     last_edited_at?: string; // ISO 8601 date string for when metadata was last edited
 

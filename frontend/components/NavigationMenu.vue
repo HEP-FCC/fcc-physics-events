@@ -36,7 +36,7 @@ function navigateTo(type: DropdownType, value: string) {
     const typeIndex = dropdownKeys.value.indexOf(type);
 
     // Create a new path up to the selected type
-    let newPathParts = pathParts.slice(0, typeIndex);
+    const newPathParts = pathParts.slice(0, typeIndex);
     newPathParts.push(value);
 
     // Filter out nulls and join to form the path
@@ -51,7 +51,7 @@ function clearSelection(type: DropdownType) {
     const typeIndex = dropdownKeys.value.indexOf(type);
 
     // Create a new path that excludes the cleared type and everything after it
-    let newPathParts = pathParts.slice(0, typeIndex);
+    const newPathParts = pathParts.slice(0, typeIndex);
 
     if (newPathParts.length === 0) {
         router.push("/");
@@ -63,6 +63,19 @@ function clearSelection(type: DropdownType) {
 
 function closeAllDropdowns() {
     Object.values(dropdowns.value).forEach((d) => (d.isOpen = false));
+}
+
+function getBadgeColor(type: DropdownType): "success" | "warning" | "info" | "primary" {
+    switch (type) {
+        case "stage":
+            return "success"; // Green to match Stage badges in results
+        case "campaign":
+            return "warning"; // Yellow/amber to match Campaign badges in results
+        case "detector":
+            return "info"; // Blue to match Detector badges in results
+        default:
+            return "primary"; // Fallback color
+    }
 }
 
 function toggleDropdown(type: DropdownType) {
@@ -84,7 +97,7 @@ async function loadDropdownData() {
     const current = currentPath.value;
 
     // Dynamically generate filter map based on dropdowns configuration order
-    const filterMap = {} as Record<DropdownType, any>;
+    const filterMap = {} as Record<DropdownType, Record<string, unknown>>;
     for (const type of dropdownKeys.value) {
         filterMap[type] = {};
         // Add filters for all other dropdown types
@@ -149,11 +162,11 @@ watch(currentPath, loadDropdownData, { deep: true });
                         <div class="p-2">
                             <div v-if="currentPath[type as DropdownType]" class="mb-2">
                                 <button
+                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
                                     @click="
                                         clearSelection(type as DropdownType);
                                         dropdown.isOpen = false;
                                     "
-                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
                                 >
                                     <UIcon name="i-heroicons-x-mark" class="mr-2" />
                                     {{ dropdown.clearLabel }}
@@ -168,12 +181,12 @@ watch(currentPath, loadDropdownData, { deep: true });
                                 <button
                                     v-for="item in dropdown.items"
                                     :key="item.id"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
+                                    :class="{ 'bg-primary-50 text-primary-700': currentPath[type as DropdownType] === item.name }"
                                     @click="
                                         navigateTo(type as DropdownType, item.name);
                                         dropdown.isOpen = false;
                                     "
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                    :class="{ 'bg-primary-50 text-primary-700': currentPath[type as DropdownType] === item.name }"
                                 >
                                     {{ item.name }}
                                 </button>
@@ -191,7 +204,11 @@ watch(currentPath, loadDropdownData, { deep: true });
                     <template v-else>
                         <span>Filtered by:</span>
                         <template v-for="(dropdown, type) in dropdowns" :key="type">
-                            <UBadge v-if="currentPath[type as DropdownType]" color="primary" variant="soft">
+                            <UBadge
+                                v-if="currentPath[type as DropdownType]"
+                                :color="getBadgeColor(type as DropdownType)"
+                                variant="soft"
+                            >
                                 {{ dropdown.label }}: {{ currentPath[type as DropdownType] }}
                             </UBadge>
                         </template>

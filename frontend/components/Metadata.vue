@@ -2,6 +2,10 @@
 import { computed } from "vue";
 import type { Dataset } from "../types/dataset";
 
+defineOptions({
+    name: "DatasetMetadata",
+});
+
 const props = defineProps<{
     dataset: Dataset;
 }>();
@@ -16,13 +20,13 @@ const gridClass = computed(() => {
     return "grid-cols-1";
 });
 
-function isLongStringField(key: string, value: any): boolean {
+function isLongStringField(key: string, value: unknown): boolean {
     if (typeof value !== "string") return false;
     const longFields = ["path", "software-stack", "description", "url", "command"];
     return longFields.includes(key.toLowerCase()) || value.length > 50;
 }
 
-function isShortField(key: string, value: any): boolean {
+function isShortField(key: string, value: unknown): boolean {
     if (typeof value === "number" || typeof value === "boolean") return true;
     if (typeof value === "string" && value.length <= 20) return true;
     return false;
@@ -32,13 +36,13 @@ function isSizeField(key: string): boolean {
     return key.toLowerCase() === "size";
 }
 
-function formatSizeInGiB(bytes: any): string {
-    const num = Number(bytes);
-    if (isNaN(num) || num < 0) {
+function formatSizeInGiB(bytes: unknown): string {
+    const bytesNumber = Number(bytes);
+    if (isNaN(bytesNumber) || bytesNumber < 0) {
         return "N/A";
     }
-    const gib = num / (1024 * 1024 * 1024);
-    return `${gib.toFixed(2)} GiB`;
+    const gigabytes = bytesNumber / (1024 * 1024 * 1024);
+    return `${gigabytes.toFixed(2)} GiB`;
 }
 
 function formatFieldName(key: string): string {
@@ -54,11 +58,45 @@ function formatTimestamp(timestamp: string): string {
             day: "numeric",
             hour: "2-digit",
             minute: "2-digit",
+            hour12: false,
             timeZoneName: "short",
         });
-    } catch (error) {
+    } catch {
         return timestamp;
     }
+}
+
+// Vector field detection and formatting functions
+function isVectorField(value: unknown): boolean {
+    if (!Array.isArray(value)) return false;
+    if (value.length === 0) return false;
+
+    // Check if all elements are numbers or strings
+    return value.every((item) => typeof item === "number" || typeof item === "string" || typeof item === "boolean");
+}
+
+function formatVectorPreview(value: unknown[]): { preview: string; needsFullRow: boolean } {
+    const firstFive = value.slice(0, 5);
+    let preview = firstFive
+        .map((item) => {
+            if (typeof item === "number") {
+                // Format numbers to avoid excessive decimals
+                return Number.isInteger(item) ? item.toString() : item.toFixed(3);
+            }
+            return String(item);
+        })
+        .join(", ");
+
+    // Add ellipsis if there are more elements
+    if (value.length > 5) {
+        preview += ", ...";
+    }
+
+    // Estimate display width - rough calculation
+    const estimatedWidth = preview.length * 8; // ~8px per character
+    const needsFullRow = estimatedWidth > 200 || firstFive.some((item) => String(item).length > 20);
+
+    return { preview, needsFullRow };
 }
 
 // Sort and group metadata fields for a consistent and logical display order.
@@ -80,8 +118,8 @@ const sortedMetadata = computed(() => {
 
     const endOrder = ["software-stack", "path"];
 
-    const endFields: [string, any][] = [];
-    const remainingFields: [string, any][] = [];
+    const endFields: [string, unknown][] = [];
+    const remainingFields: [string, unknown][] = [];
 
     filteredEntries.forEach(([key, value]) => {
         if (endOrder.includes(key)) {
@@ -91,13 +129,33 @@ const sortedMetadata = computed(() => {
         }
     });
 
+    // --- START DEBUG VECTORS ---
+    // This is temporary code to test vector display.
+    const debugVectors: [string, unknown][] = [
+        ["debug_short_numbers", [1, 2, 3, 4]],
+        ["debug_long_numbers", [1.12345, 2.56789, 3.14159265, 4.2, 5.5, 6.8, 7.0, 8.1]],
+        ["debug_short_strings", ["alpha", "beta", "gamma", "delta"]],
+        [
+            "debug_long_strings",
+            [
+                "a_very_long_string_that_will_definitely_need_to_wrap",
+                "another_super_long_string_to_force_a_full_row_layout",
+            ],
+        ],
+        ["debug_mixed_types", [1, "two", 3.14, true, "five", false]],
+        ["debug_booleans", [true, false, true, true, false, true, false]],
+        ["debug_very_long_vector", Array.from({ length: 150 }, (_, i) => i + 1)],
+        ["debug_single_long_item_vector", ["this_is_one_very_long_string_item_in_an_array_to_check_wrapping"]],
+    ];
+    // --- END DEBUG VECTORS ---
+
     // Sort remaining fields alphabetically by key.
     remainingFields.sort(([a], [b]) => a.localeCompare(b));
 
     // Sort end fields by their defined order.
     endFields.sort(([a], [b]) => endOrder.indexOf(a) - endOrder.indexOf(b));
 
-    return [...remainingFields, ...endFields];
+    return [...remainingFields, ...debugVectors, ...endFields];
 });
 </script>
 
@@ -128,14 +186,14 @@ const sortedMetadata = computed(() => {
                 >
                     <div v-if="dataset.metadata.description" class="space-y-1">
                         <label class="text-sm font-medium text-gray-700">Description</label>
-                        <div class="bg-white rounded border px-2 py-1">
-                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ dataset.metadata.description }}</p>
+                        <div class="bg-white rounded border px-2 py-1 text-sm text-gray-800">
+                            <p class="whitespace-pre-wrap">{{ dataset.metadata.description }}</p>
                         </div>
                     </div>
                     <div v-if="dataset.metadata.comment" class="space-y-1">
                         <label class="text-sm font-medium text-gray-700">Comment</label>
-                        <div class="bg-white rounded border px-2 py-1">
-                            <p class="text-sm text-gray-800 whitespace-pre-wrap">{{ dataset.metadata.comment }}</p>
+                        <div class="bg-white rounded border px-2 py-1 text-sm text-gray-800">
+                            <p class="whitespace-pre-wrap">{{ dataset.metadata.comment }}</p>
                         </div>
                     </div>
                 </div>
@@ -145,31 +203,45 @@ const sortedMetadata = computed(() => {
                         <label class="text-sm font-medium text-gray-700 capitalize">
                             {{ formatFieldName(key) }}
                         </label>
-                        <div class="bg-white rounded border p-2">
-                            <code class="text-xs text-gray-800 break-all">{{ value }}</code>
+                        <div class="bg-white rounded border p-2 text-xs text-gray-800">
+                            <code class="break-all">{{ value }}</code>
                         </div>
                     </div>
 
                     <div v-else-if="isSizeField(key)" class="inline-block mr-3 mb-2">
                         <UBadge color="neutral" variant="soft" size="md">
-                            <span class="text-gray-600 font-medium text-sm">{{ formatFieldName(key) }}:</span>
-                            <span class="ml-1 font-normal text-sm">{{ formatSizeInGiB(value) }}</span>
+                            <span class="font-medium">{{ formatFieldName(key) }}:</span>
+                            <span class="ml-1 font-normal">{{ formatSizeInGiB(value) }}</span>
                         </UBadge>
                     </div>
 
                     <div v-else-if="isShortField(key, value)" class="inline-block mr-3 mb-2">
                         <UBadge color="neutral" variant="soft" size="md">
-                            <span class="text-gray-600 font-medium text-sm">{{ formatFieldName(key) }}:</span>
-                            <span class="ml-1 font-normal text-sm">{{ value }}</span>
+                            <span class="font-medium">{{ formatFieldName(key) }}:</span>
+                            <span class="ml-1 font-normal">{{ value }}</span>
                         </UBadge>
+                    </div>
+
+                    <div v-else-if="isVectorField(value)" class="space-y-1">
+                        <label class="text-sm font-medium text-gray-700 capitalize">
+                            {{ formatFieldName(key) }}
+                            <span class="text-gray-500 font-normal ml-1 normal-case"
+                                >(len: {{ (value as unknown[]).length }})</span
+                            >
+                        </label>
+                        <div class="bg-white rounded border px-2 py-1 text-sm text-gray-800">
+                            <span class="break-all font-mono text-xs">
+                                {{ formatVectorPreview(value as unknown[]).preview }}
+                            </span>
+                        </div>
                     </div>
 
                     <div v-else class="space-y-1">
                         <label class="text-sm font-medium text-gray-700 capitalize">
                             {{ formatFieldName(key) }}
                         </label>
-                        <div class="bg-white rounded border px-2 py-1">
-                            <span class="text-sm text-gray-800">{{ value }}</span>
+                        <div class="bg-white rounded border px-2 py-1 text-sm text-gray-800">
+                            <span>{{ value }}</span>
                         </div>
                     </div>
                 </template>

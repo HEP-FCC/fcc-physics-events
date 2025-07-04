@@ -7,13 +7,13 @@ export interface DropdownItem {
 }
 
 export interface NavigationDropdownConfig {
-    items: any[];
+    items: DropdownItem[];
     isLoading: boolean;
     isOpen: boolean;
     icon: string;
     label: string;
     clearLabel: string;
-    apiCall: (filters?: any) => Promise<any[]>;
+    apiCall: (filters?: Record<string, unknown>) => Promise<DropdownItem[]>;
 }
 
 /**
