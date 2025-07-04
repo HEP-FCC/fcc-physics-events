@@ -22,8 +22,8 @@
             </div>
         </div>
 
-        <!-- Manual load more button -->
-        <div v-else-if="hasMore && infiniteScrollEnabled && !canAutoLoad" class="flex justify-center py-6">
+        <!-- Manual load more button (only in pagination mode) -->
+        <div v-else-if="hasMore && !infiniteScrollEnabled" class="flex justify-center py-6">
             <UButton
                 color="primary"
                 variant="outline"

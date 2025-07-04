@@ -24,6 +24,9 @@ const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
     ) as Record<DropdownType, NavigationDropdownConfig>,
 );
 
+// Track loading timeouts for cleanup
+const loadingTimeouts = ref<Map<DropdownType, NodeJS.Timeout>>(new Map());
+
 const currentPath = computed(() => {
     const params = Array.isArray(route.params.slug) ? route.params.slug : [];
     return parseCurrentPath(params);
@@ -96,6 +99,10 @@ function handleClickOutside(event: Event) {
 async function loadDropdownData() {
     const current = currentPath.value;
 
+    // Clear any existing timeouts first
+    loadingTimeouts.value.forEach((timeout) => clearTimeout(timeout));
+    loadingTimeouts.value.clear();
+
     // Dynamically generate filter map based on dropdowns configuration order
     const filterMap = {} as Record<DropdownType, Record<string, unknown>>;
     for (const type of dropdownKeys.value) {
@@ -111,7 +118,15 @@ async function loadDropdownData() {
 
     for (const type in dropdowns.value) {
         const dropdown = dropdowns.value[type as DropdownType];
-        dropdown.isLoading = true;
+
+        // Set up delayed loading - only show spinner after 2 seconds
+        const loadingTimeout = setTimeout(() => {
+            dropdown.isLoading = true;
+        }, 2000);
+
+        // Store timeout for cleanup
+        loadingTimeouts.value.set(type as DropdownType, loadingTimeout);
+
         try {
             const filters = Object.fromEntries(
                 Object.entries(filterMap[type as DropdownType]).filter(([_, v]) => v != null),
@@ -121,6 +136,9 @@ async function loadDropdownData() {
             console.error(`Failed to load ${type}s:`, error);
             dropdown.items = [];
         } finally {
+            // Clear the timeout and reset loading state
+            clearTimeout(loadingTimeout);
+            loadingTimeouts.value.delete(type as DropdownType);
             dropdown.isLoading = false;
         }
     }
@@ -133,6 +151,9 @@ onMounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
+    // Clean up any pending loading timeouts
+    loadingTimeouts.value.forEach((timeout) => clearTimeout(timeout));
+    loadingTimeouts.value.clear();
 });
 
 watch(currentPath, loadDropdownData, { deep: true });

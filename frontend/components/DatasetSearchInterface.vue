@@ -36,7 +36,7 @@
         </UCard>
 
         <!-- Loading State -->
-        <UCard v-if="search.searchState.isLoading">
+        <UCard v-if="shouldShowLoading">
             <div class="space-y-4">
                 <USkeleton v-for="i in 5" :key="i" class="h-12 w-full" />
             </div>
@@ -118,7 +118,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch } from "vue";
+import { watch, ref, computed, onUnmounted } from "vue";
+import { watchDebounced } from "@vueuse/core";
 import { getApiClient } from "~/composables/getApiClient";
 import { useDatasetSearch } from "~/composables/useDatasetSearch";
 import { useDatasetSelection } from "~/composables/useDatasetSelection";
@@ -137,6 +138,36 @@ const search = useDatasetSearch({
 const selection = useDatasetSelection();
 
 const apiClient = getApiClient();
+
+// Delayed loading state to prevent flashing
+const showLoadingAfterDelay = ref(false);
+let loadingTimeout: NodeJS.Timeout | null = null;
+
+// Watch loading state with delay
+watch(
+    () => search.searchState.isLoading,
+    (isLoading) => {
+        if (isLoading) {
+            // Show loading after 300ms to prevent flash on quick responses
+            loadingTimeout = setTimeout(() => {
+                showLoadingAfterDelay.value = true;
+            }, 300);
+        } else {
+            // Immediately hide loading and clear timeout
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
+            }
+            showLoadingAfterDelay.value = false;
+        }
+    },
+    { immediate: true },
+);
+
+// Computed property for whether to show loading skeleton
+const shouldShowLoading = computed(() => {
+    return search.searchState.isLoading && (showLoadingAfterDelay.value || search.searchState.datasets.length === 0);
+});
 
 // Handle dataset download
 async function downloadSelectedDatasets() {
@@ -198,14 +229,36 @@ function handlePermalinkCopied() {
 }
 
 // Watch for changes in initial filters (navigation changes)
-watch(
+watchDebounced(
     () => props.initialFilters,
-    (newFilters) => {
-        search.updateFilters(newFilters);
-        // Clear metadata expansions when filters change (e.g., navigation)
-        selection.clearMetadataExpansions();
+    (newFilters, oldFilters) => {
+        console.log(
+            `📡 DatasetSearchInterface filter watcher - Old: ${JSON.stringify(oldFilters)} | New: ${JSON.stringify(
+                newFilters,
+            )}`,
+        );
+
+        // On first load, oldFilters will be undefined, so we need to handle that case
+        const isInitialLoad = oldFilters === undefined;
+        const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(oldFilters);
+
+        if (isInitialLoad || filtersChanged) {
+            console.log(
+                `📡 ${isInitialLoad ? "Initial load" : "Filter change"} - updating filters in search composable`,
+            );
+            search.updateFilters(newFilters);
+
+            // If it's initial load and we have filters, force a search
+            if (isInitialLoad && Object.keys(newFilters).length > 0) {
+                console.log(`📡 Initial load with filters detected, forcing search`);
+                search.executeSearch();
+            }
+
+            // Clear metadata expansions when filters change (e.g., navigation)
+            selection.clearMetadataExpansions();
+        }
     },
-    { deep: true, immediate: true },
+    { debounce: 50, deep: true, immediate: true },
 );
 
 // Watch for changes in search results and clear metadata expansions
@@ -225,4 +278,11 @@ watch(
         selection.clearMetadataExpansions();
     },
 );
+
+// Cleanup timeout on unmount
+onUnmounted(() => {
+    if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+    }
+});
 </script>

@@ -23,7 +23,7 @@
             Download ({{ selectedCount }})
         </UButton>
 
-        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"/>
+        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
         <!-- Metadata toggle -->
         <UButton
@@ -37,7 +37,7 @@
             {{ allMetadataExpanded ? "Hide All" : "Show All" }}
         </UButton>
 
-        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"/>
+        <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
         <!-- Sorting controls -->
         <div class="flex items-center gap-2">
@@ -66,14 +66,14 @@
 
         <!-- View mode toggle -->
         <UButton
-            :icon="infiniteScrollEnabled ? 'i-heroicons-arrows-up-down' : 'i-heroicons-document-duplicate'"
+            :icon="infiniteScrollEnabled ? 'i-heroicons-document-duplicate' : 'i-heroicons-arrows-up-down'"
             color="neutral"
             variant="outline"
             size="sm"
             class="cursor-pointer"
             @click="$emit('toggle-mode')"
         >
-            {{ infiniteScrollEnabled ? "Infinite Scroll" : "Pagination" }}
+            {{ infiniteScrollEnabled ? "Pagination" : "Infinite Scroll" }}
         </UButton>
     </div>
 </template>
