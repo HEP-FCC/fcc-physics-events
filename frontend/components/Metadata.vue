@@ -92,9 +92,21 @@ function formatVectorPreview(value: unknown[]): { preview: string; needsFullRow:
         preview += ", ...";
     }
 
-    // Estimate display width - rough calculation
-    const estimatedWidth = preview.length * 8; // ~8px per character
-    const needsFullRow = estimatedWidth > 200 || firstFive.some((item) => String(item).length > 20);
+    // More intelligent width calculation for badge layout
+    // Badge has fixed padding, field name, preview, and length indicator
+    // Typical badge uses: "FieldName: preview (length)" format
+    const fieldNameLength = 20; // Rough estimate for average field name including formatting
+    const lengthIndicatorLength = String(value.length).length + 3; // " (123)" format
+    const totalBadgeContent = fieldNameLength + preview.length + lengthIndicatorLength;
+
+    // Consider individual item lengths - if any item in the preview is very long, use full row
+    const hasLongItems = firstFive.some((item) => String(item).length > 30);
+
+    // Use full row if:
+    // 1. Total badge content would be longer than ~60 characters (comfortable badge width)
+    // 2. Any individual item is too long (> 30 chars)
+    // 3. Preview itself is quite long (> 50 chars) indicating complex data
+    const needsFullRow = totalBadgeContent > 60 || hasLongItems || preview.length > 50;
 
     return { preview, needsFullRow };
 }
@@ -119,13 +131,16 @@ const sortedMetadata = computed(() => {
     const endOrder = ["software-stack", "path"];
 
     const endFields: [string, unknown][] = [];
-    const remainingFields: [string, unknown][] = [];
+    const nonVectorFields: [string, unknown][] = [];
+    const vectorFields: [string, unknown][] = [];
 
     filteredEntries.forEach(([key, value]) => {
         if (endOrder.includes(key)) {
             endFields.push([key, value]);
+        } else if (isVectorField(value)) {
+            vectorFields.push([key, value]);
         } else {
-            remainingFields.push([key, value]);
+            nonVectorFields.push([key, value]);
         }
     });
 
@@ -147,15 +162,37 @@ const sortedMetadata = computed(() => {
         ["debug_very_long_vector", Array.from({ length: 150 }, (_, i) => i + 1)],
         ["debug_single_long_item_vector", ["this_is_one_very_long_string_item_in_an_array_to_check_wrapping"]],
     ];
+    // Add debug vectors to the vector fields array
+    vectorFields.push(...debugVectors);
     // --- END DEBUG VECTORS ---
 
-    // Sort remaining fields alphabetically by key.
-    remainingFields.sort(([a], [b]) => a.localeCompare(b));
+    // Sort non-vector fields alphabetically by key.
+    nonVectorFields.sort(([a], [b]) => a.localeCompare(b));
+
+    // Sort vector fields by display requirements (short ones first, then long ones) and then alphabetically
+    vectorFields.sort(([keyA, valueA], [keyB, valueB]) => {
+        const previewA = formatVectorPreview(valueA as unknown[]);
+        const previewB = formatVectorPreview(valueB as unknown[]);
+
+        // First sort by display type: short vectors before long vectors
+        if (previewA.needsFullRow !== previewB.needsFullRow) {
+            return previewA.needsFullRow ? 1 : -1;
+        }
+
+        // Then sort alphabetically within each group
+        return keyA.localeCompare(keyB);
+    });
 
     // Sort end fields by their defined order.
     endFields.sort(([a], [b]) => endOrder.indexOf(a) - endOrder.indexOf(b));
 
-    return [...remainingFields, ...debugVectors, ...endFields];
+    return [...nonVectorFields, ...endFields, ...vectorFields];
+});
+
+// Get the first vector field key to add visual separation
+const firstVectorKey = computed(() => {
+    const vectors = sortedMetadata.value.filter(([, value]) => isVectorField(value));
+    return vectors.length > 0 ? vectors[0][0] : null;
 });
 </script>
 
@@ -199,6 +236,9 @@ const sortedMetadata = computed(() => {
                 </div>
 
                 <template v-for="[key, value] in sortedMetadata" :key="key">
+                    <!-- Add visual separator before first vector field -->
+                    <div v-if="key === firstVectorKey" class="clear-both w-full"></div>
+
                     <div v-if="isLongStringField(key, value)" class="space-y-1">
                         <label class="text-sm font-medium text-gray-700 capitalize">
                             {{ formatFieldName(key) }}
@@ -222,7 +262,11 @@ const sortedMetadata = computed(() => {
                         </UBadge>
                     </div>
 
-                    <div v-else-if="isVectorField(value)" class="space-y-1">
+                    <!-- Vector fields - use same visual format, inline for short vectors, full row for long vectors -->
+                    <div
+                        v-else-if="isVectorField(value)"
+                        :class="formatVectorPreview(value as unknown[]).needsFullRow ? 'w-full space-y-1' : 'inline-block mr-3 mb-2 space-y-1'"
+                    >
                         <label class="text-sm font-medium text-gray-700 capitalize">
                             {{ formatFieldName(key) }}
                             <span class="text-gray-500 font-normal ml-1 normal-case"
