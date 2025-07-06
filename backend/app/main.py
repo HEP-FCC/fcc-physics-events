@@ -68,18 +68,29 @@ async def root() -> dict[str, str]:
 
 @app.post("/upload-fcc-dict/", status_code=202)
 async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
-    """Accepts and processes an FCC JSON dictionary."""
+    """Accepts and processes an FCC JSON dictionary with proper transaction handling."""
     if file.content_type != "application/json":
-        raise HTTPException(status_code=400, detail="Invalid file type.")
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Only JSON files are accepted."
+        )
+
     try:
         contents = await file.read()
         await database.import_fcc_dict(contents)
-        return {"message": f"Successfully queued {file.filename} for processing."}
+        return {
+            "message": f"Successfully processed {file.filename}. All data has been committed to the database."
+        }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Validation error processing {file.filename}: {e}")
+        raise HTTPException(status_code=400, detail=f"Data validation error: {e}")
+    except RuntimeError as e:
+        logger.error(f"Import failed for {file.filename}: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed: {e}")
     except Exception as e:
+        logger.error(f"Unexpected error processing {file.filename}: {e}")
         raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {e}"
+            status_code=500,
+            detail=f"An unexpected error occurred during import. No data was committed to the database: {e}",
         )
 
 
