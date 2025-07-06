@@ -10,40 +10,55 @@ const props = defineProps<{
     dataset: Dataset;
 }>();
 
+// Field classification constants
+const LONG_STRING_FIELDS = ["path", "software-stack", "description", "url", "command"];
+const EXCLUDED_FIELDS = new Set([
+    "dataset-name",
+    "detector_name",
+    "stage_name",
+    "campaign_name",
+    "accelerator_name",
+    "dataset_id",
+    "description",
+    "comment",
+]);
+const FIELD_DISPLAY_ORDER = ["software-stack", "path"];
+
 // Determine grid layout for description and comment sections
 const gridClass = computed(() => {
     const hasDescription = !!props.dataset.metadata.description;
     const hasComment = !!props.dataset.metadata.comment;
-    if (hasDescription && hasComment) {
-        return "grid-cols-2";
-    }
-    return "grid-cols-1";
+    return hasDescription && hasComment ? "grid-cols-2" : "grid-cols-1";
 });
 
-// Check if field value should be displayed as a long string field
+// Field type checking functions
 function isLongStringField(key: string, value: unknown): boolean {
     if (typeof value !== "string") return false;
-    const longFields = ["path", "software-stack", "description", "url", "command"];
-    return longFields.includes(key.toLowerCase()) || value.length > 50;
+    return LONG_STRING_FIELDS.includes(key.toLowerCase()) || value.length > 50;
 }
 
-// Check if field value should be displayed as a compact badge
 function isShortField(key: string, value: unknown): boolean {
     if (typeof value === "number" || typeof value === "boolean") return true;
-    if (typeof value === "string" && value.length <= 20) return true;
-    return false;
+    return typeof value === "string" && value.length <= 20;
 }
 
 function isSizeField(key: string): boolean {
     return key.toLowerCase() === "size";
 }
 
+function isVectorField(value: unknown): boolean {
+    return (
+        Array.isArray(value) &&
+        value.length > 0 &&
+        value.every((item) => ["number", "string", "boolean"].includes(typeof item))
+    );
+}
+
 // Format byte values as GiB for size fields
 function formatSizeInGiB(bytes: unknown): string {
     const bytesNumber = Number(bytes);
-    if (isNaN(bytesNumber) || bytesNumber < 0) {
-        return "N/A";
-    }
+    if (isNaN(bytesNumber) || bytesNumber < 0) return "N/A";
+
     const gigabytes = bytesNumber / (1024 * 1024 * 1024);
     return `${gigabytes.toFixed(2)} GiB`;
 }
@@ -70,108 +85,69 @@ function formatTimestamp(timestamp: string): string {
     }
 }
 
-// Vector field detection and formatting functions
-function isVectorField(value: unknown): boolean {
-    if (!Array.isArray(value)) return false;
-    if (value.length === 0) return false;
-
-    // Check if all elements are numbers or strings
-    return value.every((item) => typeof item === "number" || typeof item === "string" || typeof item === "boolean");
-}
-
 function formatVectorPreview(value: unknown[]): { preview: string; needsFullRow: boolean } {
     const firstFive = value.slice(0, 5);
-    let preview = firstFive
-        .map((item) => {
-            if (typeof item === "number") {
-                // Format numbers to avoid excessive decimals
-                return Number.isInteger(item) ? item.toString() : item.toFixed(3);
-            }
-            return String(item);
-        })
-        .join(", ");
+    const preview =
+        firstFive
+            .map((item) => {
+                if (typeof item === "number") {
+                    return Number.isInteger(item) ? item.toString() : item.toFixed(3);
+                }
+                return String(item);
+            })
+            .join(", ") + (value.length > 5 ? ", ..." : "");
 
-    // Add ellipsis if there are more elements
-    if (value.length > 5) {
-        preview += ", ...";
-    }
-
-    // More intelligent width calculation for badge layout
-    // Badge has fixed padding, field name, preview, and length indicator
-    // Typical badge uses: "FieldName: preview (length)" format
-    const fieldNameLength = 20; // Rough estimate for average field name including formatting
-    const lengthIndicatorLength = String(value.length).length + 3; // " (123)" format
-    const totalBadgeContent = fieldNameLength + preview.length + lengthIndicatorLength;
-
-    // Consider individual item lengths - if any item in the preview is very long, use full row
+    // Determine layout based on content complexity
+    const avgFieldNameLength = 20;
+    const lengthIndicatorLength = String(value.length).length + 3;
+    const totalContentLength = avgFieldNameLength + preview.length + lengthIndicatorLength;
     const hasLongItems = firstFive.some((item) => String(item).length > 30);
 
-    // Use full row if:
-    // 1. Total badge content would be longer than ~60 characters (comfortable badge width)
-    // 2. Any individual item is too long (> 30 chars)
-    // 3. Preview itself is quite long (> 50 chars) indicating complex data
-    const needsFullRow = totalBadgeContent > 60 || hasLongItems || preview.length > 50;
+    const needsFullRow = totalContentLength > 60 || hasLongItems || preview.length > 50;
 
     return { preview, needsFullRow };
 }
 
-// Sort and group metadata fields for a consistent and logical display order.
+// Sort and group metadata fields for consistent display
 const sortedMetadata = computed(() => {
     const entries = Object.entries(props.dataset.metadata);
-
-    // Fields that are already displayed in the main dataset row and should be excluded here.
-    const mainDisplayFields = new Set([
-        "dataset-name",
-        "detector_name",
-        "stage_name",
-        "campaign_name",
-        "accelerator_name",
-        "dataset_id",
-        "description",
-        "comment",
-    ]);
-    const filteredEntries = entries.filter(([key]) => !mainDisplayFields.has(key));
-
-    const endOrder = ["software-stack", "path"];
+    const filteredEntries = entries.filter(([key]) => !EXCLUDED_FIELDS.has(key));
 
     const endFields: [string, unknown][] = [];
-    const nonVectorFields: [string, unknown][] = [];
+    const regularFields: [string, unknown][] = [];
     const vectorFields: [string, unknown][] = [];
 
     filteredEntries.forEach(([key, value]) => {
-        if (endOrder.includes(key)) {
+        if (FIELD_DISPLAY_ORDER.includes(key)) {
             endFields.push([key, value]);
         } else if (isVectorField(value)) {
             vectorFields.push([key, value]);
         } else {
-            nonVectorFields.push([key, value]);
+            regularFields.push([key, value]);
         }
     });
 
-    // Sort non-vector fields alphabetically by key.
-    nonVectorFields.sort(([a], [b]) => a.localeCompare(b));
+    // Sort each group alphabetically
+    regularFields.sort(([a], [b]) => a.localeCompare(b));
 
-    // Sort vector fields by display requirements (short ones first, then long ones) and then alphabetically
+    // Sort vector fields by layout requirements, then alphabetically
     vectorFields.sort(([keyA, valueA], [keyB, valueB]) => {
         const previewA = formatVectorPreview(valueA as unknown[]);
         const previewB = formatVectorPreview(valueB as unknown[]);
 
-        // First sort by display type: short vectors before long vectors
         if (previewA.needsFullRow !== previewB.needsFullRow) {
             return previewA.needsFullRow ? 1 : -1;
         }
-
-        // Then sort alphabetically within each group
         return keyA.localeCompare(keyB);
     });
 
-    // Sort end fields by their defined order.
-    endFields.sort(([a], [b]) => endOrder.indexOf(a) - endOrder.indexOf(b));
+    // Sort end fields by defined order
+    endFields.sort(([a], [b]) => FIELD_DISPLAY_ORDER.indexOf(a) - FIELD_DISPLAY_ORDER.indexOf(b));
 
-    return [...nonVectorFields, ...endFields, ...vectorFields];
+    return [...regularFields, ...endFields, ...vectorFields];
 });
 
-// Get the first vector field key to add visual separation
+// Get the first vector field for visual separation
 const firstVectorKey = computed(() => {
     const vectors = sortedMetadata.value.filter(([, value]) => isVectorField(value));
     return vectors.length > 0 ? vectors[0][0] : null;

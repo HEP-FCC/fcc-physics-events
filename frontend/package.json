@@ -1,5 +1,5 @@
 {
-  "name": "nuxt-app",
+  "name": "fcc-physics-frontend",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,7 +7,10 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "nuxt typecheck"
   },
   "dependencies": {
     "@nuxt/eslint": "1.4.1",

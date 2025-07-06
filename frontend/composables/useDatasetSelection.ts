@@ -3,14 +3,17 @@ import type { Dataset } from "~/types/dataset";
 
 export interface SelectionState {
     selectedDatasets: Set<number>;
-    expandedRows: Set<number>;
+    expandedMetadata: Set<number>;
     isDownloading: boolean;
 }
 
+/**
+ * Composable for managing dataset selection and metadata expansion.
+ */
 export function useDatasetSelection() {
     const selectionState = reactive<SelectionState>({
         selectedDatasets: new Set<number>(),
-        expandedRows: new Set<number>(),
+        expandedMetadata: new Set<number>(),
         isDownloading: false,
     });
 
@@ -34,32 +37,32 @@ export function useDatasetSelection() {
     }
 
     function toggleMetadata(datasetId: number) {
-        if (selectionState.expandedRows.has(datasetId)) {
-            selectionState.expandedRows.delete(datasetId);
+        if (selectionState.expandedMetadata.has(datasetId)) {
+            selectionState.expandedMetadata.delete(datasetId);
         } else {
-            selectionState.expandedRows.add(datasetId);
+            selectionState.expandedMetadata.add(datasetId);
         }
     }
 
     function toggleAllMetadata(datasets: Dataset[]) {
         const currentDatasetIds = datasets.map((dataset) => dataset.dataset_id);
         const allExpanded =
-            currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.expandedRows.has(id));
+            currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.expandedMetadata.has(id));
 
         if (allExpanded) {
-            currentDatasetIds.forEach((id) => selectionState.expandedRows.delete(id));
+            currentDatasetIds.forEach((id) => selectionState.expandedMetadata.delete(id));
         } else {
-            currentDatasetIds.forEach((id) => selectionState.expandedRows.add(id));
+            currentDatasetIds.forEach((id) => selectionState.expandedMetadata.add(id));
         }
     }
 
     function clearSelections() {
         selectionState.selectedDatasets.clear();
-        selectionState.expandedRows.clear();
+        selectionState.expandedMetadata.clear();
     }
 
     function clearMetadataExpansions() {
-        selectionState.expandedRows.clear();
+        selectionState.expandedMetadata.clear();
     }
 
     function isDatasetSelected(datasetId: number): boolean {
@@ -67,7 +70,7 @@ export function useDatasetSelection() {
     }
 
     function isMetadataExpanded(datasetId: number): boolean {
-        return selectionState.expandedRows.has(datasetId);
+        return selectionState.expandedMetadata.has(datasetId);
     }
 
     // Computed properties
@@ -85,7 +88,9 @@ export function useDatasetSelection() {
     const allMetadataExpanded = computed(() => {
         return (datasets: Dataset[]) => {
             const currentDatasetIds = datasets.map((dataset) => dataset.dataset_id);
-            return currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.expandedRows.has(id));
+            return (
+                currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.expandedMetadata.has(id))
+            );
         };
     });
 

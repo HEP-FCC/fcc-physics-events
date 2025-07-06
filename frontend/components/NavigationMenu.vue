@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import type { DropdownItem, DropdownType } from "../types/navigation";
-import { useNavigationConfig, type NavigationDropdownConfig } from "../composables/useNavigationConfig";
+import { useLoadingDelay } from "~/composables/useLoadingDelay";
+import type { DropdownItem } from "../types/navigation";
+import {
+    useNavigationConfig,
+    type NavigationDropdownConfig,
+    type DropdownType,
+} from "../composables/useNavigationConfig";
 
 const route = useRoute();
 const router = useRouter();
@@ -24,8 +29,13 @@ const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
     ) as Record<DropdownType, NavigationDropdownConfig>,
 );
 
-// Track loading timeouts for cleanup
-const loadingTimeouts = ref<Map<DropdownType, NodeJS.Timeout>>(new Map());
+// Use loading delay utility for smoother UX (shorter delay for navigation dropdowns)
+const loadingDelayMap = new Map<DropdownType, ReturnType<typeof useLoadingDelay>>();
+
+// Initialize loading delay for each dropdown type with a reasonable delay
+Object.keys(dropdowns.value).forEach((type) => {
+    loadingDelayMap.set(type as DropdownType, useLoadingDelay({ delayMs: 500 }));
+});
 
 const currentPath = computed(() => {
     const params = Array.isArray(route.params.slug) ? route.params.slug : [];
@@ -66,16 +76,12 @@ function closeAllDropdowns() {
 }
 
 function getBadgeColor(type: DropdownType): "success" | "warning" | "info" | "primary" {
-    switch (type) {
-        case "stage":
-            return "success"; // Green to match Stage badges in results
-        case "campaign":
-            return "warning"; // Yellow/amber to match Campaign badges in results
-        case "detector":
-            return "info"; // Blue to match Detector badges in results
-        default:
-            return "primary"; // Fallback color
-    }
+    const colorMap: Record<DropdownType, "success" | "warning" | "info"> = {
+        stage: "success", // Green to match Stage badges in results
+        campaign: "warning", // Yellow/amber to match Campaign badges in results
+        detector: "info", // Blue to match Detector badges in results
+    };
+    return colorMap[type] || "primary";
 }
 
 function toggleDropdown(type: DropdownType) {
@@ -101,43 +107,46 @@ function buildFiltersForDropdown(targetType: DropdownType): Record<string, strin
     // Add filters for all other dropdown types
     for (const type of dropdownKeys.value) {
         if (type !== targetType && current[type]) {
-            const filterKey = `${type}_name`;
-            filters[filterKey] = current[type];
+            filters[`${type}_name`] = current[type];
         }
     }
 
     return filters;
 }
 
+// Load dropdown data for all dropdown types with improved loading states
 async function loadDropdownData() {
-    // Clear any existing timeouts first
-    loadingTimeouts.value.forEach((timeout) => clearTimeout(timeout));
-    loadingTimeouts.value.clear();
+    const loadPromises = Object.entries(dropdowns.value).map(async ([type, dropdown]) => {
+        const dropdownType = type as DropdownType;
+        const loadingState = loadingDelayMap.get(dropdownType);
 
-    for (const type in dropdowns.value) {
-        const dropdown = dropdowns.value[type as DropdownType];
+        if (!loadingState) return;
 
-        // Set up delayed loading - only show spinner after 2 seconds
-        const loadingTimeout = setTimeout(() => {
-            dropdown.isLoading = true;
-        }, 2000);
+        loadingState.startLoading();
 
-        // Store timeout for cleanup
-        loadingTimeouts.value.set(type as DropdownType, loadingTimeout);
+        // Set dropdown loading state when delay threshold is reached
+        const stopWatching = watch(
+            loadingState.shouldShowLoading,
+            (shouldShow) => {
+                dropdown.isLoading = shouldShow;
+            },
+            { immediate: true },
+        );
 
         try {
-            const filters = buildFiltersForDropdown(type as DropdownType);
+            const filters = buildFiltersForDropdown(dropdownType);
             dropdown.items = await dropdown.apiCall(filters);
         } catch (error) {
             console.error(`Failed to load ${type}s:`, error);
             dropdown.items = [];
         } finally {
-            // Clear the timeout and reset loading state
-            clearTimeout(loadingTimeout);
-            loadingTimeouts.value.delete(type as DropdownType);
-            dropdown.isLoading = false;
+            loadingState.stopLoading();
+            stopWatching(); // Clean up the watcher
         }
-    }
+    });
+
+    // Load all dropdowns in parallel for better performance
+    await Promise.allSettled(loadPromises);
 }
 
 onMounted(() => {
@@ -147,9 +156,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
-    // Clean up any pending loading timeouts
-    loadingTimeouts.value.forEach((timeout) => clearTimeout(timeout));
-    loadingTimeouts.value.clear();
+    // Cleanup is handled by useLoadingDelay composable
 });
 
 watch(currentPath, loadDropdownData, { deep: true });

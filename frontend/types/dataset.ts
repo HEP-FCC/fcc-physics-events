@@ -22,16 +22,10 @@ export interface Dataset {
 
 /**
  * Defines the structure of the paginated response from the /query/ endpoint.
+ * Some API versions return 'data' while others return 'items'.
  */
 export interface PaginatedResponse {
     total: number;
-    items: Dataset[];
-}
-
-/**
- * Defines the structure of dropdown items for navigation menus.
- */
-export interface DropdownItem {
-    id: number;
-    name: string;
+    items?: Dataset[];
+    data?: Dataset[];
 }

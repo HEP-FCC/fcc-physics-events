@@ -36,18 +36,18 @@ export interface SearchOptions {
 export function useDatasetSearch(options: SearchOptions) {
     const apiClient = getApiClient();
 
-    // Configuration defaults
+    // Configuration with sensible defaults
     const defaultSortBy = options.defaultSortBy || "last_edited_at";
     const defaultSortOrder = options.defaultSortOrder || "asc";
 
     // Core reactive state
     const userSearchQuery = ref("");
-    const infiniteScrollEnabled = ref(true);
-    const currentFilters = ref(options.initialFilters);
+    const isInfiniteScrollMode = ref(true);
+    const activeFilters = ref(options.initialFilters);
     const hasPerformedInitialSearch = ref(false);
 
-    // Request cancellation
-    let currentAbortController: AbortController | null = null;
+    // Abort controller for preventing race conditions between API requests
+    let currentRequestController: AbortController | null = null;
 
     // Search state
     const searchState = reactive<SearchState>({
@@ -75,9 +75,9 @@ export function useDatasetSearch(options: SearchOptions) {
         isLoading: false,
     });
 
-    // Computed filter query from URL parameters
+    // Computed values for search query building
     const urlFilterQuery = computed(() => {
-        return Object.entries(currentFilters.value)
+        return Object.entries(activeFilters.value)
             .map(([field, value]) => {
                 // Convert filter field names to search field names (e.g., stage_name -> stage)
                 const searchField = field.replace("_name", "");
@@ -86,19 +86,19 @@ export function useDatasetSearch(options: SearchOptions) {
             .join(" AND ");
     });
 
-    // Combined search query (URL filters + user input)
+    // Combined search query (URL filters + user input) for API requests
     const combinedSearchQuery = computed(() => {
-        const urlPart = urlFilterQuery.value;
-        const userPart = userSearchQuery.value.trim();
+        const urlFilterPart = urlFilterQuery.value;
+        const userInputPart = userSearchQuery.value.trim();
 
-        if (urlPart && userPart) {
-            return `${urlPart} AND ${userPart}`;
+        if (urlFilterPart && userInputPart) {
+            return `${urlFilterPart} AND ${userInputPart}`;
         }
-        return urlPart || userPart;
+        return urlFilterPart || userInputPart;
     });
 
     // Helper to check if running on client side
-    const isClientSide = () => typeof window !== "undefined";
+    const isClient = () => typeof window !== "undefined";
 
     // Search placeholder text based on active filters
     const searchPlaceholderText = computed(() => {
@@ -109,7 +109,7 @@ export function useDatasetSearch(options: SearchOptions) {
 
     // Display range for pagination/infinite scroll
     const currentDisplayRange = computed(() => {
-        if (infiniteScrollEnabled.value) {
+        if (isInfiniteScrollMode.value) {
             // Infinite scroll: show loaded vs total available
             const totalDisplayed = searchState.datasets.length;
             const start = totalDisplayed > 0 ? 1 : 0;
@@ -126,13 +126,14 @@ export function useDatasetSearch(options: SearchOptions) {
         }
     });
 
+    // Check if more data can be loaded in infinite scroll mode
     const canLoadMore = computed(() => {
         return (
             searchState.hasMore &&
-            infiniteScrollEnabled.value &&
+            isInfiniteScrollMode.value &&
             !searchState.isLoading &&
             !searchState.isLoadingMore &&
-            !isFilterChangeInProgress.value
+            !isFilterUpdateInProgress.value
         );
     });
 
@@ -143,7 +144,7 @@ export function useDatasetSearch(options: SearchOptions) {
         }));
     });
 
-    // Utility functions
+    // Transform sort field names into user-friendly labels
     function formatFieldLabel(field: string): string {
         if (field.startsWith("metadata.")) {
             const metadataKey = field.replace("metadata.", "");
@@ -171,12 +172,12 @@ export function useDatasetSearch(options: SearchOptions) {
 
     async function performSearch(resetResults = true) {
         // Cancel any ongoing request
-        if (currentAbortController) {
-            currentAbortController.abort();
+        if (currentRequestController) {
+            currentRequestController.abort();
         }
 
         // Create new abort controller
-        currentAbortController = new AbortController();
+        currentRequestController = new AbortController();
 
         // Get the search query
         const searchQuery = combinedSearchQuery.value.trim();
@@ -187,7 +188,7 @@ export function useDatasetSearch(options: SearchOptions) {
             searchState.isLoading = true;
             searchState.datasets = [];
             pagination.loadedPages.clear();
-            if (infiniteScrollEnabled.value) {
+            if (isInfiniteScrollMode.value) {
                 pagination.currentPage = 1;
             }
         } else {
@@ -198,7 +199,7 @@ export function useDatasetSearch(options: SearchOptions) {
 
         try {
             const pageToLoad = isInitialLoad
-                ? infiniteScrollEnabled.value
+                ? isInfiniteScrollMode.value
                     ? 1
                     : pagination.currentPage
                 : pagination.currentPage;
@@ -216,23 +217,21 @@ export function useDatasetSearch(options: SearchOptions) {
             );
 
             // Check if request was aborted
-            if (currentAbortController?.signal.aborted) {
+            if (currentRequestController?.signal.aborted) {
                 return;
             }
 
-            // Check if the response has data instead of items
-            const responseItems = (response as { data?: Dataset[]; items?: Dataset[] }).data || response.items || [];
+            // Extract dataset items from response (handle both 'data' and 'items' properties)
+            const responseDatasets = response.data || response.items || [];
 
-            if (isInitialLoad || !infiniteScrollEnabled.value) {
+            if (isInitialLoad || !isInfiniteScrollMode.value) {
                 // Replace results for initial load or pagination mode
-                searchState.datasets = responseItems;
-                pagination.totalDatasets = response.total;
-                pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
+                searchState.datasets = responseDatasets;
                 pagination.loadedPages.clear();
                 pagination.loadedPages.add(pageToLoad);
             } else {
                 // Append new results for infinite scroll mode
-                searchState.datasets.push(...responseItems);
+                searchState.datasets.push(...responseDatasets);
                 pagination.loadedPages.add(pageToLoad);
             }
 
@@ -244,7 +243,7 @@ export function useDatasetSearch(options: SearchOptions) {
             searchState.hasMore = pagination.currentPage < pagination.totalPages;
         } catch (error) {
             // Don't show error if request was aborted
-            if (currentAbortController?.signal.aborted) {
+            if (currentRequestController?.signal.aborted) {
                 return;
             }
 
@@ -258,7 +257,7 @@ export function useDatasetSearch(options: SearchOptions) {
             searchState.hasMore = false;
         } finally {
             // Only update loading state if request wasn't aborted
-            if (!currentAbortController?.signal.aborted) {
+            if (!currentRequestController?.signal.aborted) {
                 if (isInitialLoad) {
                     searchState.isLoading = false;
                 } else {
@@ -269,13 +268,13 @@ export function useDatasetSearch(options: SearchOptions) {
     }
 
     // Track filter changes to prevent conflicting operations
-    const isFilterChangeInProgress = ref(false);
+    const isFilterUpdateInProgress = ref(false);
 
     // Watchers
     watch(
         () => pagination.currentPage,
         (newPage, oldPage) => {
-            if (!infiniteScrollEnabled.value && newPage !== oldPage) {
+            if (!isInfiniteScrollMode.value && newPage !== oldPage) {
                 jumpToPage(newPage);
             }
         },
@@ -288,20 +287,20 @@ export function useDatasetSearch(options: SearchOptions) {
     });
 
     watchDebounced(
-        currentFilters,
+        activeFilters,
         (_newFilters) => {
-            isFilterChangeInProgress.value = true;
+            isFilterUpdateInProgress.value = true;
             pagination.currentPage = 1;
             hasPerformedInitialSearch.value = true;
             performSearch(true).finally(() => {
-                isFilterChangeInProgress.value = false;
+                isFilterUpdateInProgress.value = false;
             });
         },
         { debounce: 200, deep: true, immediate: false },
     );
 
     async function loadMoreData() {
-        if (isFilterChangeInProgress.value) {
+        if (isFilterUpdateInProgress.value) {
             return;
         }
 
@@ -317,16 +316,16 @@ export function useDatasetSearch(options: SearchOptions) {
         const targetPage = Math.max(1, Math.min(page, pagination.totalPages));
         pagination.currentPage = targetPage;
 
-        if (!infiniteScrollEnabled.value) {
+        if (!isInfiniteScrollMode.value) {
             // In pagination mode, load the specific page
             await performSearch(true);
         }
     }
 
     function toggleMode() {
-        infiniteScrollEnabled.value = !infiniteScrollEnabled.value;
+        isInfiniteScrollMode.value = !isInfiniteScrollMode.value;
 
-        if (!infiniteScrollEnabled.value) {
+        if (!isInfiniteScrollMode.value) {
             // Switching to pagination mode - reset to show only first page
             pagination.currentPage = 1;
             performSearch(true);
@@ -344,7 +343,7 @@ export function useDatasetSearch(options: SearchOptions) {
 
     // URL state management functions
     function generatePermalinkUrl(): string {
-        if (!isClientSide()) {
+        if (!isClient()) {
             return "";
         }
 
@@ -372,7 +371,7 @@ export function useDatasetSearch(options: SearchOptions) {
     }
 
     function updateUrlWithSearchState() {
-        if (!isClientSide()) {
+        if (!isClient()) {
             return;
         }
 
@@ -386,15 +385,15 @@ export function useDatasetSearch(options: SearchOptions) {
 
     function updateFilters(newFilters: Record<string, string>) {
         // Only update if filters have actually changed
-        const filtersChanged = JSON.stringify(currentFilters.value) !== JSON.stringify(newFilters);
+        const filtersChanged = JSON.stringify(activeFilters.value) !== JSON.stringify(newFilters);
         if (filtersChanged) {
-            isFilterChangeInProgress.value = true;
-            currentFilters.value = { ...newFilters };
+            isFilterUpdateInProgress.value = true;
+            activeFilters.value = { ...newFilters };
         }
     }
 
     function loadSearchStateFromUrl() {
-        if (!isClientSide()) {
+        if (!isClient()) {
             return;
         }
 
@@ -419,7 +418,7 @@ export function useDatasetSearch(options: SearchOptions) {
     }
 
     // Set up infinite scroll (only on client side)
-    if (isClientSide()) {
+    if (isClient()) {
         useInfiniteScroll(
             window,
             () => {
@@ -434,12 +433,12 @@ export function useDatasetSearch(options: SearchOptions) {
 
     // Manual search function for explicit search triggers
     function executeSearch() {
-        isFilterChangeInProgress.value = true;
+        isFilterUpdateInProgress.value = true;
         if (pagination.currentPage !== 1) {
             pagination.currentPage = 1;
         }
         performSearch(true).finally(() => {
-            isFilterChangeInProgress.value = false;
+            isFilterUpdateInProgress.value = false;
         });
         // Update URL only when search is explicitly executed
         updateUrlWithSearchState();
@@ -453,7 +452,7 @@ export function useDatasetSearch(options: SearchOptions) {
         // Perform initial search only if no filters are set (to avoid double search when filters are passed from props)
         setTimeout(() => {
             if (!hasPerformedInitialSearch.value) {
-                const hasInitialFilters = Object.keys(currentFilters.value).length > 0;
+                const hasInitialFilters = Object.keys(activeFilters.value).length > 0;
                 if (!hasInitialFilters) {
                     hasPerformedInitialSearch.value = true;
                     performSearch(true);
@@ -464,15 +463,15 @@ export function useDatasetSearch(options: SearchOptions) {
 
     // Cleanup
     onUnmounted(() => {
-        if (currentAbortController) {
-            currentAbortController.abort();
+        if (currentRequestController) {
+            currentRequestController.abort();
         }
     });
 
     return {
         // State
         userSearchQuery,
-        infiniteScrollEnabled,
+        infiniteScrollEnabled: isInfiniteScrollMode,
         searchState,
         pagination,
         sortState,

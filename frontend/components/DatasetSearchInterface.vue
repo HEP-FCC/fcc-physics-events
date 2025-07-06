@@ -36,7 +36,7 @@
         </UCard>
 
         <!-- Loading State -->
-        <UCard v-if="shouldShowLoadingSkeleton">
+        <UCard v-if="showLoadingSkeleton">
             <div class="space-y-4">
                 <USkeleton v-for="i in 5" :key="i" class="h-12 w-full" />
             </div>
@@ -111,22 +111,24 @@
         <!-- No Results -->
         <UCard v-else class="text-center py-12 text-gray-600 dark:text-gray-400">
             <p class="text-lg font-medium">No datasets found.</p>
-            <p class="text-sm">Try adjusting your search query.</p>
+            <p class="text-sm">Try adjusting your search query. 🔎</p>
         </UCard>
     </div>
 </template>
 
 <script setup lang="ts">
-import { watch, ref, computed, onUnmounted } from "vue";
+import { watch, computed } from "vue";
 import { watchDebounced } from "@vueuse/core";
 import { getApiClient } from "~/composables/getApiClient";
 import { useDatasetSearch } from "~/composables/useDatasetSearch";
 import { useDatasetSelection } from "~/composables/useDatasetSelection";
+import { useLoadingDelay } from "~/composables/useLoadingDelay";
+import { useDatasetDownload } from "~/composables/useDatasetDownload";
 import type { DatasetSearchInterfaceProps } from "~/types/components";
 
 const props = defineProps<DatasetSearchInterfaceProps>();
 
-// Initialize search functionality with default configuration
+// Initialize search functionality with optimized defaults
 const search = useDatasetSearch({
     initialFilters: props.initialFilters,
     defaultSortBy: "last_edited_at",
@@ -134,93 +136,55 @@ const search = useDatasetSearch({
     defaultPageSize: 20,
 });
 
-// Initialize dataset selection/metadata expansion functionality
+// Initialize dataset selection and metadata expansion functionality
 const selection = useDatasetSelection();
 
-// API client for backend communication
 const apiClient = getApiClient();
 
-// Track loading skeleton visibility with delay to prevent flashing
-const isLoadingSkeletonVisible = ref(false);
-let loadingTimeout: NodeJS.Timeout | null = null;
+// Initialize download functionality
+const downloadUtils = useDatasetDownload();
 
-// Watch loading state with delay to prevent flash on quick responses
+// Use simplified loading delay utility
+const loadingState = useLoadingDelay({ delayMs: 300 });
+
+// Show loading skeleton when search is loading and either delay has passed or no data exists
+const showLoadingSkeleton = computed(() => {
+    return (
+        search.searchState.isLoading &&
+        (loadingState.shouldShowLoading.value || search.searchState.datasets.length === 0)
+    );
+});
+
+// Watch search loading state to manage loading delay
 watch(
     () => search.searchState.isLoading,
     (isLoading) => {
         if (isLoading) {
-            // Show loading skeleton after 300ms delay
-            loadingTimeout = setTimeout(() => {
-                isLoadingSkeletonVisible.value = true;
-            }, 300);
+            loadingState.startLoading();
         } else {
-            // Immediately hide loading and clear any pending timeout
-            if (loadingTimeout) {
-                clearTimeout(loadingTimeout);
-                loadingTimeout = null;
-            }
-            isLoadingSkeletonVisible.value = false;
+            loadingState.stopLoading();
         }
     },
     { immediate: true },
 );
 
-// Determine when to show loading skeleton
-const shouldShowLoadingSkeleton = computed(() => {
-    return search.searchState.isLoading && (isLoadingSkeletonVisible.value || search.searchState.datasets.length === 0);
-});
-
-// Generate download filename with timestamp
-function generateDownloadFilename(datasetCount: number): string {
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-        now.getDate(),
-    ).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(
-        2,
-        "0",
-    )}-${String(now.getSeconds()).padStart(2, "0")}`;
-
-    return `fcc_physics_datasets-${datasetCount}-datasets-${timestamp}.json`;
-}
-
-// Download data as JSON file
-function downloadJsonFile(data: unknown, filename: string): void {
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
-
-// Handle dataset download
+// Handle dataset download using the utility
 async function downloadSelectedDatasets() {
-    if (selection.selectionState.selectedDatasets.size === 0) {
-        alert("Please select at least one dataset to download.");
+    const selectedDatasetIds = Array.from(selection.selectionState.selectedDatasets);
+
+    if (selectedDatasetIds.length === 0) {
+        // Could show a toast notification here instead of alert
         return;
     }
 
-    selection.selectionState.isDownloading = true;
-    try {
-        const datasetsToDownload = await apiClient.downloadDatasetsByIds(
-            Array.from(selection.selectionState.selectedDatasets),
-        );
+    const success = await downloadUtils.downloadSelectedDatasets(selectedDatasetIds, apiClient, (isLoading) => {
+        selection.selectionState.isDownloading = isLoading;
+    });
 
-        if (datasetsToDownload.length > 0) {
-            const filename = generateDownloadFilename(datasetsToDownload.length);
-            downloadJsonFile(datasetsToDownload, filename);
-        }
-    } catch (error) {
-        console.error("Failed to download datasets:", error);
-        alert("An error occurred while downloading the datasets. Please try again.");
-    } finally {
-        selection.selectionState.isDownloading = false;
-    }
+    // Optional: Show success/error feedback to user
+    // if (!success) {
+    //     // Show error toast notification
+    // }
 }
 
 // Event handlers
@@ -233,26 +197,24 @@ function handleRowClick(_event: MouseEvent, datasetId: number) {
 }
 
 function handlePermalinkCopied() {
-    // Toast notification could be added here if desired
+    // Could add toast notification here if desired
 }
 
 // Handle filter changes from navigation
 watchDebounced(
     () => props.initialFilters,
     (newFilters, oldFilters) => {
-        // On first load, oldFilters will be undefined
         const isInitialLoad = oldFilters === undefined;
         const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(oldFilters);
 
         if (isInitialLoad || filtersChanged) {
             search.updateFilters(newFilters);
 
-            // Force search on initial load if filters are present
+            // Execute search on initial load if filters are present
             if (isInitialLoad && Object.keys(newFilters).length > 0) {
                 search.executeSearch();
             }
 
-            // Clear metadata expansions when navigation changes
             selection.clearMetadataExpansions();
         }
     },
@@ -262,22 +224,10 @@ watchDebounced(
 // Clear metadata expansions when search results or pagination changes
 watch(
     () => search.searchState.datasets,
-    () => {
-        selection.clearMetadataExpansions();
-    },
+    () => selection.clearMetadataExpansions(),
 );
-
 watch(
     () => search.pagination.currentPage,
-    () => {
-        selection.clearMetadataExpansions();
-    },
+    () => selection.clearMetadataExpansions(),
 );
-
-// Cleanup timeout on unmount
-onUnmounted(() => {
-    if (loadingTimeout) {
-        clearTimeout(loadingTimeout);
-    }
-});
 </script>

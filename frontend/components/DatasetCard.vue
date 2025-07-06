@@ -19,35 +19,16 @@
                             </h3>
                         </div>
 
-                        <!-- Stage badge -->
-                        <div class="w-42 flex-shrink-0">
-                            <UBadge v-if="dataset.stage_name" color="success" variant="subtle" size="md">
-                                <span>Stage:</span>
-                                <span class="ml-1">{{ dataset.stage_name }}</span>
-                            </UBadge>
-                        </div>
-
-                        <!-- Campaign badge -->
-                        <div class="w-60 flex-shrink-0">
-                            <UBadge v-if="dataset.campaign_name" color="warning" variant="subtle" size="md">
-                                <span>Campaign:</span>
-                                <span class="ml-1">{{ dataset.campaign_name }}</span>
-                            </UBadge>
-                        </div>
-
-                        <!-- Detector badge -->
-                        <div class="w-32 flex-shrink-0">
-                            <UBadge v-if="dataset.detector_name" color="info" variant="subtle" size="md">
-                                <span>Detector:</span>
-                                <span class="ml-1">{{ dataset.detector_name }}</span>
-                            </UBadge>
-                        </div>
-
-                        <!-- Accelerator badge -->
-                        <div class="w-40 flex-shrink-0">
-                            <UBadge v-if="dataset.accelerator_name" color="secondary" variant="subtle" size="md">
-                                <span>Accelerator:</span>
-                                <span class="ml-1">{{ dataset.accelerator_name }}</span>
+                        <!-- Dynamic badges for stage, campaign, detector, accelerator -->
+                        <div
+                            v-for="badge in badgeItems"
+                            :key="badge.key"
+                            :class="badge.widthClass"
+                            class="flex-shrink-0"
+                        >
+                            <UBadge v-if="badge.value" :color="badge.color" variant="subtle" size="md">
+                                <span>{{ badge.label }}:</span>
+                                <span class="ml-1">{{ badge.value }}</span>
                             </UBadge>
                         </div>
                     </div>
@@ -70,18 +51,52 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import type { DatasetCardProps, DatasetSelectionEvents } from "~/types/components";
 
 const props = defineProps<DatasetCardProps>();
 const emit = defineEmits<DatasetSelectionEvents>();
 
+// Badge configuration for dataset attributes
+const badgeItems = computed(() => [
+    {
+        key: "stage",
+        label: "Stage",
+        value: props.dataset.stage_name,
+        color: "success" as const,
+        widthClass: "w-42",
+    },
+    {
+        key: "campaign",
+        label: "Campaign",
+        value: props.dataset.campaign_name,
+        color: "warning" as const,
+        widthClass: "w-60",
+    },
+    {
+        key: "detector",
+        label: "Detector",
+        value: props.dataset.detector_name,
+        color: "info" as const,
+        widthClass: "w-32",
+    },
+    {
+        key: "accelerator",
+        label: "Accelerator",
+        value: props.dataset.accelerator_name,
+        color: "secondary" as const,
+        widthClass: "w-40",
+    },
+]);
+
 function handleRowClick(event: MouseEvent) {
-    // Don't trigger row click if text is being selected or a button was clicked
+    // Don't trigger row click if text is being selected
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) {
         return;
     }
 
+    // Don't trigger row click for interactive elements
     const target = event.target as HTMLElement;
     if (target.closest("button, a, input")) {
         return;
