@@ -1,7 +1,7 @@
 <template>
-    <div>
-        <HelloWorld :initial-filters="{}" />
-    </div>
+    <UContainer class="py-4 sm:py-6 lg:py-8">
+        <DatasetSearchInterface :initial-filters="{}" />
+    </UContainer>
 </template>
 
 <script setup lang="ts">

@@ -59,8 +59,6 @@
                     color="primary"
                     variant="ghost"
                     size="md"
-                    class="cursor-pointer"
-                    :aria-label="`${isExpanded ? 'Hide' : 'Show'} metadata for ${dataset.name}`"
                     @click.stop="$emit('toggle-metadata', dataset.dataset_id)"
                 />
             </div>

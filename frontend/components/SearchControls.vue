@@ -21,8 +21,6 @@
                 color="primary"
                 variant="solid"
                 size="lg"
-                aria-label="Search"
-                title="Search datasets"
                 @click="handleSearch"
             >
                 Search
@@ -35,9 +33,6 @@
                     size="lg"
                     :loading="isCopiingLink"
                     :disabled="!canCopyLink"
-                    aria-label="Copy search link"
-                    title="Copy link to current search"
-                    class="cursor-pointer"
                     @click="handleCopyPermalink"
                 />
                 <div
@@ -75,39 +70,42 @@ function handleSearch() {
     emit("search");
 }
 
+// Helper function to show success notification
+function showSuccessNotification() {
+    showCopiedNotification.value = true;
+    setTimeout(() => {
+        showCopiedNotification.value = false;
+    }, 2000);
+}
+
+// Fallback copy method for older browsers
+function fallbackCopyToClipboard(text: string) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
+}
+
 async function handleCopyPermalink() {
     if (isCopiingLink.value) return;
 
     try {
         isCopiingLink.value = true;
         const permalinkUrl = props.generatePermalinkUrl();
-        await navigator.clipboard.writeText(permalinkUrl);
 
-        // Show success feedback
-        showCopiedNotification.value = true;
-        setTimeout(() => {
-            showCopiedNotification.value = false;
-        }, 2000);
+        try {
+            await navigator.clipboard.writeText(permalinkUrl);
+        } catch {
+            // Fallback for older browsers
+            fallbackCopyToClipboard(permalinkUrl);
+        }
 
+        showSuccessNotification();
         emit("permalink-copied");
     } catch (error) {
         console.error("Failed to copy permalink:", error);
-        // Fallback for older browsers
-        const permalinkUrl = props.generatePermalinkUrl();
-        const textArea = document.createElement("textarea");
-        textArea.value = permalinkUrl;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
-
-        // Show success feedback
-        showCopiedNotification.value = true;
-        setTimeout(() => {
-            showCopiedNotification.value = false;
-        }, 2000);
-
-        emit("permalink-copied");
     } finally {
         isCopiingLink.value = false;
     }

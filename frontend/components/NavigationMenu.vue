@@ -32,36 +32,33 @@ const currentPath = computed(() => {
     return parseCurrentPath(params);
 });
 
-function navigateTo(type: DropdownType, value: string) {
+// Build navigation path for a dropdown selection
+function buildNavigationPath(type: DropdownType, value: string): string {
     const current = currentPath.value;
-    // Create pathParts array in the correct order
     const pathParts = dropdownKeys.value.map((t) => current[t]);
     const typeIndex = dropdownKeys.value.indexOf(type);
 
-    // Create a new path up to the selected type
+    // Create path up to the selected type, then add the new value
     const newPathParts = pathParts.slice(0, typeIndex);
     newPathParts.push(value);
 
-    // Filter out nulls and join to form the path
-    const newPath = `/${newPathParts.filter((p) => p).join("/")}`;
+    return `/${newPathParts.filter((p) => p).join("/")}`;
+}
+
+function navigateTo(type: DropdownType, value: string) {
+    const newPath = buildNavigationPath(type, value);
     router.push(newPath);
 }
 
 function clearSelection(type: DropdownType) {
     const current = currentPath.value;
-    // Create pathParts array in the correct order
     const pathParts = dropdownKeys.value.map((t) => current[t]);
     const typeIndex = dropdownKeys.value.indexOf(type);
 
-    // Create a new path that excludes the cleared type and everything after it
-    const newPathParts = pathParts.slice(0, typeIndex);
-
-    if (newPathParts.length === 0) {
-        router.push("/");
-    } else {
-        const newPath = `/${newPathParts.filter((p) => p).join("/")}`;
-        router.push(newPath);
-    }
+    // Create path excluding the cleared type and everything after it
+    const newPathParts = pathParts.slice(0, typeIndex).filter((p) => p);
+    const newPath = newPathParts.length === 0 ? "/" : `/${newPathParts.join("/")}`;
+    router.push(newPath);
 }
 
 function closeAllDropdowns() {
@@ -96,25 +93,26 @@ function handleClickOutside(event: Event) {
     }
 }
 
-async function loadDropdownData() {
+// Helper function to build filters for a specific dropdown type
+function buildFiltersForDropdown(targetType: DropdownType): Record<string, string> {
     const current = currentPath.value;
+    const filters: Record<string, string> = {};
 
+    // Add filters for all other dropdown types
+    for (const type of dropdownKeys.value) {
+        if (type !== targetType && current[type]) {
+            const filterKey = `${type}_name`;
+            filters[filterKey] = current[type];
+        }
+    }
+
+    return filters;
+}
+
+async function loadDropdownData() {
     // Clear any existing timeouts first
     loadingTimeouts.value.forEach((timeout) => clearTimeout(timeout));
     loadingTimeouts.value.clear();
-
-    // Dynamically generate filter map based on dropdowns configuration order
-    const filterMap = {} as Record<DropdownType, Record<string, unknown>>;
-    for (const type of dropdownKeys.value) {
-        filterMap[type] = {};
-        // Add filters for all other dropdown types
-        for (const otherType of dropdownKeys.value) {
-            if (otherType !== type) {
-                const filterKey = `${otherType}_name`;
-                filterMap[type][filterKey] = current[otherType];
-            }
-        }
-    }
 
     for (const type in dropdowns.value) {
         const dropdown = dropdowns.value[type as DropdownType];
@@ -128,9 +126,7 @@ async function loadDropdownData() {
         loadingTimeouts.value.set(type as DropdownType, loadingTimeout);
 
         try {
-            const filters = Object.fromEntries(
-                Object.entries(filterMap[type as DropdownType]).filter(([_, v]) => v != null),
-            );
+            const filters = buildFiltersForDropdown(type as DropdownType);
             dropdown.items = await dropdown.apiCall(filters);
         } catch (error) {
             console.error(`Failed to load ${type}s:`, error);
@@ -203,7 +199,10 @@ watch(currentPath, loadDropdownData, { deep: true });
                                     v-for="item in dropdown.items"
                                     :key="item.id"
                                     class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                    :class="{ 'bg-primary-50 text-primary-700': currentPath[type as DropdownType] === item.name }"
+                                    :class="{
+                                        'bg-primary-50 text-primary-700':
+                                            currentPath[type as DropdownType] === item.name,
+                                    }"
                                     @click="
                                         navigateTo(type as DropdownType, item.name);
                                         dropdown.isOpen = false;

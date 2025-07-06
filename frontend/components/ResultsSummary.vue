@@ -35,8 +35,7 @@
     <div v-if="!infiniteScrollEnabled" class="flex justify-center mt-4 w-full">
         <UPagination
             :page="currentPage"
-            :total="totalDatasets"
-            :page-count="pageSize"
+            :total="Math.ceil(totalDatasets / pageSize)"
             size="sm"
             @update:page="$emit('update:page', $event)"
         />

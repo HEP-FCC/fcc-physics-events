@@ -10,7 +10,7 @@ const props = defineProps<{
     dataset: Dataset;
 }>();
 
-// Computed property to determine the grid layout for description and comment.
+// Determine grid layout for description and comment sections
 const gridClass = computed(() => {
     const hasDescription = !!props.dataset.metadata.description;
     const hasComment = !!props.dataset.metadata.comment;
@@ -20,12 +20,14 @@ const gridClass = computed(() => {
     return "grid-cols-1";
 });
 
+// Check if field value should be displayed as a long string field
 function isLongStringField(key: string, value: unknown): boolean {
     if (typeof value !== "string") return false;
     const longFields = ["path", "software-stack", "description", "url", "command"];
     return longFields.includes(key.toLowerCase()) || value.length > 50;
 }
 
+// Check if field value should be displayed as a compact badge
 function isShortField(key: string, value: unknown): boolean {
     if (typeof value === "number" || typeof value === "boolean") return true;
     if (typeof value === "string" && value.length <= 20) return true;
@@ -36,6 +38,7 @@ function isSizeField(key: string): boolean {
     return key.toLowerCase() === "size";
 }
 
+// Format byte values as GiB for size fields
 function formatSizeInGiB(bytes: unknown): string {
     const bytesNumber = Number(bytes);
     if (isNaN(bytesNumber) || bytesNumber < 0) {
@@ -45,6 +48,7 @@ function formatSizeInGiB(bytes: unknown): string {
     return `${gigabytes.toFixed(2)} GiB`;
 }
 
+// Convert field names to human-readable format
 function formatFieldName(key: string): string {
     return key.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
@@ -144,28 +148,6 @@ const sortedMetadata = computed(() => {
         }
     });
 
-    // --- START DEBUG VECTORS ---
-    // This is temporary code to test vector display.
-    const debugVectors: [string, unknown][] = [
-        ["debug_short_numbers", [1, 2, 3, 4]],
-        ["debug_long_numbers", [1.12345, 2.56789, 3.14159265, 4.2, 5.5, 6.8, 7.0, 8.1]],
-        ["debug_short_strings", ["alpha", "beta", "gamma", "delta"]],
-        [
-            "debug_long_strings",
-            [
-                "a_very_long_string_that_will_definitely_need_to_wrap",
-                "another_super_long_string_to_force_a_full_row_layout",
-            ],
-        ],
-        ["debug_mixed_types", [1, "two", 3.14, true, "five", false]],
-        ["debug_booleans", [true, false, true, true, false, true, false]],
-        ["debug_very_long_vector", Array.from({ length: 150 }, (_, i) => i + 1)],
-        ["debug_single_long_item_vector", ["this_is_one_very_long_string_item_in_an_array_to_check_wrapping"]],
-    ];
-    // Add debug vectors to the vector fields array
-    vectorFields.push(...debugVectors);
-    // --- END DEBUG VECTORS ---
-
     // Sort non-vector fields alphabetically by key.
     nonVectorFields.sort(([a], [b]) => a.localeCompare(b));
 
@@ -237,7 +219,7 @@ const firstVectorKey = computed(() => {
 
                 <template v-for="[key, value] in sortedMetadata" :key="key">
                     <!-- Add visual separator before first vector field -->
-                    <div v-if="key === firstVectorKey" class="clear-both w-full"></div>
+                    <div v-if="key === firstVectorKey" class="clear-both w-full" />
 
                     <div v-if="isLongStringField(key, value)" class="space-y-1">
                         <label class="text-sm font-medium text-gray-700 capitalize">
@@ -265,7 +247,11 @@ const firstVectorKey = computed(() => {
                     <!-- Vector fields - use same visual format, inline for short vectors, full row for long vectors -->
                     <div
                         v-else-if="isVectorField(value)"
-                        :class="formatVectorPreview(value as unknown[]).needsFullRow ? 'w-full space-y-1' : 'inline-block mr-3 mb-2 space-y-1'"
+                        :class="
+                            formatVectorPreview(value as unknown[]).needsFullRow
+                                ? 'w-full space-y-1'
+                                : 'inline-block mr-3 mb-2 space-y-1'
+                        "
                     >
                         <label class="text-sm font-medium text-gray-700 capitalize">
                             {{ formatFieldName(key) }}

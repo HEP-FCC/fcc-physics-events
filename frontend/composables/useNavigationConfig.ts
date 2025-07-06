@@ -1,10 +1,6 @@
 import { computed } from "vue";
 import { getApiClient } from "./getApiClient";
-
-export interface DropdownItem {
-    id: number;
-    name: string;
-}
+import type { DropdownItem } from "~/types/dataset";
 
 export interface NavigationDropdownConfig {
     items: DropdownItem[];

@@ -36,22 +36,18 @@ export interface SearchOptions {
 export function useDatasetSearch(options: SearchOptions) {
     const apiClient = getApiClient();
 
-    // Store defaults for consistent use
+    // Configuration defaults
     const defaultSortBy = options.defaultSortBy || "last_edited_at";
     const defaultSortOrder = options.defaultSortOrder || "asc";
 
-    // Core state
+    // Core reactive state
     const userSearchQuery = ref("");
     const infiniteScrollEnabled = ref(true);
-
-    // Make initialFilters reactive by converting to ref
     const currentFilters = ref(options.initialFilters);
-
-    // Add abort controller for request cancellation
-    let currentAbortController: AbortController | null = null;
-
-    // Track if initial search has been performed
     const hasPerformedInitialSearch = ref(false);
+
+    // Request cancellation
+    let currentAbortController: AbortController | null = null;
 
     // Search state
     const searchState = reactive<SearchState>({
@@ -79,18 +75,18 @@ export function useDatasetSearch(options: SearchOptions) {
         isLoading: false,
     });
 
-    // Computed properties
+    // Computed filter query from URL parameters
     const urlFilterQuery = computed(() => {
         return Object.entries(currentFilters.value)
             .map(([field, value]) => {
-                // Convert filter field names to search field names
-                // e.g., stage_name -> stage, campaign_name -> campaign, detector_name -> detector
+                // Convert filter field names to search field names (e.g., stage_name -> stage)
                 const searchField = field.replace("_name", "");
                 return `${searchField}:"${value}"`;
             })
             .join(" AND ");
     });
 
+    // Combined search query (URL filters + user input)
     const combinedSearchQuery = computed(() => {
         const urlPart = urlFilterQuery.value;
         const userPart = userSearchQuery.value.trim();
@@ -101,24 +97,25 @@ export function useDatasetSearch(options: SearchOptions) {
         return urlPart || userPart;
     });
 
+    // Helper to check if running on client side
+    const isClientSide = () => typeof window !== "undefined";
+
+    // Search placeholder text based on active filters
     const searchPlaceholderText = computed(() => {
         return urlFilterQuery.value
             ? "Add additional search terms..."
             : 'e.g., detector:"IDEA" AND metadata.status:"done"';
     });
 
+    // Display range for pagination/infinite scroll
     const currentDisplayRange = computed(() => {
         if (infiniteScrollEnabled.value) {
-            // In infinite scroll mode, show total loaded vs total available
+            // Infinite scroll: show loaded vs total available
             const totalDisplayed = searchState.datasets.length;
             const start = totalDisplayed > 0 ? 1 : 0;
-            return {
-                start,
-                end: totalDisplayed,
-                total: pagination.totalDatasets,
-            };
+            return { start, end: totalDisplayed, total: pagination.totalDatasets };
         } else {
-            // In pagination mode, show current page range
+            // Pagination: show current page range
             const start = (pagination.currentPage - 1) * pagination.pageSize + 1;
             const end = Math.min(pagination.currentPage * pagination.pageSize, pagination.totalDatasets);
             return {
@@ -130,16 +127,13 @@ export function useDatasetSearch(options: SearchOptions) {
     });
 
     const canLoadMore = computed(() => {
-        const result =
+        return (
             searchState.hasMore &&
             infiniteScrollEnabled.value &&
             !searchState.isLoading &&
             !searchState.isLoadingMore &&
-            !filterChangeInProgress.value;
-        console.log(
-            `🔄 canLoadMore computed - hasMore: ${searchState.hasMore}, infiniteScroll: ${infiniteScrollEnabled.value}, isLoading: ${searchState.isLoading}, isLoadingMore: ${searchState.isLoadingMore}, filterChange: ${filterChangeInProgress.value}, result: ${result}`,
+            !isFilterChangeInProgress.value
         );
-        return result;
     });
 
     const sortingFieldOptions = computed(() => {
@@ -189,15 +183,6 @@ export function useDatasetSearch(options: SearchOptions) {
 
         const isInitialLoad = resetResults;
 
-        console.log(
-            `🔍 Performing search - Query: "${searchQuery}" | Filters: ${JSON.stringify(
-                currentFilters.value,
-            )} | Reset: ${resetResults}`,
-        );
-        console.log(
-            `📊 Current pagination state - Page: ${pagination.currentPage}, PageSize: ${pagination.pageSize}, InfiniteScroll: ${infiniteScrollEnabled.value}`,
-        );
-
         if (isInitialLoad) {
             searchState.isLoading = true;
             searchState.datasets = [];
@@ -221,8 +206,6 @@ export function useDatasetSearch(options: SearchOptions) {
 
             // Use wildcard for empty queries to get all results
             const queryToSend = searchQuery || "*";
-            console.log(`🔎 Final query to send: "${queryToSend}"`);
-            console.log(`📊 Pagination params - Page: ${pageToLoad}, Offset: ${offset}, Limit: ${pagination.pageSize}`);
 
             const response: PaginatedResponse = await apiClient.searchDatasets(
                 queryToSend,
@@ -234,17 +217,11 @@ export function useDatasetSearch(options: SearchOptions) {
 
             // Check if request was aborted
             if (currentAbortController?.signal.aborted) {
-                console.log("🚫 Search request was aborted");
                 return;
             }
 
-            console.log(`✅ Search completed: ${response.items?.length || 0} results | Total: ${response.total}`);
-            console.log(`📋 Full response structure:`, response);
-            console.log(`📋 Response.items:`, response.items);
-
             // Check if the response has data instead of items
-            const responseItems = (response as any).data || response.items || [];
-            console.log(`📋 Actual items array:`, responseItems, `Length: ${responseItems.length}`);
+            const responseItems = (response as { data?: Dataset[]; items?: Dataset[] }).data || response.items || [];
 
             if (isInitialLoad || !infiniteScrollEnabled.value) {
                 // Replace results for initial load or pagination mode
@@ -265,15 +242,14 @@ export function useDatasetSearch(options: SearchOptions) {
 
             // Check if there are more pages to load
             searchState.hasMore = pagination.currentPage < pagination.totalPages;
-        } catch (err) {
+        } catch (error) {
             // Don't show error if request was aborted
             if (currentAbortController?.signal.aborted) {
-                console.log("🚫 Search request was aborted (error handler)");
                 return;
             }
 
-            console.error("❌ Search failed:", err);
-            searchState.error = err instanceof Error ? err.message : "Failed to fetch datasets.";
+            console.error("Search failed:", error);
+            searchState.error = error instanceof Error ? error.message : "Failed to fetch datasets.";
             if (isInitialLoad) {
                 searchState.datasets = [];
                 pagination.totalDatasets = 0;
@@ -292,17 +268,14 @@ export function useDatasetSearch(options: SearchOptions) {
         }
     }
 
-    let filterChangeInProgress = ref(false);
+    // Track filter changes to prevent conflicting operations
+    const isFilterChangeInProgress = ref(false);
 
     // Watchers
     watch(
         () => pagination.currentPage,
         (newPage, oldPage) => {
-            console.log(
-                `📄 Page watcher triggered - New: ${newPage}, Old: ${oldPage}, InfiniteScroll: ${infiniteScrollEnabled.value}`,
-            );
             if (!infiniteScrollEnabled.value && newPage !== oldPage) {
-                console.log(`📄 Calling jumpToPage(${newPage})`);
                 jumpToPage(newPage);
             }
         },
@@ -314,49 +287,37 @@ export function useDatasetSearch(options: SearchOptions) {
         updateUrlWithSearchState();
     });
 
-    // Use debounced watcher for filters to prevent rapid successive searches
     watchDebounced(
         currentFilters,
-        (newFilters) => {
-            console.log(`⏰ Filter watcher triggered - Filters: ${JSON.stringify(newFilters)}`);
-            filterChangeInProgress.value = true;
-            console.log("🚩 Filter watcher: Filter change in progress, flag set.");
+        (_newFilters) => {
+            isFilterChangeInProgress.value = true;
             pagination.currentPage = 1;
             hasPerformedInitialSearch.value = true;
             performSearch(true).finally(() => {
-                filterChangeInProgress.value = false;
-                console.log("✅ Filter change search complete, flag reset.");
+                isFilterChangeInProgress.value = false;
             });
         },
         { debounce: 200, deep: true, immediate: false },
     );
 
     async function loadMoreData() {
-        console.log(`📈 loadMoreData called - filterChange: ${filterChangeInProgress.value}`);
-        if (filterChangeInProgress.value) {
-            console.log("🚫 loadMoreData call skipped: filter change in progress.");
+        if (isFilterChangeInProgress.value) {
             return;
         }
-        console.log(
-            `📈 loadMoreData proceeding - isLoadingMore: ${searchState.isLoadingMore}, canLoadMore: ${canLoadMore.value}, hasMore: ${searchState.hasMore}`,
-        );
+
         if (searchState.isLoadingMore || !canLoadMore.value || !searchState.hasMore) {
-            console.log("🚫 loadMoreData blocked by conditions");
             return;
         }
 
         pagination.currentPage += 1;
-        console.log(`📈 loadMoreData calling performSearch(false) - Page: ${pagination.currentPage}`);
         await performSearch(false);
     }
 
     async function jumpToPage(page: number) {
-        console.log(`🦘 jumpToPage called with page: ${page}, current totalPages: ${pagination.totalPages}`);
         const targetPage = Math.max(1, Math.min(page, pagination.totalPages));
         pagination.currentPage = targetPage;
 
         if (!infiniteScrollEnabled.value) {
-            console.log(`🦘 jumpToPage calling performSearch(true) - Page: ${targetPage}`);
             // In pagination mode, load the specific page
             await performSearch(true);
         }
@@ -381,10 +342,9 @@ export function useDatasetSearch(options: SearchOptions) {
         performSearch(true);
     }
 
-    // URL state management
+    // URL state management functions
     function generatePermalinkUrl(): string {
-        // Check if we're on the client side
-        if (typeof window === "undefined") {
+        if (!isClientSide()) {
             return "";
         }
 
@@ -412,8 +372,7 @@ export function useDatasetSearch(options: SearchOptions) {
     }
 
     function updateUrlWithSearchState() {
-        // Check if we're on the client side
-        if (typeof window === "undefined") {
+        if (!isClientSide()) {
             return;
         }
 
@@ -428,21 +387,14 @@ export function useDatasetSearch(options: SearchOptions) {
     function updateFilters(newFilters: Record<string, string>) {
         // Only update if filters have actually changed
         const filtersChanged = JSON.stringify(currentFilters.value) !== JSON.stringify(newFilters);
-        console.log(
-            `🔄 updateFilters called - Changed: ${filtersChanged} | Old: ${JSON.stringify(
-                currentFilters.value,
-            )} | New: ${JSON.stringify(newFilters)}`,
-        );
         if (filtersChanged) {
-            filterChangeInProgress.value = true;
-            console.log("🚩 Filter change in progress, flag set.");
+            isFilterChangeInProgress.value = true;
             currentFilters.value = { ...newFilters };
         }
     }
 
     function loadSearchStateFromUrl() {
-        // Check if we're on the client side
-        if (typeof window === "undefined") {
+        if (!isClientSide()) {
             return;
         }
 
@@ -467,35 +419,27 @@ export function useDatasetSearch(options: SearchOptions) {
     }
 
     // Set up infinite scroll (only on client side)
-    if (typeof window !== "undefined") {
-        console.log("🔄 Setting up infinite scroll");
+    if (isClientSide()) {
         useInfiniteScroll(
             window,
             () => {
-                console.log("🌊 Infinite scroll triggered!");
                 loadMoreData();
             },
             {
                 distance: 200,
-                canLoadMore: () => {
-                    const canLoad = canLoadMore.value;
-                    console.log(`🌊 Infinite scroll canLoadMore check: ${canLoad}`);
-                    return canLoad;
-                },
+                canLoadMore: () => canLoadMore.value,
             },
         );
     }
 
     // Manual search function for explicit search triggers
     function executeSearch() {
-        filterChangeInProgress.value = true;
-        console.log("🚩 executeSearch: Filter change in progress, flag set.");
+        isFilterChangeInProgress.value = true;
         if (pagination.currentPage !== 1) {
             pagination.currentPage = 1;
         }
         performSearch(true).finally(() => {
-            filterChangeInProgress.value = false;
-            console.log("✅ executeSearch: Search complete, flag reset.");
+            isFilterChangeInProgress.value = false;
         });
         // Update URL only when search is explicitly executed
         updateUrlWithSearchState();

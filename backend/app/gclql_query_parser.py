@@ -17,16 +17,17 @@ gcp_logging_grammar = r"""
     ?term: term AND factor | factor
     ?factor: NOT item | item
     ?item: "(" expr ")" | comparison | global_search
-    global_search: value
+    global_search: simple_value
     comparison: field OP value
-    field: FIELD_NAME ("." FIELD_NAME)*
-    value: ESCAPED_STRING | SIGNED_NUMBER | UNQUOTED_STRING
-    AND.2: "AND" | "and"
-    OR.2: "OR" | "or"
-    NOT.2: "NOT" | "not"
-    FIELD_NAME: /[a-zA-Z_][a-zA-Z0-9_-]*/
-    UNQUOTED_STRING: /[a-zA-Z0-9_.*-]+/
-    OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "~" | "!~"
+    field: IDENTIFIER ("." IDENTIFIER)*
+    value: simple_value
+    simple_value: ESCAPED_STRING | SIGNED_NUMBER | IDENTIFIER | ASTERISK
+    AND.2: "AND"
+    OR.2: "OR"
+    NOT.2: "NOT"
+    IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_-]*/
+    ASTERISK: "*"
+    OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "=~" | "!~"
     %import common.ESCAPED_STRING
     %import common.SIGNED_NUMBER
     %import common.WS
@@ -45,13 +46,10 @@ class Field:
         if base_field[-5:] == "_name":
             base_field = base_field[:-5]
 
-        # if base_field not in schema_mapping:
-        #     raise ValueError(f"Field '{base_field}' is not valid.")
-
         sql_column = schema_mapping.get(base_field)
 
         if not sql_column:
-            # Try to searching the dataset columns
+            # Try to search the dataset columns
             sql_column = f"d.{base_field}"
 
         # Hardcoded "metadata" field name required in the db schema
@@ -86,9 +84,9 @@ class Comparison:
     value: Any
 
 
-# @dataclass(frozen=True)
-# class GlobalSearch:
-#     value: str
+@dataclass(frozen=True)
+class GlobalSearch:
+    value: str
 
 
 @dataclass(frozen=True)
@@ -108,7 +106,7 @@ class Not:
     term: Any
 
 
-AstNode = Comparison | And | Or | Not  # | GlobalSearch
+AstNode = Comparison | GlobalSearch | And | Or | Not
 
 
 class AstTransformer(Transformer[Token, AstNode]):
@@ -127,26 +125,40 @@ class AstTransformer(Transformer[Token, AstNode]):
     def comparison(self, i: list[Any]) -> Comparison:
         return Comparison(field=i[0], op=str(i[1]), value=i[2])
 
-    # def global_search(self, i: list[Any]) -> GlobalSearch:
-    #     return GlobalSearch(value=i[0])
+    def global_search(self, i: list[Any]) -> GlobalSearch:
+        return GlobalSearch(value=i[0])
 
     def field(self, i: list[Any]) -> Field:
         return Field(parts=tuple(p.value for p in i))
 
     def value(self, i: list[Any]) -> float | str | Any:
+        return i[0]
+
+    def simple_value(self, i: list[Any]) -> float | str | Any:
         v = i[0]
         if hasattr(v, "type"):
             if v.type == "ESCAPED_STRING":
                 return v.value[1:-1]
             if v.type == "SIGNED_NUMBER":
                 return float(v.value) if "." in v.value else int(v.value)
+            if v.type == "IDENTIFIER":
+                return str(v.value)
+            if v.type == "ASTERISK":
+                return "*"
         return str(v)
 
 
 class SqlTranslator:
     def __init__(self) -> None:
         self.schema_mapping: dict[str, str] = {}
-        self.global_search_fields: list[str] = []
+        self.global_search_fields: list[str] = [
+            "d.name",
+            "det.name",
+            "c.name",
+            "s.name",
+            "at.name",
+            "jsonb_values_to_text(d.metadata)",
+        ]
         self.params: list[Any] = []
         self.param_index = 0
 
@@ -158,8 +170,8 @@ class SqlTranslator:
     def translate(self, node: AstNode) -> str:
         if isinstance(node, Comparison):
             return self._translate_comparison(node)
-        # if isinstance(node, GlobalSearch):
-        #     return self._translate_global_search(node)
+        if isinstance(node, GlobalSearch):
+            return self._translate_global_search(node)
         if isinstance(node, Not):
             return f"NOT ({self.translate(node.term)})"
         if isinstance(node, And):
@@ -172,33 +184,75 @@ class SqlTranslator:
         sql_field = node.field.to_sql(self.schema_mapping, node.value, node.op)
         op = node.op
         value = node.value
+
+        # Handle the special :* operator for field existence
+        if op == ":" and value == "*":
+            return self._translate_field_exists(node.field, sql_field)
+
         self.param_index += 1
         placeholder = f"${self.param_index}"
+
         if op == ":" or op == "=":
-            sql_op, param_value = "=", value
-        elif op == "~":
+            if op == ":":
+                # Substring match using ILIKE
+                sql_op, param_value = "ILIKE", f"%{value}%"
+            else:
+                # Exact match
+                sql_op, param_value = "=", value
+        elif op == "=~":
+            # Case-insensitive regular expression match
             sql_op, param_value = "~*", value
         elif op == "!~":
+            # Case-insensitive regular expression NOT match
             sql_op, param_value = "!~*", value
         else:
+            # Standard comparison operators: !=, >, <, >=, <=
             sql_op, param_value = op, value
+
         self.params.append(param_value)
         return f"{sql_field} {sql_op} {placeholder}"
 
-    # def _translate_global_search(self, node: GlobalSearch) -> str:
-    #     clauses = []
-    #     for field_name in self.global_search_fields:
-    #         if field_name in self.schema_mapping:
-    #             sql_field, self.param_index = (
-    #                 self.schema_mapping[field_name],
-    #                 self.param_index + 1,
-    #             )
-    #             placeholder = f"${self.param_index}"
-    #             clauses.append(f"{sql_field} ILIKE {placeholder}")
-    #             self.params.append(f"%{node.value}%")
-    #     if not clauses:
-    #         raise ValueError("Global search used, but no fields configured for it.")
-    #     return "(" + " OR ".join(clauses) + ")"
+    def _translate_field_exists(self, field: Any, sql_field: str) -> str:
+        """
+        Translate field existence checks (:* operator) to appropriate SQL.
+        For regular fields, checks if NOT NULL.
+        For JSON fields, checks if the key exists in the JSON object.
+        """
+        # Check if this is a metadata (JSON) field
+        if field.parts[0] == "metadata" and len(field.parts) > 1:
+            # For JSON fields, check if the key exists using the ? operator
+            json_path = field.parts[1:]
+
+            if len(json_path) == 1:
+                # Simple JSON key: metadata.key
+                # Use JSONB ? operator to check if key exists
+                self.param_index += 1
+                placeholder = f"${self.param_index}"
+                self.params.append(json_path[0])
+                return f"d.metadata ? {placeholder}"
+            else:
+                # Nested JSON key: metadata.nested.key
+                # Check if the nested path exists using JSONB path functions
+                path_expression = ".".join(json_path)
+                self.param_index += 1
+                placeholder = f"${self.param_index}"
+                self.params.append(f"$.{path_expression}")
+                return f"jsonb_path_exists(d.metadata, {placeholder})"
+        else:
+            # For regular fields, just check if NOT NULL
+            return f"{sql_field} IS NOT NULL"
+
+    def _translate_global_search(self, node: GlobalSearch) -> str:
+        clauses = []
+        for field_name in self.global_search_fields:
+            self.param_index += 1
+            placeholder = f"${self.param_index}"
+            clauses.append(f"{field_name} ILIKE {placeholder}")
+            self.params.append(f"%{node.value}%")
+
+        if not clauses:
+            raise ValueError("Global search used, but no fields configured for it.")
+        return "(" + " OR ".join(clauses) + ")"
 
 
 class QueryParser:

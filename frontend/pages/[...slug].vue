@@ -1,7 +1,7 @@
 <template>
-    <div>
-        <HelloWorld :initial-filters="filters" />
-    </div>
+    <UContainer class="py-4 sm:py-6 lg:py-8">
+        <DatasetSearchInterface :initial-filters="activeFilters" />
+    </UContainer>
 </template>
 
 <script setup lang="ts">
@@ -12,13 +12,13 @@ import { useNavigationConfig } from "../composables/useNavigationConfig";
 const route = useRoute();
 const { parseRouteParams, generatePageTitle, generatePageDescription } = useNavigationConfig();
 
-const filters = computed(() => {
+const activeFilters = computed(() => {
     const params = Array.isArray(route.params.slug) ? route.params.slug : [];
     return parseRouteParams(params);
 });
 
 // Set page title based on active filters
-const pageTitle = computed(() => generatePageTitle(filters.value));
+const pageTitle = computed(() => generatePageTitle(activeFilters.value));
 
 // Set the page title and meta
 useHead({
@@ -26,7 +26,7 @@ useHead({
     meta: [
         {
             name: "description",
-            content: computed(() => generatePageDescription(filters.value)),
+            content: computed(() => generatePageDescription(activeFilters.value)),
         },
     ],
 });

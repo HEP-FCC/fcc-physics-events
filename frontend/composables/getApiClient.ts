@@ -1,7 +1,7 @@
 /**
  * API Client for interacting with the backend services.
  */
-import type { Dataset, PaginatedResponse } from "~/types/dataset";
+import type { Dataset, PaginatedResponse, DropdownItem } from "~/types/dataset";
 
 export class ApiClient {
     private baseUrl: string;
@@ -59,123 +59,83 @@ export class ApiClient {
     }
 
     /**
-     * Fetches available stages from the API with optional filters.
+     * Generic function to fetch navigation options (stages, campaigns, detectors, accelerators)
+     * @param endpoint The API endpoint (stages, campaigns, detectors, accelerators)
      * @param filters Optional filters to apply
-     * @returns A promise that resolves to an array of stage objects.
+     * @returns A promise that resolves to an array of option objects
+     */
+    private async fetchNavigationOptions(
+        endpoint: string,
+        filters?: Record<string, string | undefined>,
+    ): Promise<DropdownItem[]> {
+        try {
+            const params = new URLSearchParams();
+
+            // Add all provided filters to the request
+            if (filters) {
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value) {
+                        params.append(key, value);
+                    }
+                });
+            }
+
+            const url = params.toString() ? `${this.baseUrl}/${endpoint}/?${params}` : `${this.baseUrl}/${endpoint}/`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`Failed to fetch ${endpoint}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Fetches available stages from the API with optional filters.
      */
     async getStages(filters?: {
         accelerator_name?: string;
         campaign_name?: string;
         detector_name?: string;
-    }): Promise<Array<{ id: number; name: string }>> {
-        try {
-            const params = new URLSearchParams();
-            if (filters?.accelerator_name) params.append("accelerator_name", filters.accelerator_name);
-            if (filters?.campaign_name) params.append("campaign_name", filters.campaign_name);
-            if (filters?.detector_name) params.append("detector_name", filters.detector_name);
-
-            const url = params.toString() ? `${this.baseUrl}/stages/?${params}` : `${this.baseUrl}/stages/`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error("Failed to fetch stages:", error);
-            throw error;
-        }
+    }): Promise<DropdownItem[]> {
+        return this.fetchNavigationOptions("stages", filters);
     }
 
     /**
      * Fetches available campaigns from the API with optional filters.
-     * @param filters Optional filters to apply
-     * @returns A promise that resolves to an array of campaign objects.
      */
     async getCampaigns(filters?: {
         accelerator_name?: string;
         stage_name?: string;
         detector_name?: string;
-    }): Promise<Array<{ id: number; name: string }>> {
-        try {
-            const params = new URLSearchParams();
-            if (filters?.accelerator_name) params.append("accelerator_name", filters.accelerator_name);
-            if (filters?.stage_name) params.append("stage_name", filters.stage_name);
-            if (filters?.detector_name) params.append("detector_name", filters.detector_name);
-
-            const url = params.toString() ? `${this.baseUrl}/campaigns/?${params}` : `${this.baseUrl}/campaigns/`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error("Failed to fetch campaigns:", error);
-            throw error;
-        }
+    }): Promise<DropdownItem[]> {
+        return this.fetchNavigationOptions("campaigns", filters);
     }
 
     /**
      * Fetches available detectors from the API with optional filters.
-     * @param filters Optional filters to apply
-     * @returns A promise that resolves to an array of detector objects.
      */
     async getDetectors(filters?: {
         accelerator_name?: string;
         stage_name?: string;
         campaign_name?: string;
-    }): Promise<Array<{ id: number; name: string }>> {
-        try {
-            const params = new URLSearchParams();
-            if (filters?.accelerator_name) params.append("accelerator_name", filters.accelerator_name);
-            if (filters?.stage_name) params.append("stage_name", filters.stage_name);
-            if (filters?.campaign_name) params.append("campaign_name", filters.campaign_name);
-
-            const url = params.toString() ? `${this.baseUrl}/detectors/?${params}` : `${this.baseUrl}/detectors/`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error("Failed to fetch detectors:", error);
-            throw error;
-        }
+    }): Promise<DropdownItem[]> {
+        return this.fetchNavigationOptions("detectors", filters);
     }
 
     /**
      * Fetches available accelerators from the API with optional filters.
-     * @param filters Optional filters to apply
-     * @returns A promise that resolves to an array of accelerator objects.
      */
     async getAccelerators(filters?: {
         stage_name?: string;
         campaign_name?: string;
         detector_name?: string;
-    }): Promise<Array<{ id: number; name: string }>> {
-        try {
-            const params = new URLSearchParams();
-            if (filters?.stage_name) params.append("stage_name", filters.stage_name);
-            if (filters?.campaign_name) params.append("campaign_name", filters.campaign_name);
-            if (filters?.detector_name) params.append("detector_name", filters.detector_name);
-
-            const url = params.toString() ? `${this.baseUrl}/accelerators/?${params}` : `${this.baseUrl}/accelerators/`;
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error("Failed to fetch accelerators:", error);
-            throw error;
-        }
+    }): Promise<DropdownItem[]> {
+        return this.fetchNavigationOptions("accelerators", filters);
     }
 
     /**

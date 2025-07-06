@@ -17,7 +17,6 @@
             size="sm"
             :disabled="selectedCount === 0"
             :loading="isDownloading"
-            class="cursor-pointer"
             @click="$emit('download-selected')"
         >
             Download ({{ selectedCount }})
@@ -25,13 +24,11 @@
 
         <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
-        <!-- Metadata toggle -->
         <UButton
             :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
             color="neutral"
             variant="outline"
             size="sm"
-            class="cursor-pointer"
             @click="$emit('toggle-all-metadata')"
         >
             {{ allMetadataExpanded ? "Hide All" : "Show All" }}
@@ -58,19 +55,15 @@
                 color="neutral"
                 variant="outline"
                 size="sm"
-                class="cursor-pointer"
-                :aria-label="`Sort ${sortOrder === 'asc' ? 'ascending' : 'descending'}`"
                 @click="$emit('toggle-sort-order')"
             />
         </div>
 
-        <!-- View mode toggle -->
         <UButton
             :icon="infiniteScrollEnabled ? 'i-heroicons-document-duplicate' : 'i-heroicons-arrows-up-down'"
             color="neutral"
             variant="outline"
             size="sm"
-            class="cursor-pointer"
             @click="$emit('toggle-mode')"
         >
             {{ infiniteScrollEnabled ? "Pagination" : "Infinite Scroll" }}

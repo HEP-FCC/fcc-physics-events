@@ -36,7 +36,7 @@
         </UCard>
 
         <!-- Loading State -->
-        <UCard v-if="shouldShowLoading">
+        <UCard v-if="shouldShowLoadingSkeleton">
             <div class="space-y-4">
                 <USkeleton v-for="i in 5" :key="i" class="h-12 w-full" />
             </div>
@@ -102,8 +102,7 @@
             <div v-if="!search.infiniteScrollEnabled.value" class="flex justify-center pt-4">
                 <UPagination
                     :page="search.pagination.currentPage"
-                    :total="search.pagination.totalDatasets"
-                    :page-count="search.pagination.pageSize"
+                    :total="search.pagination.totalPages"
                     @update:page="search.pagination.currentPage = $event"
                 />
             </div>
@@ -127,7 +126,7 @@ import type { DatasetSearchInterfaceProps } from "~/types/components";
 
 const props = defineProps<DatasetSearchInterfaceProps>();
 
-// Initialize composables with namespace approach
+// Initialize search functionality with default configuration
 const search = useDatasetSearch({
     initialFilters: props.initialFilters,
     defaultSortBy: "last_edited_at",
@@ -135,39 +134,69 @@ const search = useDatasetSearch({
     defaultPageSize: 20,
 });
 
+// Initialize dataset selection/metadata expansion functionality
 const selection = useDatasetSelection();
 
+// API client for backend communication
 const apiClient = getApiClient();
 
-// Delayed loading state to prevent flashing
-const showLoadingAfterDelay = ref(false);
+// Track loading skeleton visibility with delay to prevent flashing
+const isLoadingSkeletonVisible = ref(false);
 let loadingTimeout: NodeJS.Timeout | null = null;
 
-// Watch loading state with delay
+// Watch loading state with delay to prevent flash on quick responses
 watch(
     () => search.searchState.isLoading,
     (isLoading) => {
         if (isLoading) {
-            // Show loading after 300ms to prevent flash on quick responses
+            // Show loading skeleton after 300ms delay
             loadingTimeout = setTimeout(() => {
-                showLoadingAfterDelay.value = true;
+                isLoadingSkeletonVisible.value = true;
             }, 300);
         } else {
-            // Immediately hide loading and clear timeout
+            // Immediately hide loading and clear any pending timeout
             if (loadingTimeout) {
                 clearTimeout(loadingTimeout);
                 loadingTimeout = null;
             }
-            showLoadingAfterDelay.value = false;
+            isLoadingSkeletonVisible.value = false;
         }
     },
     { immediate: true },
 );
 
-// Computed property for whether to show loading skeleton
-const shouldShowLoading = computed(() => {
-    return search.searchState.isLoading && (showLoadingAfterDelay.value || search.searchState.datasets.length === 0);
+// Determine when to show loading skeleton
+const shouldShowLoadingSkeleton = computed(() => {
+    return search.searchState.isLoading && (isLoadingSkeletonVisible.value || search.searchState.datasets.length === 0);
 });
+
+// Generate download filename with timestamp
+function generateDownloadFilename(datasetCount: number): string {
+    const now = new Date();
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+        now.getDate(),
+    ).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(
+        2,
+        "0",
+    )}-${String(now.getSeconds()).padStart(2, "0")}`;
+
+    return `fcc_physics_datasets-${datasetCount}-datasets-${timestamp}.json`;
+}
+
+// Download data as JSON file
+function downloadJsonFile(data: unknown, filename: string): void {
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
 
 // Handle dataset download
 async function downloadSelectedDatasets() {
@@ -183,26 +212,8 @@ async function downloadSelectedDatasets() {
         );
 
         if (datasetsToDownload.length > 0) {
-            const jsonStr = JSON.stringify(datasetsToDownload, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-
-            const now = new Date();
-            const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-                now.getDate(),
-            ).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}-${String(now.getMinutes()).padStart(
-                2,
-                "0",
-            )}-${String(now.getSeconds()).padStart(2, "0")}`;
-            const numberOfDatasets = datasetsToDownload.length;
-            link.download = `fcc_physics_datasets-${numberOfDatasets}-datasets-${timestamp}.json`;
-
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            const filename = generateDownloadFilename(datasetsToDownload.length);
+            downloadJsonFile(datasetsToDownload, filename);
         }
     } catch (error) {
         console.error("Failed to download datasets:", error);
@@ -212,69 +223,53 @@ async function downloadSelectedDatasets() {
     }
 }
 
-// Handle manual search trigger
+// Event handlers
 function handleSearch() {
     search.executeSearch();
 }
 
-// Handle row click for metadata toggle
 function handleRowClick(_event: MouseEvent, datasetId: number) {
     selection.toggleMetadata(datasetId);
 }
 
-// Handle permalink copy feedback
 function handlePermalinkCopied() {
-    // Could add toast notification here if desired
-    console.log("Link copied to clipboard");
+    // Toast notification could be added here if desired
 }
 
-// Watch for changes in initial filters (navigation changes)
+// Handle filter changes from navigation
 watchDebounced(
     () => props.initialFilters,
     (newFilters, oldFilters) => {
-        console.log(
-            `📡 DatasetSearchInterface filter watcher - Old: ${JSON.stringify(oldFilters)} | New: ${JSON.stringify(
-                newFilters,
-            )}`,
-        );
-
-        // On first load, oldFilters will be undefined, so we need to handle that case
+        // On first load, oldFilters will be undefined
         const isInitialLoad = oldFilters === undefined;
         const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(oldFilters);
 
         if (isInitialLoad || filtersChanged) {
-            console.log(
-                `📡 ${isInitialLoad ? "Initial load" : "Filter change"} - updating filters in search composable`,
-            );
             search.updateFilters(newFilters);
 
-            // If it's initial load and we have filters, force a search
+            // Force search on initial load if filters are present
             if (isInitialLoad && Object.keys(newFilters).length > 0) {
-                console.log(`📡 Initial load with filters detected, forcing search`);
                 search.executeSearch();
             }
 
-            // Clear metadata expansions when filters change (e.g., navigation)
+            // Clear metadata expansions when navigation changes
             selection.clearMetadataExpansions();
         }
     },
     { debounce: 50, deep: true, immediate: true },
 );
 
-// Watch for changes in search results and clear metadata expansions
+// Clear metadata expansions when search results or pagination changes
 watch(
     () => search.searchState.datasets,
     () => {
-        // Clear metadata expansions when datasets change (search, pagination, etc.)
         selection.clearMetadataExpansions();
     },
 );
 
-// Watch for changes in current page and clear metadata expansions
 watch(
     () => search.pagination.currentPage,
     () => {
-        // Clear metadata expansions when page changes
         selection.clearMetadataExpansions();
     },
 );
