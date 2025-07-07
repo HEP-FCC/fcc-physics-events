@@ -1,0 +1,6 @@
+DROP TABLE datasets CASCADE;
+DROP TABLE software_stacks CASCADE;
+DROP TABLE stages CASCADE;
+DROP TABLE campaigns CASCADE;
+DROP TABLE accelerators CASCADE;
+DROP TABLE detectors CASCADE;

@@ -86,6 +86,7 @@
                 @toggle-metadata="selection.toggleMetadata"
                 @row-click="handleRowClick"
                 @load-more="search.loadMoreData"
+                @dataset-updated="handleDatasetUpdate"
             />
 
             <div v-if="!search.infiniteScrollEnabled.value" class="flex justify-center pt-4">
@@ -105,7 +106,8 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed, nextTick } from "vue";
+import { watch, computed } from "vue";
+import { useRoute } from "vue-router";
 import { watchDebounced } from "@vueuse/core";
 import { getApiClient } from "~/composables/getApiClient";
 import { datasetSearch } from "~/composables/datasetSearch";
@@ -113,13 +115,18 @@ import { datasetSelection } from "~/composables/datasetSelection";
 import { loadingDelay } from "~/composables/loadingDelay";
 import { datasetDownload } from "~/composables/datasetDownload";
 import type { DatasetSearchInterfaceProps } from "~/types/components";
+import type { Dataset } from "~/types/dataset";
 
 const props = withDefaults(defineProps<DatasetSearchInterfaceProps>(), {
     routeParams: () => [],
 });
 
+const route = useRoute();
+const initialQuery = (route.query.q as string) || "";
+
 const search = datasetSearch({
     initialFilters: props.initialFilters,
+    initialSearchQuery: initialQuery,
     defaultSortBy: "last_edited_at",
     defaultSortOrder: "desc",
     defaultPageSize: 20,
@@ -133,7 +140,6 @@ const downloadUtils = datasetDownload();
 
 const loadingState = loadingDelay({ delayMs: 300 });
 
-// Show loading skeleton when search is loading and either delay has passed or no data exists
 const showLoadingSkeleton = computed(() => {
     return (
         search.searchState.isLoading &&
@@ -141,7 +147,6 @@ const showLoadingSkeleton = computed(() => {
     );
 });
 
-// Watch search loading state to manage loading delay
 watch(
     () => search.searchState.isLoading,
     (isLoading) => {
@@ -154,22 +159,12 @@ watch(
     { immediate: true },
 );
 
-// Handle dataset download using the utility
 async function downloadSelectedDatasets() {
     const selectedDatasetIds = Array.from(selection.selectionState.selectedDatasets);
-
-    if (selectedDatasetIds.length === 0) {
-        return;
-    }
-
-    const success = await downloadUtils.downloadSelectedDatasets(selectedDatasetIds, apiClient, (isLoading) => {
+    if (selectedDatasetIds.length === 0) return;
+    await downloadUtils.downloadSelectedDatasets(selectedDatasetIds, apiClient, (isLoading) => {
         selection.selectionState.isDownloading = isLoading;
     });
-
-    // Optional: Show success/error feedback to user
-    // if (!success) {
-    //     // Show error toast notification
-    // }
 }
 
 function handleSearch() {
@@ -180,43 +175,39 @@ function handleRowClick(_event: MouseEvent, datasetId: number) {
     selection.toggleMetadata(datasetId);
 }
 
-function handlePermalinkCopied() {
-    // Could add toast notification here if desired
+function handleDatasetUpdate(updatedDataset: Dataset) {
+    search.updateDatasetInState(updatedDataset);
 }
 
-// Handle filter changes from navigation
+function handlePermalinkCopied() {
+    // Optional: Could add toast notification here if desired
+}
+
 watchDebounced(
     () => props.initialFilters,
-    async (newFilters, oldFilters) => {
+    (newFilters, oldFilters) => {
         const isInitialLoad = oldFilters === undefined;
+        if (isInitialLoad) {
+            // Do nothing on the initial load. The onMounted hook in the
+            // composable is now responsible for the initial search.
+            return;
+        }
+
         const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(oldFilters);
-
-        if (isInitialLoad || filtersChanged) {
-            // On initial load, ensure URL search state is loaded first
-            if (isInitialLoad) {
-                search.loadSearchStateFromUrl();
-            }
-
+        if (filtersChanged) {
+            // This now only handles subsequent, client-side changes to filters.
             search.updateFilters(newFilters);
-
-            // Execute search on initial load if filters are present or if there's a URL query
-            if (isInitialLoad && (Object.keys(newFilters).length > 0 || search.userSearchQuery.value.trim())) {
-                // Small delay to ensure all state is synchronized
-                await nextTick();
-                search.executeSearch();
-            }
-
             selection.clearMetadataExpansions();
         }
     },
     { debounce: 50, deep: true, immediate: true },
 );
 
-// Clear metadata expansions when search results or pagination changes
 watch(
     () => search.searchState.datasets,
     () => selection.clearMetadataExpansions(),
 );
+
 watch(
     () => search.pagination.currentPage,
     () => selection.clearMetadataExpansions(),

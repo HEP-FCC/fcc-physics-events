@@ -11,25 +11,14 @@ const props = defineProps<{
     dataset: Dataset;
 }>();
 
-const emit = defineEmits(["dataset-updated"]);
-
 const isEditing = ref(false);
 const metadataJson = ref("");
 const apiClient = getApiClient();
 const toast = useToast();
 
 // Field classification constants
-const LONG_STRING_FIELDS = ["path", "software-stack", "description", "url", "command"];
-const EXCLUDED_FIELDS = new Set([
-    "dataset-name",
-    "detector_name",
-    "stage_name",
-    "campaign_name",
-    "accelerator_name",
-    "dataset_id",
-    "description",
-    "comment",
-]);
+const LONG_STRING_FIELDS = ["path", "software-stack", "description"];
+const EXCLUDED_FIELDS = new Set(["description", "comment"]);
 const FIELD_DISPLAY_ORDER = ["software-stack", "path"];
 
 // Determine grid layout for description and comment sections
@@ -64,7 +53,7 @@ async function saveChanges() {
             color: "success",
         });
         isEditing.value = false;
-        emit("dataset-updated");
+        props.dataset.metadata = updatedMetadata;
     } catch (error) {
         toast.add({
             title: "Error",
