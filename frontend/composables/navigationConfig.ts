@@ -16,7 +16,7 @@ export interface NavigationDropdownConfig {
  * Centralized navigation configuration and utilities.
  * Manages the navigation dropdown structure and URL parsing logic.
  */
-export function useNavigationConfig() {
+export function navigationConfig() {
     const apiClient = getApiClient();
 
     // Navigation dropdown configuration - order determines URL structure
@@ -114,4 +114,4 @@ export function useNavigationConfig() {
 }
 
 // Export the derived DropdownType for use in other files
-export type DropdownType = keyof ReturnType<typeof useNavigationConfig>["navigationConfig"];
+export type DropdownType = keyof ReturnType<typeof navigationConfig>["navigationConfig"];

@@ -666,6 +666,116 @@ class Database:
 
             return result
 
+    async def get_dataset_by_id(self, dataset_id: int) -> dict[str, Any] | None:
+        """
+        Get a single dataset by ID with all details and related entity names.
+        Returns None if dataset is not found.
+        """
+        datasets = await self.get_datasets_by_ids([dataset_id])
+        return datasets[0] if datasets else None
+
+    async def update_dataset(
+        self, dataset_id: int, update_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Update a dataset with the provided data using full replacement strategy.
+        Returns the updated dataset with all details.
+        """
+
+        async with self.session() as conn:
+            async with conn.transaction():
+                # First check if dataset exists
+                existing_check = await conn.fetchval(
+                    "SELECT dataset_id FROM datasets WHERE dataset_id = $1", dataset_id
+                )
+                if not existing_check:
+                    raise ValueError(f"Dataset with ID {dataset_id} not found")
+
+                # Prepare update fields and values
+                update_fields = []
+                values = []
+                param_count = 0
+
+                # Always update last_edited_at
+                update_fields.append("last_edited_at = (NOW() AT TIME ZONE 'utc')")
+
+                # Handle each potential field update
+                if "name" in update_data and update_data["name"] is not None:
+                    param_count += 1
+                    update_fields.append(f"name = ${param_count}")
+                    values.append(update_data["name"])
+
+                if "accelerator_id" in update_data:
+                    param_count += 1
+                    update_fields.append(f"accelerator_id = ${param_count}")
+                    values.append(update_data["accelerator_id"])
+
+                if "stage_id" in update_data:
+                    param_count += 1
+                    update_fields.append(f"stage_id = ${param_count}")
+                    values.append(update_data["stage_id"])
+
+                if "campaign_id" in update_data:
+                    param_count += 1
+                    update_fields.append(f"campaign_id = ${param_count}")
+                    values.append(update_data["campaign_id"])
+
+                if "detector_id" in update_data:
+                    param_count += 1
+                    update_fields.append(f"detector_id = ${param_count}")
+                    values.append(update_data["detector_id"])
+
+                if "metadata" in update_data:
+                    param_count += 1
+                    update_fields.append(f"metadata = ${param_count}")
+                    # Convert metadata dict to JSON string
+                    metadata_json = (
+                        json.dumps(update_data["metadata"])
+                        if update_data["metadata"] is not None
+                        else None
+                    )
+                    values.append(metadata_json)
+
+                if not update_fields:
+                    # Only last_edited_at was updated
+                    query = f"""
+                        UPDATE datasets
+                        SET last_edited_at = (NOW() AT TIME ZONE 'utc')
+                        WHERE dataset_id = ${param_count + 1}
+                    """
+                    values.append(dataset_id)
+                else:
+                    # Build the complete update query
+                    param_count += 1
+                    update_clause = ", ".join(update_fields)
+                    query = f"""
+                        UPDATE datasets
+                        SET {update_clause}
+                        WHERE dataset_id = ${param_count}
+                    """
+                    values.append(dataset_id)
+
+                try:
+                    await conn.execute(query, *values)
+                    logger.info(f"Successfully updated dataset {dataset_id}")
+                except asyncpg.UniqueViolationError as e:
+                    if "name" in str(e):
+                        raise ValueError(
+                            f"A dataset with the name '{update_data.get('name')}' already exists"
+                        )
+                    raise ValueError(f"Update failed due to constraint violation: {e}")
+                except asyncpg.ForeignKeyViolationError as e:
+                    raise ValueError(f"Update failed due to invalid reference: {e}")
+
+                # Return the updated dataset
+                updated_dataset = await self.get_dataset_by_id(dataset_id)
+                if not updated_dataset:
+                    raise RuntimeError(
+                        f"Failed to retrieve updated dataset {dataset_id}"
+                    )
+
+                return updated_dataset
+
     async def get_sorting_fields(self) -> dict[str, Any]:
         """
         Dynamically fetch available sorting fields from the database schema.

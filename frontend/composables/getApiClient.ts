@@ -55,7 +55,17 @@ export class ApiClient {
             params.append("sort_order", sortOrder);
         }
 
-        return this.makeRequest<PaginatedResponse>(`${this.baseUrl}/query/?${params}`, {}, "Failed to search datasets");
+        return this.makeRequest<PaginatedResponse>(
+            `${this.baseUrl}/query/?${params}`,
+            {
+                headers: {
+                    "Cache-Control": "no-cache",
+                    Pragma: "no-cache",
+                    Expires: "0",
+                },
+            },
+            "Failed to search datasets",
+        );
     }
 
     /**
@@ -109,10 +119,27 @@ export class ApiClient {
             "Failed to fetch sorting fields",
         );
     }
+
+    /**
+     * Updates a dataset's metadata.
+     */
+    async updateDataset(datasetId: number, metadata: Record<string, any>): Promise<Dataset> {
+        return this.makeRequest<Dataset>(
+            `${this.baseUrl}/datasets/${datasetId}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ metadata }),
+            },
+            "Failed to update dataset",
+        );
+    }
 }
 
 /**
- * Composable function to get an instance of the ApiClient.
+ * Factory function to get an instance of the ApiClient.
  */
 export function getApiClient() {
     return new ApiClient();

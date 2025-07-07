@@ -1,28 +1,29 @@
 <template>
     <UContainer class="py-4 sm:py-6 lg:py-8">
-        <DatasetSearchInterface :initial-filters="activeFilters" />
+        <DatasetSearchInterface :initial-filters="activeFilters" :route-params="routeParams" />
     </UContainer>
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { useNavigationConfig } from "../composables/useNavigationConfig";
+import { navigationConfig } from "../composables/navigationConfig";
 
 const route = useRoute();
-const { parseRouteParams, generatePageTitle, generatePageDescription } = useNavigationConfig();
+const { parseRouteParams, generatePageTitle, generatePageDescription } = navigationConfig();
 
 const activeFilters = computed(() => {
-    const params = Array.isArray(route.params.slug) ? route.params.slug : [];
+    const params = Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];
     return parseRouteParams(params);
 });
 
-// Set page title based on active filters
-const pageTitle = computed(() => generatePageTitle(activeFilters.value));
+const routeParams = computed(() => {
+    return Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];
+});
 
 // Set the page title and meta
 useHead({
-    title: pageTitle,
+    title: () => generatePageTitle(activeFilters.value),
     meta: [
         {
             name: "description",

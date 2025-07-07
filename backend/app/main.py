@@ -13,7 +13,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.config import get_config
 from app.gclql_query_parser import QueryParser
 from app.logging import get_logger
-from app.models.dataset import DatasetWithDetails
+from app.models.dataset import DatasetUpdate, DatasetWithDetails
 from app.models.dropdown import DropdownItem
 from app.storage.database import Database
 
@@ -269,4 +269,54 @@ async def get_sorting_fields() -> dict[str, Any]:
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred while fetching sorting fields: {e}",
+        )
+
+
+@app.get("/datasets/{dataset_id}", response_model=dict[str, Any])
+async def get_dataset_by_id(dataset_id: int) -> Any:
+    """
+    Get a single dataset by its ID with all details and metadata flattened to top-level keys.
+    """
+    try:
+        dataset = await database.get_dataset_by_id(dataset_id)
+        if not dataset:
+            raise HTTPException(
+                status_code=404, detail=f"Dataset with ID {dataset_id} not found"
+            )
+        return dataset
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error fetching dataset {dataset_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while fetching the dataset: {e}",
+        )
+
+
+@app.put("/datasets/{dataset_id}", response_model=dict[str, Any])
+async def update_dataset(dataset_id: int, update_data: DatasetUpdate) -> Any:
+    """
+    Update a dataset with the provided data.
+    Uses full replacement strategy - provide the complete updated dataset object.
+    Only non-null fields in the update_data will be updated.
+    """
+    try:
+        # Convert pydantic model to dict, excluding None values
+        update_dict = update_data.model_dump(exclude_none=True)
+
+        if not update_dict:
+            raise HTTPException(
+                status_code=400, detail="No valid fields provided for update"
+            )
+
+        updated_dataset = await database.update_dataset(dataset_id, update_dict)
+        return updated_dataset
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating dataset {dataset_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occurred while updating the dataset: {e}",
         )

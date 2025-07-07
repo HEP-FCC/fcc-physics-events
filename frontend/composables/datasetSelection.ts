@@ -10,7 +10,7 @@ export interface SelectionState {
 /**
  * Composable for managing dataset selection and metadata expansion.
  */
-export function useDatasetSelection() {
+export function datasetSelection() {
     const selectionState = reactive<SelectionState>({
         selectedDatasets: new Set<number>(),
         expandedMetadata: new Set<number>(),

@@ -34,7 +34,7 @@ export function downloadAsJsonFile(data: unknown, filename: string): void {
 /**
  * Composable for handling dataset downloads with proper error handling
  */
-export function useDatasetDownload() {
+export function datasetDownload() {
     async function downloadSelectedDatasets(
         selectedDatasetIds: number[],
         apiClient: { downloadDatasetsByIds: (ids: number[]) => Promise<unknown[]> },

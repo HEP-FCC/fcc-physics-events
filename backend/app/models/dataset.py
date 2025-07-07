@@ -20,6 +20,16 @@ class DatasetCreate(DatasetBase):
     pass
 
 
+# Model for updating an existing dataset (used for API input)
+class DatasetUpdate(BaseModel):
+    name: str | None = None
+    metadata: dict[str, Any] | None = None
+    accelerator_id: int | None = None
+    stage_id: int | None = None
+    campaign_id: int | None = None
+    detector_id: int | None = None
+
+
 # The core model representing a dataset record from the database
 class Dataset(DatasetBase):
     dataset_id: int

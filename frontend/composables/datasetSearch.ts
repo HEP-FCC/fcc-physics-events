@@ -33,7 +33,7 @@ export interface SearchOptions {
     defaultPageSize?: number;
 }
 
-export function useDatasetSearch(options: SearchOptions) {
+export function datasetSearch(options: SearchOptions) {
     const apiClient = getApiClient();
 
     // Configuration with sensible defaults
@@ -444,16 +444,38 @@ export function useDatasetSearch(options: SearchOptions) {
         updateUrlWithSearchState();
     }
 
+    /**
+     * Finds and replaces a dataset in the current list of results.
+     * This is used for in-place updates, e.g., after editing metadata.
+     * @param updatedDataset The dataset object with the new data.
+     */
+    function updateDatasetInState(updatedDataset: Dataset) {
+        const index = searchState.datasets.findIndex(d => d.dataset_id === updatedDataset.dataset_id);
+        if (index !== -1) {
+            searchState.datasets[index] = updatedDataset;
+        }
+    }
+
+    // Initialize URL state immediately (synchronously) if on client
+    if (isClient()) {
+        loadSearchStateFromUrl();
+    }
+
     // Initialize
     onMounted(async () => {
         await fetchSortingFields();
+
+        // Reload URL state in case it wasn't loaded during SSR
         loadSearchStateFromUrl();
 
         // Perform initial search only if no filters are set (to avoid double search when filters are passed from props)
         setTimeout(() => {
             if (!hasPerformedInitialSearch.value) {
                 const hasInitialFilters = Object.keys(activeFilters.value).length > 0;
-                if (!hasInitialFilters) {
+                const hasUrlQuery = userSearchQuery.value.trim() !== "";
+
+                // If we have URL query but no route filters, or no filters at all, perform initial search
+                if (!hasInitialFilters || (hasInitialFilters && hasUrlQuery)) {
                     hasPerformedInitialSearch.value = true;
                     performSearch(true);
                 }

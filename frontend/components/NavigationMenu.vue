@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useLoadingDelay } from "~/composables/useLoadingDelay";
-import type { DropdownItem } from "../types/navigation";
-import {
-    useNavigationConfig,
-    type NavigationDropdownConfig,
-    type DropdownType,
-} from "../composables/useNavigationConfig";
+import { useRouter } from "vue-router";
+import { loadingDelay } from "~/composables/loadingDelay";
+import type { DropdownItem } from "~/types/navigation";
+import { navigationConfig, type NavigationDropdownConfig, type DropdownType } from "~/composables/navigationConfig";
 
-const route = useRoute();
+interface Props {
+    routeParams?: string[];
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    routeParams: () => [],
+});
+
 const router = useRouter();
 
-const { navigationConfig, dropdownKeys, parseCurrentPath } = useNavigationConfig();
+const { navigationConfig: navConfig, dropdownKeys, parseCurrentPath } = navigationConfig();
 
 // Create reactive dropdowns from navigation config
 const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
     Object.fromEntries(
-        Object.entries(navigationConfig).map(([key, config]) => [
+        Object.entries(navConfig).map(([key, config]) => [
             key,
             {
                 ...config,
@@ -30,16 +33,15 @@ const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
 );
 
 // Use loading delay utility for smoother UX (shorter delay for navigation dropdowns)
-const loadingDelayMap = new Map<DropdownType, ReturnType<typeof useLoadingDelay>>();
+const loadingDelayMap = new Map<DropdownType, ReturnType<typeof loadingDelay>>();
 
 // Initialize loading delay for each dropdown type with a reasonable delay
 Object.keys(dropdowns.value).forEach((type) => {
-    loadingDelayMap.set(type as DropdownType, useLoadingDelay({ delayMs: 500 }));
+    loadingDelayMap.set(type as DropdownType, loadingDelay({ delayMs: 500 }));
 });
 
 const currentPath = computed(() => {
-    const params = Array.isArray(route.params.slug) ? route.params.slug : [];
-    return parseCurrentPath(params);
+    return parseCurrentPath(props.routeParams);
 });
 
 // Build navigation path for a dropdown selection
@@ -156,7 +158,7 @@ onMounted(() => {
 
 onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
-    // Cleanup is handled by useLoadingDelay composable
+    // Cleanup is handled by loadingDelay composable
 });
 
 watch(currentPath, loadDropdownData, { deep: true });

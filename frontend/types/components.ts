@@ -88,6 +88,7 @@ export interface ResultsSummaryProps {
 
 export interface DatasetSearchInterfaceProps {
     initialFilters: Record<string, string>;
+    routeParams?: string[];
 }
 
 // Helper types

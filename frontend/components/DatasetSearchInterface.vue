@@ -1,16 +1,13 @@
 <template>
     <div class="space-y-6">
-        <!-- Search Header Card -->
         <UCard>
             <template #header>
                 <h1 class="text-3xl font-bold">FCC Physics Datasets Search</h1>
             </template>
 
-            <!-- Navigation Menu -->
-            <NavigationMenu />
+            <NavigationMenu :route-params="props.routeParams" />
 
             <div class="space-y-4 mt-4">
-                <!-- Search Controls -->
                 <SearchControls
                     v-model="search.userSearchQuery.value"
                     :placeholder="search.searchPlaceholderText.value"
@@ -21,7 +18,6 @@
                     @permalink-copied="handlePermalinkCopied"
                 />
 
-                <!-- Error Alert -->
                 <UAlert
                     v-if="search.searchState.error"
                     color="error"
@@ -35,20 +31,16 @@
             </div>
         </UCard>
 
-        <!-- Loading State -->
         <UCard v-if="showLoadingSkeleton">
             <div class="space-y-4">
                 <USkeleton v-for="i in 5" :key="i" class="h-12 w-full" />
             </div>
         </UCard>
 
-        <!-- Results -->
         <div v-else-if="search.searchState.datasets.length > 0" class="space-y-6">
-            <!-- Main controls header -->
             <div
                 class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
             >
-                <!-- Left side: Actions & View Options -->
                 <DatasetControls
                     :all-selected="selection.allDatasetsSelected.value(search.searchState.datasets)"
                     :selected-count="selection.selectedCount.value"
@@ -68,7 +60,6 @@
                     @toggle-mode="search.toggleMode"
                 />
 
-                <!-- Right side: Pagination & Results Info -->
                 <ResultsSummary
                     :display-range="search.currentDisplayRange.value"
                     :page-size="search.pagination.pageSize"
@@ -81,7 +72,6 @@
                 />
             </div>
 
-            <!-- Dataset List -->
             <DatasetList
                 :datasets="search.searchState.datasets"
                 :is-loading-more="search.searchState.isLoadingMore"
@@ -98,7 +88,6 @@
                 @load-more="search.loadMoreData"
             />
 
-            <!-- Bottom pagination (only in pagination mode) -->
             <div v-if="!search.infiniteScrollEnabled.value" class="flex justify-center pt-4">
                 <UPagination
                     :page="search.pagination.currentPage"
@@ -108,7 +97,6 @@
             </div>
         </div>
 
-        <!-- No Results -->
         <UCard v-else class="text-center py-12 text-gray-600 dark:text-gray-400">
             <p class="text-lg font-medium">No datasets found.</p>
             <p class="text-sm">Try adjusting your search query. 🔎</p>
@@ -117,35 +105,33 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed } from "vue";
+import { watch, computed, nextTick } from "vue";
 import { watchDebounced } from "@vueuse/core";
 import { getApiClient } from "~/composables/getApiClient";
-import { useDatasetSearch } from "~/composables/useDatasetSearch";
-import { useDatasetSelection } from "~/composables/useDatasetSelection";
-import { useLoadingDelay } from "~/composables/useLoadingDelay";
-import { useDatasetDownload } from "~/composables/useDatasetDownload";
+import { datasetSearch } from "~/composables/datasetSearch";
+import { datasetSelection } from "~/composables/datasetSelection";
+import { loadingDelay } from "~/composables/loadingDelay";
+import { datasetDownload } from "~/composables/datasetDownload";
 import type { DatasetSearchInterfaceProps } from "~/types/components";
 
-const props = defineProps<DatasetSearchInterfaceProps>();
+const props = withDefaults(defineProps<DatasetSearchInterfaceProps>(), {
+    routeParams: () => [],
+});
 
-// Initialize search functionality with optimized defaults
-const search = useDatasetSearch({
+const search = datasetSearch({
     initialFilters: props.initialFilters,
     defaultSortBy: "last_edited_at",
     defaultSortOrder: "desc",
     defaultPageSize: 20,
 });
 
-// Initialize dataset selection and metadata expansion functionality
-const selection = useDatasetSelection();
+const selection = datasetSelection();
 
 const apiClient = getApiClient();
 
-// Initialize download functionality
-const downloadUtils = useDatasetDownload();
+const downloadUtils = datasetDownload();
 
-// Use simplified loading delay utility
-const loadingState = useLoadingDelay({ delayMs: 300 });
+const loadingState = loadingDelay({ delayMs: 300 });
 
 // Show loading skeleton when search is loading and either delay has passed or no data exists
 const showLoadingSkeleton = computed(() => {
@@ -173,7 +159,6 @@ async function downloadSelectedDatasets() {
     const selectedDatasetIds = Array.from(selection.selectionState.selectedDatasets);
 
     if (selectedDatasetIds.length === 0) {
-        // Could show a toast notification here instead of alert
         return;
     }
 
@@ -187,7 +172,6 @@ async function downloadSelectedDatasets() {
     // }
 }
 
-// Event handlers
 function handleSearch() {
     search.executeSearch();
 }
@@ -203,15 +187,22 @@ function handlePermalinkCopied() {
 // Handle filter changes from navigation
 watchDebounced(
     () => props.initialFilters,
-    (newFilters, oldFilters) => {
+    async (newFilters, oldFilters) => {
         const isInitialLoad = oldFilters === undefined;
         const filtersChanged = JSON.stringify(newFilters) !== JSON.stringify(oldFilters);
 
         if (isInitialLoad || filtersChanged) {
+            // On initial load, ensure URL search state is loaded first
+            if (isInitialLoad) {
+                search.loadSearchStateFromUrl();
+            }
+
             search.updateFilters(newFilters);
 
-            // Execute search on initial load if filters are present
-            if (isInitialLoad && Object.keys(newFilters).length > 0) {
+            // Execute search on initial load if filters are present or if there's a URL query
+            if (isInitialLoad && (Object.keys(newFilters).length > 0 || search.userSearchQuery.value.trim())) {
+                // Small delay to ensure all state is synchronized
+                await nextTick();
                 search.executeSearch();
             }
 

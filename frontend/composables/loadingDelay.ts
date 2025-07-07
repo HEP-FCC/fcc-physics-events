@@ -12,7 +12,7 @@ export interface LoadingDelayOptions {
  * Creates a loading state that only becomes visible after a specified delay.
  * Prevents loading spinners from flashing on fast requests, improving UX.
  */
-export function useLoadingDelay(options: LoadingDelayOptions = {}) {
+export function loadingDelay(options: LoadingDelayOptions = {}) {
     const { delayMs = 300 } = options;
 
     const isLoadingActive = ref(false);

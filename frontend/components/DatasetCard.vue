@@ -1,10 +1,10 @@
+// components/DatasetCard.vue
 <template>
     <UCard :data-dataset-card="index" class="overflow-hidden select-text cursor-pointer" @click="handleRowClick">
         <div class="px-4 py-1">
             <div class="flex items-center justify-between gap-4">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center">
-                        <!-- Selection checkbox -->
                         <div class="flex-shrink-0 pr-4">
                             <UCheckbox
                                 :model-value="isSelected"
@@ -12,14 +12,12 @@
                             />
                         </div>
 
-                        <!-- Dataset name -->
                         <div class="w-88 flex-shrink-0">
                             <h3 class="font-semibold text-base text-gray-900 dark:text-white">
                                 {{ dataset.name }}
                             </h3>
                         </div>
 
-                        <!-- Dynamic badges for stage, campaign, detector, accelerator -->
                         <div
                             v-for="badge in badgeItems"
                             :key="badge.key"
@@ -34,7 +32,6 @@
                     </div>
                 </div>
 
-                <!-- Expand/collapse button -->
                 <UButton
                     :icon="isExpanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
                     color="primary"

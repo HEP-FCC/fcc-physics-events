@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import type { Dataset } from "../types/dataset";
+import { getApiClient } from "~/composables/getApiClient";
 
 defineOptions({
     name: "DatasetMetadata",
@@ -9,6 +10,13 @@ defineOptions({
 const props = defineProps<{
     dataset: Dataset;
 }>();
+
+const emit = defineEmits(["dataset-updated"]);
+
+const isEditing = ref(false);
+const metadataJson = ref("");
+const apiClient = getApiClient();
+const toast = useToast();
 
 // Field classification constants
 const LONG_STRING_FIELDS = ["path", "software-stack", "description", "url", "command"];
@@ -30,6 +38,42 @@ const gridClass = computed(() => {
     const hasComment = !!props.dataset.metadata.comment;
     return hasDescription && hasComment ? "grid-cols-2" : "grid-cols-1";
 });
+
+// Calculate the number of rows needed for the textarea
+const textareaRows = computed(() => {
+    const lineCount = metadataJson.value.split("\n").length;
+    return Math.max(10, Math.min(lineCount + 1, 25)); // Min 10 rows, max 25
+});
+
+function enterEditMode() {
+    metadataJson.value = JSON.stringify(props.dataset.metadata, null, 2);
+    isEditing.value = true;
+}
+
+function cancelEdit() {
+    isEditing.value = false;
+}
+
+async function saveChanges() {
+    try {
+        const updatedMetadata = JSON.parse(metadataJson.value);
+        await apiClient.updateDataset(props.dataset.dataset_id, updatedMetadata);
+        toast.add({
+            title: "Success",
+            description: "Dataset metadata updated successfully.",
+            color: "success",
+        });
+        isEditing.value = false;
+        emit("dataset-updated");
+    } catch (error) {
+        toast.add({
+            title: "Error",
+            description: "Failed to update metadata. Please check the JSON format.",
+            color: "error",
+        });
+        console.error("Failed to save metadata:", error);
+    }
+}
 
 // Field type checking functions
 function isLongStringField(key: string, value: unknown): boolean {
@@ -157,8 +201,18 @@ const firstVectorKey = computed(() => {
 <template>
     <div class="border-t border-gray-200 bg-gray-50 cursor-default" @click.stop>
         <div class="p-4">
-            <div class="space-y-3">
-                <!-- Timestamp Information -->
+            <div v-if="isEditing" class="space-y-3">
+                <textarea
+                    v-model="metadataJson"
+                    :rows="textareaRows"
+                    class="w-full p-2 font-mono text-sm bg-white border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                ></textarea>
+                <div class="flex justify-end gap-2">
+                    <UButton icon="i-heroicons-x-mark" color="error" @click="cancelEdit">Cancel</UButton>
+                    <UButton icon="i-heroicons-check" color="success" @click="saveChanges">Save</UButton>
+                </div>
+            </div>
+            <div v-else class="space-y-3">
                 <div class="flex justify-between items-center text-xs text-gray-500 border-b border-gray-200 pb-2">
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-1">
@@ -172,6 +226,7 @@ const firstVectorKey = computed(() => {
                             <span class="font-medium">{{ formatTimestamp(dataset.last_edited_at) }}</span>
                         </div>
                     </div>
+                    <UButton icon="i-heroicons-pencil" size="xs" @click="enterEditMode">Edit</UButton>
                 </div>
 
                 <div
@@ -194,7 +249,6 @@ const firstVectorKey = computed(() => {
                 </div>
 
                 <template v-for="[key, value] in sortedMetadata" :key="key">
-                    <!-- Add visual separator before first vector field -->
                     <div v-if="key === firstVectorKey" class="clear-both w-full" />
 
                     <div v-if="isLongStringField(key, value)" class="space-y-1">
@@ -220,7 +274,6 @@ const firstVectorKey = computed(() => {
                         </UBadge>
                     </div>
 
-                    <!-- Vector fields - use same visual format, inline for short vectors, full row for long vectors -->
                     <div
                         v-else-if="isVectorField(value)"
                         :class="
