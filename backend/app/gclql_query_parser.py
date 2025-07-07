@@ -281,7 +281,7 @@ class QueryParser:
             raise RuntimeError("QueryParser not set up.")
 
         if not query_string.strip():
-            base_select = f"""
+            select_query = f"""
                 SELECT d.*,
                     det.name as detector_name,
                     c.name as campaign_name,
@@ -291,7 +291,7 @@ class QueryParser:
                 {self._build_order_by_clause(sort_by, sort_order)}
             """
             count_query = "SELECT COUNT(*) FROM datasets"
-            return base_select, count_query, []
+            return count_query, select_query, []
 
         try:
             ast = cast(
@@ -302,7 +302,7 @@ class QueryParser:
 
         self.translator.reset(self.schema_mapping)
         where_clause = self.translator.translate(ast)
-        base_select = f"""
+        select_query = f"""
             SELECT d.*,
                 det.name as detector_name,
                 c.name as campaign_name,
@@ -314,7 +314,7 @@ class QueryParser:
         """
         count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
 
-        return base_select, count_query, self.translator.params
+        return count_query, select_query, self.translator.params
 
     def _build_order_by_clause(self, sort_by: str, sort_order: str) -> str:
         """

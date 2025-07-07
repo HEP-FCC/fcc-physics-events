@@ -19,7 +19,11 @@ from app.fcc_dict_parser import DatasetCollection
 from app.logging import get_logger
 from app.models.accelerator import AcceleratorCreate
 from app.models.campaign import CampaignCreate
-from app.models.dataset import DatasetCreate
+from app.models.dataset import (
+    DatasetCreate,
+    DatasetWithDetails,
+    PaginatedDatasetSearchResponse,
+)
 from app.models.detector import DetectorCreate
 from app.models.dropdown import DropdownItem
 from app.models.stage import StageCreate
@@ -904,38 +908,25 @@ class Database:
                 "info": "All available fields for sorting. Use 'metadata.key' format for JSON fields.",
             }
 
-    async def execute_in_transaction(self, operation: str, *args: Any) -> Any:
-        """Execute a database operation within a transaction with proper error handling."""
+    async def perform_search(
+        self,
+        count_query: str,
+        search_query: str,
+        params: list[Any],
+        limit: int,
+        offset: int,
+    ) -> PaginatedDatasetSearchResponse:
         async with self.session() as conn:
-            async with conn.transaction():
-                try:
-                    return await conn.execute(operation, *args)
-                except Exception as e:
-                    logger.error(
-                        f"Transaction failed for operation: {operation[:100]}... Error: {e}"
-                    )
-                    raise
+            total_records = await conn.fetchval(count_query, *params) or 0
 
-    async def fetch_in_transaction(self, operation: str, *args: Any) -> Any:
-        """Execute a database fetch operation within a transaction with proper error handling."""
-        async with self.session() as conn:
-            async with conn.transaction():
-                try:
-                    return await conn.fetch(operation, *args)
-                except Exception as e:
-                    logger.error(
-                        f"Transaction failed for fetch operation: {operation[:100]}... Error: {e}"
-                    )
-                    raise
+            # Then, get the paginated results for the current page
+            paginated_query = (
+                f"{search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+            )
+            records = await conn.fetch(paginated_query, *params, limit, offset)
 
-    async def fetchval_in_transaction(self, operation: str, *args: Any) -> Any:
-        """Execute a database fetchval operation within a transaction with proper error handling."""
-        async with self.session() as conn:
-            async with conn.transaction():
-                try:
-                    return await conn.fetchval(operation, *args)
-                except Exception as e:
-                    logger.error(
-                        f"Transaction failed for fetchval operation: {operation[:100]}... Error: {e}"
-                    )
-                    raise
+            items = [
+                DatasetWithDetails.model_validate(dict(record)) for record in records
+            ]
+
+            return PaginatedDatasetSearchResponse(total=total_records, items=items)

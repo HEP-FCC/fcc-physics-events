@@ -16,8 +16,7 @@ class SoftwareStackBase(BaseModel):
 class SoftwareStackCreate(SoftwareStackBase):
     pass
 
-
-# Model representing a software stack as it exists in the database
+    # Model representing a software stack as it exists in the database
     software_stack_id: int
     created_at: datetime.datetime
 

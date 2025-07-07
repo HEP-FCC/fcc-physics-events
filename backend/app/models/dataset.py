@@ -66,3 +66,9 @@ class DatasetWithDetails(Dataset):
 
     class Config:
         from_attributes = True
+
+
+# Pydantic model for the paginated response, ensuring a consistent data contract
+class PaginatedDatasetSearchResponse(BaseModel):
+    total: int
+    items: list[DatasetWithDetails]

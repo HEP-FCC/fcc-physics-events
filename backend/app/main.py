@@ -13,7 +13,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.config import get_config
 from app.gclql_query_parser import QueryParser
 from app.logging import get_logger
-from app.models.dataset import DatasetUpdate, DatasetWithDetails
+from app.models.dataset import DatasetUpdate, PaginatedDatasetSearchResponse
 from app.models.dropdown import DropdownItem
 from app.storage.database import Database
 
@@ -22,12 +22,6 @@ logger = get_logger()
 config = get_config()
 database = Database()
 query_parser = QueryParser(database=database)
-
-
-# Pydantic model for the paginated response, ensuring a consistent data contract
-class PaginatedResponse(BaseModel):
-    total: int
-    items: list[DatasetWithDetails]
 
 
 # Pydantic model for the dataset IDs request
@@ -94,7 +88,7 @@ async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
         )
 
 
-@app.get("/query/", response_model=PaginatedResponse)
+@app.get("/query/", response_model=PaginatedDatasetSearchResponse)
 async def execute_gclql_query(
     q: str,
     limit: int = Query(50, ge=1, le=200),
@@ -113,26 +107,13 @@ async def execute_gclql_query(
                 status_code=400, detail="sort_order must be 'asc' or 'desc'"
             )
 
-        base_query, count_query, params = query_parser.parse_query(
+        count_query, search_query, search_query_params = query_parser.parse_query(
             q, sort_by=sort_by, sort_order=sort_order.lower()
         )
 
-        async with database.session() as conn:
-            # First, get the total count of matching records for pagination controls
-            total_records = await conn.fetchval(count_query, *params)
-            total = total_records if total_records is not None else 0
-
-            # Then, get the paginated results for the current page
-            paginated_query = (
-                f"{base_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
-            )
-            records = await conn.fetch(paginated_query, *params, limit, offset)
-
-            items = [
-                DatasetWithDetails.model_validate(dict(record)) for record in records
-            ]
-
-            return PaginatedResponse(total=total, items=items)
+        return await database.perform_search(
+            count_query, search_query, search_query_params, limit, offset
+        )
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid query: {e}")

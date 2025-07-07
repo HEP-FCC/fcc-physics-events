@@ -13,6 +13,7 @@ class AcceleratorBase(BaseModel):
 class AcceleratorCreate(AcceleratorBase):
     pass
 
+
 # Model representing an accelerator as it exists in the database
 class Accelerator(AcceleratorBase):
     accelerator_id: int
