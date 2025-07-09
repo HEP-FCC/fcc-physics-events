@@ -9,7 +9,7 @@ export class ApiClient {
 
     constructor(baseUrl?: string) {
         const config = useRuntimeConfig();
-        this.baseUrl = baseUrl || config.public.apiBaseUrl;
+        this.baseUrl = config.public.apiBaseUrl;
     }
 
     /**
@@ -125,7 +125,7 @@ export class ApiClient {
      */
     async updateDataset(datasetId: number, metadata: Record<string, any>): Promise<Dataset> {
         return this.makeRequest<Dataset>(
-            `${this.baseUrl}/datasets/${datasetId}`,
+            `${this.baseUrl}/authorized/datasets/${datasetId}`,
             {
                 method: "PUT",
                 headers: {

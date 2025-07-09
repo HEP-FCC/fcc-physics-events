@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o k8s/
+    kompose.version: 1.36.0 (ae2a39403)
+  labels:
+    io.kompose.service: fcc-physics-events-frontend
+  name: fcc-physics-events-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: fcc-physics-events-frontend
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o k8s/
+        kompose.version: 1.36.0 (ae2a39403)
+      labels:
+        io.kompose.service: fcc-physics-events-frontend
+    spec:
+      containers:
+        - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-frontend:11
+          name: fcc-physics-events-frontend
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+      restartPolicy: Always

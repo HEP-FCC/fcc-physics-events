@@ -16,7 +16,9 @@
 
             <!-- Page size control -->
             <div class="flex items-center gap-1 text-sm">
-                <span>Per page:</span>
+                <UTooltip text="Allowed range: 20-1000" placement="top">
+                    <span>Per page:</span>
+                </UTooltip>
                 <UInput
                     :model-value="pageSize"
                     type="number"

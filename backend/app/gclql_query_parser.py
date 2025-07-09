@@ -9,9 +9,12 @@ from typing import Any, cast
 
 from lark import Lark, Token, Transformer, exceptions
 
+from app.logging import get_logger
 from app.storage.database import Database
 
-gcp_logging_grammar = r"""
+logger = get_logger()
+
+QUERY_LANGUAGE_GRAMMAR = r"""
     ?start: expr
     ?expr: expr OR term | term
     ?term: term AND factor | factor
@@ -259,7 +262,7 @@ class QueryParser:
     def __init__(self, database: Database):
         self.database = database
         self.schema_mapping: dict[str, str] = {}
-        self.parser = Lark(gcp_logging_grammar, start="start", parser="lalr")
+        self.parser = Lark(QUERY_LANGUAGE_GRAMMAR, start="start", parser="lalr")
         self.transformer = AstTransformer()
         self.translator = SqlTranslator()
 
@@ -314,6 +317,8 @@ class QueryParser:
         """
         count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
 
+        logger.debug("COUNT_QUERY: %s", count_query)
+        logger.debug("SELECT_QUERY: %s", select_query)
         return count_query, select_query, self.translator.params
 
     def _build_order_by_clause(self, sort_by: str, sort_order: str) -> str:
@@ -350,19 +355,21 @@ class QueryParser:
         try:
             sql_field = field_obj.to_sql(self.schema_mapping)
             return f"ORDER BY {sql_field} {sort_order.upper()}"
-        except Exception:
-            # If the field doesn't map, try direct dataset field access
-            # This handles cases like "dataset_id", "created_at", etc.
-            if sort_by in ["dataset_id", "created_at", "last_edited_at", "name"]:
-                return f"ORDER BY d.{sort_by} {sort_order.upper()}"
-            elif sort_by in [
-                "detector_name",
-                "campaign_name",
-                "stage_name",
-                "accelerator_name",
-            ]:
-                # These are already available in the SELECT clause
-                return f"ORDER BY {sort_by} {sort_order.upper()}"
-            else:
-                # Fallback: try to access the field directly
-                return f"ORDER BY d.{sort_by} {sort_order.upper()}"
+        except Exception as e:
+            logger.error("Could not find the column to sort by: %s", e)
+            raise e
+            # # If the field doesn't map, try direct dataset field access
+            # # This handles cases like "dataset_id", "created_at", etc.
+            # if sort_by in ["dataset_id", "created_at", "last_edited_at", "name"]:
+            #     return f"ORDER BY d.{sort_by} {sort_order.upper()}"
+            # elif sort_by in [
+            #     "detector_name",
+            #     "campaign_name",
+            #     "stage_name",
+            #     "accelerator_name",
+            # ]:
+            #     # These are already available in the SELECT clause
+            #     return f"ORDER BY {sort_by} {sort_order.upper()}"
+            # else:
+            #     # Fallback: try to access the field directly
+            #     return f"ORDER BY d.{sort_by} {sort_order.upper()}"

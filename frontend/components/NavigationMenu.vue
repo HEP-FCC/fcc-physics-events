@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const router = useRouter();
 
-const { navigationConfig: navConfig, dropdownKeys, parseCurrentPath } = navigationConfig();
+const { navigationConfig: navConfig, dropdownKeys, parseCurrentPath, getVisibleDropdowns } = navigationConfig();
 
 // Create reactive dropdowns from navigation config
 const dropdowns = ref<Record<DropdownType, NavigationDropdownConfig>>(
@@ -42,6 +42,27 @@ Object.keys(dropdowns.value).forEach((type) => {
 
 const currentPath = computed(() => {
     return parseCurrentPath(props.routeParams);
+});
+
+// Get visible dropdowns based on current selections
+const visibleDropdowns = computed(() => {
+    return getVisibleDropdowns(currentPath.value);
+});
+
+// Filter dropdowns to only show visible ones
+const activeDropdowns = computed(() => {
+    const filtered: Record<DropdownType, NavigationDropdownConfig> = {} as Record<
+        DropdownType,
+        NavigationDropdownConfig
+    >;
+
+    visibleDropdowns.value.forEach((type) => {
+        if (dropdowns.value[type]) {
+            filtered[type] = dropdowns.value[type];
+        }
+    });
+
+    return filtered;
 });
 
 // Build navigation path for a dropdown selection
@@ -74,7 +95,11 @@ function clearSelection(type: DropdownType) {
 }
 
 function closeAllDropdowns() {
-    Object.values(dropdowns.value).forEach((d) => (d.isOpen = false));
+    visibleDropdowns.value.forEach((type) => {
+        if (dropdowns.value[type]) {
+            dropdowns.value[type].isOpen = false;
+        }
+    });
 }
 
 function getBadgeColor(type: DropdownType): "success" | "warning" | "info" | "primary" {
@@ -116,13 +141,13 @@ function buildFiltersForDropdown(targetType: DropdownType): Record<string, strin
     return filters;
 }
 
-// Load dropdown data for all dropdown types with improved loading states
+// Load dropdown data for visible dropdown types with improved loading states
 async function loadDropdownData() {
-    const loadPromises = Object.entries(dropdowns.value).map(async ([type, dropdown]) => {
-        const dropdownType = type as DropdownType;
-        const loadingState = loadingDelayMap.get(dropdownType);
+    const loadPromises = visibleDropdowns.value.map(async (type) => {
+        const dropdown = dropdowns.value[type];
+        const loadingState = loadingDelayMap.get(type);
 
-        if (!loadingState) return;
+        if (!loadingState || !dropdown) return;
 
         loadingState.startLoading();
 
@@ -136,7 +161,7 @@ async function loadDropdownData() {
         );
 
         try {
-            const filters = buildFiltersForDropdown(dropdownType);
+            const filters = buildFiltersForDropdown(type);
             dropdown.items = await dropdown.apiCall(filters);
         } catch (error) {
             console.error(`Failed to load ${type}s:`, error);
@@ -147,7 +172,7 @@ async function loadDropdownData() {
         }
     });
 
-    // Load all dropdowns in parallel for better performance
+    // Load all visible dropdowns in parallel for better performance
     await Promise.allSettled(loadPromises);
 }
 
@@ -162,14 +187,15 @@ onUnmounted(() => {
 });
 
 watch(currentPath, loadDropdownData, { deep: true });
+watch(visibleDropdowns, loadDropdownData, { deep: true });
 </script>
 
 <template>
     <div class="bg-white border-b border-gray-200 mb-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="flex space-x-8 py-4">
-                <!-- Dynamic Dropdowns -->
-                <div v-for="(dropdown, type) in dropdowns" :key="type" class="relative">
+                <!-- Dynamic Dropdowns - Progressive Navigation -->
+                <div v-for="(dropdown, type) in activeDropdowns" :key="type" class="relative">
                     <UButton
                         :color="currentPath[type as DropdownType] ? 'primary' : 'neutral'"
                         :variant="currentPath[type as DropdownType] ? 'solid' : 'ghost'"
@@ -232,7 +258,7 @@ watch(currentPath, loadDropdownData, { deep: true });
                     <span v-if="!Object.values(currentPath).some((v) => v)"> All Datasets </span>
                     <template v-else>
                         <span>Filtered by:</span>
-                        <template v-for="(dropdown, type) in dropdowns" :key="type">
+                        <template v-for="(dropdown, type) in activeDropdowns" :key="type">
                             <UBadge
                                 v-if="currentPath[type as DropdownType]"
                                 :color="getBadgeColor(type as DropdownType)"

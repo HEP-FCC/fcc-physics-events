@@ -1,0 +1,19 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  creationTimestamp: null
+  labels:
+    io.kompose.service: fcc-physics-events-frontend
+  name: fcc-physics-events-frontend
+spec:
+  host: fcc-physics-events-dev.web.cern.ch
+  port:
+    targetPort: 3000
+  tls:
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
+  to:
+    kind: ""
+    name: fcc-physics-events-frontend
+    weight: null
+status: {}

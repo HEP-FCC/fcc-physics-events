@@ -15,21 +15,18 @@ $$;
 CREATE TABLE IF NOT EXISTS accelerators (
     accelerator_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    description TEXT,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
 CREATE TABLE IF NOT EXISTS stages (
     stage_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    description TEXT,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
 CREATE TABLE IF NOT EXISTS campaigns (
     campaign_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    description TEXT,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
@@ -45,7 +42,6 @@ CREATE TABLE IF NOT EXISTS software_stacks (
     name TEXT UNIQUE NOT NULL,
     file_path TEXT NOT NULL,
     version TEXT,
-    description TEXT,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 

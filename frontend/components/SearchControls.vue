@@ -31,28 +31,24 @@
                             <div class="text-xs text-gray-700 dark:text-gray-300 space-y-3">
                                 <div>
                                     <div class="font-medium mb-2 text-gray-800 dark:text-gray-200">
-                                        Examples for Physics Events:
+                                        Example search queries:
                                     </div>
                                     <div class="space-y-1.5">
                                         <div>
-                                            <code :class="codeClass">resource.type="detector_name"</code>
-                                            - Filter by detector
+                                            <code :class="codeClass">"H to cu"</code>
+                                            - Filter by any field containing this string
+                                        </div>
+                                        <!-- <div>
+                                            <code :class="codeClass">last_edited_at>="2024-01-01"</code>
+                                            - Date filter # TODO:
+                                        </div> -->
+                                        <div>
+                                            <code :class="codeClass">metadata.description:"ee -> Z(nu nu)"</code>
+                                            - Metadata text field
                                         </div>
                                         <div>
-                                            <code :class="codeClass">severity>="ERROR"</code>
-                                            - Log severity level
-                                        </div>
-                                        <div>
-                                            <code :class="codeClass">timestamp>="2024-01-01"</code>
-                                            - Date filter
-                                        </div>
-                                        <div>
-                                            <code :class="codeClass">jsonPayload.experiment="LHC"</code>
-                                            - JSON field
-                                        </div>
-                                        <div>
-                                            <code :class="codeClass">labels.campaign="Run3"</code>
-                                            - Label filter
+                                            <code :class="codeClass">metadata.sum-of-weights>100000</code>
+                                            - Metadata number filter
                                         </div>
                                     </div>
                                 </div>
@@ -118,7 +114,7 @@
                         variant="ghost"
                         size="xs"
                         :padded="false"
-                        class="w-6 h-6 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        class="w-5 h-6 hover:bg-gray-100 dark:hover:bg-gray-800"
                         @click="openQueryDocumentation"
                     />
                 </UTooltip>
@@ -128,20 +124,25 @@
                 color="primary"
                 variant="solid"
                 size="lg"
+                class="cursor-pointer"
                 @click="handleSearch"
             >
                 Search
             </UButton>
             <div class="relative">
-                <UButton
-                    icon="i-heroicons-link"
-                    color="neutral"
-                    variant="outline"
-                    size="lg"
-                    :loading="isPermalinkCopyInProgress"
-                    :disabled="!canCopyLink"
-                    @click="handleCopyPermalink"
-                />
+                <UTooltip text="Copy link" placement="top" class="cursor-pointer">
+                    <template #default>
+                        <UButton
+                            icon="i-heroicons-link"
+                            color="neutral"
+                            variant="outline"
+                            size="lg"
+                            :loading="isPermalinkCopyInProgress"
+                            :disabled="!canCopyLink"
+                            @click="handleCopyPermalink"
+                        />
+                    </template>
+                </UTooltip>
                 <div
                     v-if="showLinkCopiedFeedback"
                     class="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-green-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10"

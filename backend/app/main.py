@@ -47,7 +47,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "*",
+        # "https://fcc-physics-events-dev.web.cern.ch",
+        # "http://localhost:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,7 +64,7 @@ async def root() -> dict[str, str]:
     return {"message": "Welcome to the FCC Physics Datasets API"}
 
 
-@app.post("/upload-fcc-dict/", status_code=202)
+@app.post("/authorized/upload-fcc-dict/", status_code=202)
 async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
     """Accepts and processes an FCC JSON dictionary with proper transaction handling."""
     if file.content_type != "application/json":
@@ -91,7 +95,7 @@ async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
 @app.get("/query/", response_model=PaginatedDatasetSearchResponse)
 async def execute_gclql_query(
     q: str,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(20, ge=20, le=1000),
     offset: int = Query(0, ge=0),
     sort_by: str = Query("dataset_id", description="Field to sort by"),
     sort_order: str = Query("asc", description="Sort order: 'asc' or 'desc'"),
@@ -275,7 +279,7 @@ async def get_dataset_by_id(dataset_id: int) -> Any:
         )
 
 
-@app.put("/datasets/{dataset_id}", response_model=dict[str, Any])
+@app.put("/authorized/datasets/{dataset_id}", response_model=dict[str, Any])
 async def update_dataset(dataset_id: int, update_data: DatasetUpdate) -> Any:
     """
     Update a dataset with the provided data.
@@ -301,3 +305,8 @@ async def update_dataset(dataset_id: int, update_data: DatasetUpdate) -> Any:
             status_code=500,
             detail=f"An error occurred while updating the dataset: {e}",
         )
+
+
+@app.get("/authorized/test")
+async def test() -> Any:
+    return "Test authorized API response."

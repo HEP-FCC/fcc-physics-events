@@ -6,7 +6,6 @@ from pydantic import BaseModel
 # Base model with fields common to all other Stage models
 class StageBase(BaseModel):
     name: str
-    description: str | None = None
 
 
 # Model for creating a new stage

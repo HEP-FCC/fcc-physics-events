@@ -81,7 +81,7 @@ export function datasetSearch(options: SearchOptions) {
         return Object.entries(activeFilters.value)
             .map(([field, value]) => {
                 const searchField = field.replace("_name", "");
-                return `${searchField}:"${value}"`;
+                return `${searchField}="${value}"`;
             })
             .join(" AND ");
     });
@@ -101,7 +101,7 @@ export function datasetSearch(options: SearchOptions) {
     const searchPlaceholderText = computed(() => {
         return urlFilterQuery.value
             ? "Add additional search terms..."
-            : 'e.g., detector:"IDEA" AND metadata.status:"done"';
+            : 'e.g., detector="IDEA" AND metadata.status="done"';
     });
 
     const currentDisplayRange = computed(() => {

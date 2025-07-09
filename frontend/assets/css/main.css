@@ -9,3 +9,7 @@
   --ui-warning: var(--ui-color-warning-500);
   --ui-error: var(--ui-color-error-500);
 }
+
+code {
+  user-select: text;
+}

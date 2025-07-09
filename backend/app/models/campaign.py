@@ -6,7 +6,6 @@ from pydantic import BaseModel
 # Base model with fields common to all other Campaign models
 class CampaignBase(BaseModel):
     name: str
-    description: str | None = None
 
 
 # Model for creating a new campaign

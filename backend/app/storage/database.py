@@ -225,7 +225,6 @@ class Database:
                                         AcceleratorCreate,
                                         "accelerators",
                                         name=accelerator_name.strip(),
-                                        description=f"Accelerator for {accelerator_name.upper()} collisions",
                                     )
 
                                 if stage_name and stage_name.strip():

@@ -6,7 +6,6 @@ from pydantic import BaseModel
 # Base model with fields common to all other AcceleratorType models
 class AcceleratorBase(BaseModel):
     name: str
-    description: str | None = None
 
 
 # Model for creating a new accelerator type

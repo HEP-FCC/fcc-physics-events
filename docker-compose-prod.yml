@@ -3,11 +3,12 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    volumes:
-      - ./backend/app:/app/app
-      - ~/cvmfs:/cvmfs
+    # volumes:
+      # - ./backend/app:/app/app
+      # - ~/cvmfs:/cvmfs
     ports:
       - "8000:8000"
+    command: fastapi dev app/main.py --host 0.0.0.0 --port 8000
     environment:
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - POSTGRES_HOST=${POSTGRES_HOST}
@@ -17,27 +18,27 @@ services:
     restart: unless-stopped
     networks:
       - app-network
-    env_file:
-      - .env
+    # env_file:
+      # - .env
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      dockerfile: Dockerfile
+    # volumes:
+      # - ./frontend:/app
+      # - /app/node_modules
     ports:
       - "3000:3000"
+    command: sh -c "yarn dev"
     environment:
       - BACKEND_URL=${BACKEND_URL:-http://localhost:8000}
-      - HOST=${FRONTEND_HOST:-0.0.0.0}
-      - FCC_PHYSICS_EVENTS_BACKEND_LOG_LEVEL=info
+      - HOST=0.0.0.0
     restart: unless-stopped
     networks:
       - app-network
-    env_file:
-      - .env
+    # env_file:
+      # - .env
     depends_on:
       - backend
 

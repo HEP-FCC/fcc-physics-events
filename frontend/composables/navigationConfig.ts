@@ -103,6 +103,29 @@ export function navigationConfig() {
         return "Search and explore FCC physics simulation datasets and data";
     }
 
+    /**
+     * Get visible dropdown types based on current selections.
+     * Returns progressive navigation: stage -> campaign -> detector
+     */
+    function getVisibleDropdowns(currentPath: Record<DropdownType, string | null>): DropdownType[] {
+        const visibleDropdowns: DropdownType[] = [];
+
+        // Always show stage dropdown
+        visibleDropdowns.push("stage");
+
+        // Show campaign dropdown only if stage is selected
+        if (currentPath.stage) {
+            visibleDropdowns.push("campaign");
+        }
+
+        // Show detector dropdown only if both stage and campaign are selected
+        if (currentPath.stage && currentPath.campaign) {
+            visibleDropdowns.push("detector");
+        }
+
+        return visibleDropdowns;
+    }
+
     return {
         navigationConfig,
         dropdownKeys,
@@ -110,6 +133,7 @@ export function navigationConfig() {
         parseCurrentPath,
         generatePageTitle,
         generatePageDescription,
+        getVisibleDropdowns,
     };
 }
 

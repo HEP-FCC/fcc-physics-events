@@ -21,19 +21,6 @@
             </div>
         </div>
 
-        <div v-else-if="shouldShowLoadMoreButton" class="flex justify-center py-6">
-            <UButton
-                color="primary"
-                variant="outline"
-                size="lg"
-                icon="i-heroicons-chevron-down"
-                :loading="isLoadingMore"
-                @click="$emit('load-more')"
-            >
-                Load More Results ({{ remainingResults }} remaining)
-            </UButton>
-        </div>
-
         <div v-else-if="shouldShowCompletionMessage" class="flex justify-center py-6">
             <div class="text-center text-sm text-gray-500 dark:text-gray-400">
                 <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
@@ -54,9 +41,6 @@ const shouldShowLoadingIndicator = computed(() => {
     return props.isLoadingMore && props.infiniteScrollEnabled && props.canAutoLoad;
 });
 
-const shouldShowLoadMoreButton = computed(() => {
-    return props.hasMore && !props.isLoadingMore && !props.infiniteScrollEnabled;
-});
 
 const shouldShowCompletionMessage = computed(() => {
     return !props.hasMore && props.datasets.length > 0 && props.totalDatasets > 0;

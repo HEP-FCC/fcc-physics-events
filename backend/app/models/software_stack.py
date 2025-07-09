@@ -9,7 +9,6 @@ class SoftwareStackBase(BaseModel):
     name: str
     file_path: str
     version: str | None = None
-    description: str | None = None
 
 
 # Model for creating a new software stack
