@@ -5,26 +5,37 @@ import type { Dataset, PaginatedResponse } from "~/types/dataset";
 import type { DropdownItem } from "~/types/navigation";
 
 export class ApiClient {
-    private baseUrl: string;
+    public baseUrl: string;
 
-    constructor(baseUrl?: string) {
+    constructor() {
         const config = useRuntimeConfig();
         this.baseUrl = config.public.apiBaseUrl;
     }
 
     /**
-     * Generic method to handle API requests with consistent error handling
+     * Generic method to handle API requests with consistent error handling.
      */
     private async makeRequest<T>(url: string, options: RequestInit = {}, errorContext: string): Promise<T> {
-        try {
-            const response = await fetch(url, options);
+        // Determine if credentials should be included based on the URL path.
+        // Only include them for requests to the authorized endpoints.
+        const shouldIncludeCredentials = url.includes("/authorized/");
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`${errorContext}: ${response.status} - ${errorData.detail || "Unknown error"}`);
+        const fetchOptions: RequestInit = {
+            ...options,
+            // Conditionally set the credentials mode.
+            ...(shouldIncludeCredentials && { credentials: "include" }),
+        };
+
+        try {
+            const response = await fetch(url, fetchOptions);
+
+            if (response.ok) {
+                return await response.json();
             }
 
-            return await response.json();
+            const error: any = new Error(`${errorContext}: Server responded with status ${response.status}`);
+            error.status = response.status;
+            throw error;
         } catch (error) {
             console.error(errorContext, error);
             throw error;
@@ -78,7 +89,6 @@ export class ApiClient {
         const endpoint = `${entityType}s`;
         const url = new URL(`${this.baseUrl}/${endpoint}/`);
 
-        // Add non-empty filter parameters
         if (filters) {
             Object.entries(filters).forEach(([key, value]) => {
                 if (value?.trim()) {
@@ -124,8 +134,9 @@ export class ApiClient {
      * Updates a dataset's metadata.
      */
     async updateDataset(datasetId: number, metadata: Record<string, any>): Promise<Dataset> {
+        const requestUrl = `${this.baseUrl}/authorized/datasets/${datasetId}`;
         return this.makeRequest<Dataset>(
-            `${this.baseUrl}/authorized/datasets/${datasetId}`,
+            requestUrl,
             {
                 method: "PUT",
                 headers: {

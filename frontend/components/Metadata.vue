@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, onUnmounted } from "vue";
 import type { Dataset } from "../types/dataset";
 import { getApiClient } from "~/composables/getApiClient";
+import { useAuth } from "~/composables/auth";
 
 defineOptions({
     name: "DatasetMetadata",
@@ -11,27 +12,98 @@ const props = defineProps<{
     dataset: Dataset;
 }>();
 
+const { loginInNewTab, listenForAuthSuccess } = useAuth();
 const isEditing = ref(false);
 const metadataJson = ref("");
 const apiClient = getApiClient();
 const toast = useToast();
 
-// Field classification constants
+let removeAuthListener: (() => void) | null = null;
+
+onUnmounted(() => {
+    if (removeAuthListener) {
+        removeAuthListener();
+    }
+});
+
+async function saveChanges() {
+    try {
+        const updatedMetadata = JSON.parse(metadataJson.value);
+        await apiClient.updateDataset(props.dataset.dataset_id, updatedMetadata);
+
+        toast.add({
+            title: "Success",
+            description: "Dataset metadata updated successfully.",
+            color: "success",
+        });
+
+        isEditing.value = false;
+        Object.assign(props.dataset.metadata, updatedMetadata);
+        props.dataset.last_edited_at = new Date().toISOString();
+
+        toast.remove("login-prompt-toast");
+
+        if (removeAuthListener) {
+            removeAuthListener();
+            removeAuthListener = null;
+        }
+    } catch (error: any) {
+        const isCorsError = error instanceof TypeError && error.message === "Failed to fetch";
+
+        if (error.status === 401 || error.status === 403 || isCorsError) {
+            toast.add({
+                id: "login-prompt-toast",
+                title: "Login Required",
+                description: "Please complete your login in the new tab. We will retry saving automatically.",
+                progress: false,
+                color: "info",
+                actions: [
+                    {
+                        label: "Cancel",
+                        onClick: () => {
+                            if (removeAuthListener) removeAuthListener();
+                            toast.remove("login-prompt-toast");
+                        },
+                    },
+                ],
+            });
+
+            removeAuthListener = listenForAuthSuccess(() => {
+                toast.add({
+                    title: "Login Successful!",
+                    description: "Retrying your save operation...",
+                    color: "success",
+                });
+                saveChanges();
+            });
+
+            loginInNewTab();
+        } else {
+            toast.add({
+                title: "Error Saving Metadata",
+                description: error.message || "An unknown error occurred. Please check the JSON format and try again.",
+                color: "error",
+            });
+            console.error("Failed to save metadata:", error);
+        }
+    }
+}
+
+// ... All other helper functions and computed properties go here ...
+// (No changes needed for the rest of the script)
 const LONG_STRING_FIELDS = ["path", "software-stack", "description"];
 const EXCLUDED_FIELDS = new Set(["description", "comment"]);
 const FIELD_DISPLAY_ORDER = ["software-stack", "path"];
 
-// Determine grid layout for description and comment sections
 const gridClass = computed(() => {
     const hasDescription = !!props.dataset.metadata.description;
     const hasComment = !!props.dataset.metadata.comment;
     return hasDescription && hasComment ? "grid-cols-2" : "grid-cols-1";
 });
 
-// Calculate the number of rows needed for the textarea
 const textareaRows = computed(() => {
     const lineCount = metadataJson.value.split("\n").length;
-    return Math.max(10, Math.min(lineCount + 1, 25)); // Min 10 rows, max 25
+    return Math.max(10, Math.min(lineCount + 1, 25));
 });
 
 function enterEditMode() {
@@ -43,28 +115,6 @@ function cancelEdit() {
     isEditing.value = false;
 }
 
-async function saveChanges() {
-    try {
-        const updatedMetadata = JSON.parse(metadataJson.value);
-        await apiClient.updateDataset(props.dataset.dataset_id, updatedMetadata);
-        toast.add({
-            title: "Success",
-            description: "Dataset metadata updated successfully.",
-            color: "success",
-        });
-        isEditing.value = false;
-        props.dataset.metadata = updatedMetadata;
-    } catch (error) {
-        toast.add({
-            title: "Error",
-            description: "Failed to update metadata. Please check the JSON format.",
-            color: "error",
-        });
-        console.error("Failed to save metadata:", error);
-    }
-}
-
-// Field type checking functions
 function isLongStringField(key: string, value: unknown): boolean {
     if (typeof value !== "string") return false;
     return LONG_STRING_FIELDS.includes(key.toLowerCase()) || value.length > 50;
@@ -87,7 +137,6 @@ function isVectorField(value: unknown): boolean {
     );
 }
 
-// Format byte values as GiB for size fields
 function formatSizeInGiB(bytes: unknown): string {
     const bytesNumber = Number(bytes);
     if (isNaN(bytesNumber) || bytesNumber < 0) return "N/A";
@@ -96,7 +145,6 @@ function formatSizeInGiB(bytes: unknown): string {
     return `${gigabytes.toFixed(2)} GiB`;
 }
 
-// Convert field names to human-readable format
 function formatFieldName(key: string): string {
     return key.replace(/[-_]/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
@@ -130,7 +178,6 @@ function formatVectorPreview(value: unknown[]): { preview: string; needsFullRow:
             })
             .join(", ") + (value.length > 5 ? ", ..." : "");
 
-    // Determine layout based on content complexity
     const avgFieldNameLength = 20;
     const lengthIndicatorLength = String(value.length).length + 3;
     const totalContentLength = avgFieldNameLength + preview.length + lengthIndicatorLength;
@@ -141,7 +188,6 @@ function formatVectorPreview(value: unknown[]): { preview: string; needsFullRow:
     return { preview, needsFullRow };
 }
 
-// Sort and group metadata fields for consistent display
 const sortedMetadata = computed(() => {
     const entries = Object.entries(props.dataset.metadata);
     const filteredEntries = entries.filter(([key]) => !EXCLUDED_FIELDS.has(key));
@@ -160,10 +206,8 @@ const sortedMetadata = computed(() => {
         }
     });
 
-    // Sort each group alphabetically
     regularFields.sort(([a], [b]) => a.localeCompare(b));
 
-    // Sort vector fields by layout requirements, then alphabetically
     vectorFields.sort(([keyA, valueA], [keyB, valueB]) => {
         const previewA = formatVectorPreview(valueA as unknown[]);
         const previewB = formatVectorPreview(valueB as unknown[]);
@@ -174,13 +218,11 @@ const sortedMetadata = computed(() => {
         return keyA.localeCompare(keyB);
     });
 
-    // Sort end fields by defined order
     endFields.sort(([a], [b]) => FIELD_DISPLAY_ORDER.indexOf(a) - FIELD_DISPLAY_ORDER.indexOf(b));
 
     return [...regularFields, ...endFields, ...vectorFields];
 });
 
-// Get the first vector field for visual separation
 const firstVectorKey = computed(() => {
     const vectors = sortedMetadata.value.filter(([, value]) => isVectorField(value));
     return vectors.length > 0 ? vectors[0][0] : null;

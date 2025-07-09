@@ -48,8 +48,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "*",
-        # "https://fcc-physics-events-dev.web.cern.ch",
+        "https://fcc-physics-events-dev.web.cern.ch",
         # "http://localhost:3000",
     ],
     allow_credentials=True,

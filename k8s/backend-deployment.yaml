@@ -29,7 +29,7 @@ spec:
             - 0.0.0.0
             - --port
             - "8000"
-          image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:5
+          image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:6
           name: fcc-phsyics-events-backend
           ports:
             - containerPort: 8000
