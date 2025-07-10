@@ -3,21 +3,23 @@ This is the main FastAPI application file, which orchestrates the API,
 database connections, and data processing modules.
 """
 
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse, Response
 
 from app.config import get_config
 from app.gclql_query_parser import QueryParser
-from app.logging import get_logger
+from app.logging import get_logger, setup_logging
 from app.models.dataset import DatasetUpdate, PaginatedDatasetSearchResponse
 from app.models.dropdown import DropdownItem
 from app.storage.database import Database
 
-logger = get_logger()
+logger = get_logger(__name__)
 
 config = get_config()
 database = Database()
@@ -32,6 +34,7 @@ class DatasetIdsRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> Any:
     """Handles application startup and shutdown events."""
+    setup_logging()
     await database.setup(config.get("database", {}))
     await query_parser.setup()
     yield
@@ -49,7 +52,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://fcc-physics-events-dev.web.cern.ch",
-        # "http://localhost:3000",
+        "http://localhost:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -57,10 +60,43 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(Exception)
+async def validation_exception_handler(request: Request, _: Exception) -> JSONResponse:
+    """Catch all unhandled exceptions and return a 500 response."""
+    logger.error(
+        f"Unhandled exception for {request.method} {request.url}", exc_info=True
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An internal server error occurred."},
+    )
+
+
+@app.middleware("http")
+async def log_requests(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """Middleware to log incoming requests."""
+    try:
+        response = await call_next(request)
+
+        # Log the request after successful processing
+        logger.info(
+            f"[{response.status_code}] {request.method} {request.url.path} - {request.query_params}"
+            if request.query_params
+            else f"[{response.status_code}] {request.method} {request.url.path}"
+        )
+
+        return response
+    except Exception as e:
+        logger.error(f"Middleware error for {request.method} {request.url.path}: {e}")
+        raise
+
+
 @app.get("/")
 async def root() -> dict[str, str]:
     """Provides a simple welcome message for the API root."""
-    return {"message": "Welcome to the FCC Physics Datasets API"}
+    return {"message": "Welcome to the FCC Physics Events API"}
 
 
 @app.post("/authorized/upload-fcc-dict/", status_code=202)
@@ -83,12 +119,6 @@ async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
     except RuntimeError as e:
         logger.error(f"Import failed for {file.filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Import failed: {e}")
-    except Exception as e:
-        logger.error(f"Unexpected error processing {file.filename}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred during import. No data was committed to the database: {e}",
-        )
 
 
 @app.get("/query/", response_model=PaginatedDatasetSearchResponse)
@@ -110,20 +140,23 @@ async def execute_gclql_query(
                 status_code=400, detail="sort_order must be 'asc' or 'desc'"
             )
 
+        logger.debug("QUERY_STRING: %s", q)
+
         count_query, search_query, search_query_params = query_parser.parse_query(
             q, sort_by=sort_by, sort_order=sort_order.lower()
         )
+
+        logger.debug("COUNT_QUERY: %s", count_query)
+        logger.debug("SEARCH_QUERY: %s", search_query)
+        logger.debug("SEARCH_QUERY_PARAMS: %s", search_query_params)
 
         return await database.perform_search(
             count_query, search_query, search_query_params, limit, offset
         )
 
     except ValueError as e:
+        logger.error("Invalid query", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Invalid query: {e}")
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred during query execution: {e}"
-        )
 
 
 @app.get("/stages/", response_model=list[DropdownItem])
@@ -138,16 +171,11 @@ async def get_stages(
     Get all available stages for the navigation dropdown.
     Optionally filter by accelerator, campaign, or detector.
     """
-    try:
-        return await database.get_stages(
-            accelerator_name=accelerator_name,
-            campaign_name=campaign_name,
-            detector_name=detector_name,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred while fetching stages: {e}"
-        )
+    return await database.get_stages(
+        accelerator_name=accelerator_name,
+        campaign_name=campaign_name,
+        detector_name=detector_name,
+    )
 
 
 @app.get("/campaigns/", response_model=list[DropdownItem])
@@ -162,16 +190,11 @@ async def get_campaigns(
     Get all available campaigns for the navigation dropdown.
     Optionally filter by accelerator, stage, or detector.
     """
-    try:
-        return await database.get_campaigns(
-            accelerator_name=accelerator_name,
-            stage_name=stage_name,
-            detector_name=detector_name,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred while fetching campaigns: {e}"
-        )
+    return await database.get_campaigns(
+        accelerator_name=accelerator_name,
+        stage_name=stage_name,
+        detector_name=detector_name,
+    )
 
 
 @app.get("/detectors/", response_model=list[DropdownItem])
@@ -186,16 +209,11 @@ async def get_detectors(
     Get all available detectors for the navigation dropdown.
     Optionally filter by accelerator, stage, or campaign.
     """
-    try:
-        return await database.get_detectors(
-            accelerator_name=accelerator_name,
-            stage_name=stage_name,
-            campaign_name=campaign_name,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"An error occurred while fetching detectors: {e}"
-        )
+    return await database.get_detectors(
+        accelerator_name=accelerator_name,
+        stage_name=stage_name,
+        campaign_name=campaign_name,
+    )
 
 
 @app.get("/accelerators/", response_model=list[DropdownItem])
@@ -208,17 +226,11 @@ async def get_accelerators(
     Get all available accelerators for the navigation dropdown.
     Optionally filter by stage, campaign, or detector.
     """
-    try:
-        return await database.get_accelerators(
-            stage_name=stage_name,
-            campaign_name=campaign_name,
-            detector_name=detector_name,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while fetching accelerators: {e}",
-        )
+    return await database.get_accelerators(
+        stage_name=stage_name,
+        campaign_name=campaign_name,
+        detector_name=detector_name,
+    )
 
 
 @app.post("/datasets/", response_model=list[dict[str, Any]])
@@ -227,18 +239,11 @@ async def get_datasets_by_ids(request: DatasetIdsRequest) -> Any:
     Get datasets by their IDs with all details and metadata flattened to top-level keys.
     Takes a list of dataset IDs and returns a list of dataset information.
     """
-    try:
-        if not request.dataset_ids:
-            return []
+    if not request.dataset_ids:
+        return []
 
-        datasets = await database.get_datasets_by_ids(request.dataset_ids)
-        return datasets
-    except Exception as e:
-        logger.error(e)
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while fetching datasets: {e}",
-        )
+    datasets = await database.get_datasets_by_ids(request.dataset_ids)
+    return datasets
 
 
 @app.get("/sorting-fields/", response_model=dict[str, Any])
@@ -247,13 +252,8 @@ async def get_sorting_fields() -> dict[str, Any]:
     Get available fields for sorting in the query endpoint.
     Returns a flat list of all sortable fields for easy UI consumption.
     """
-    try:
-        return await database.get_sorting_fields()
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while fetching sorting fields: {e}",
-        )
+    result = await database.get_sorting_fields()
+    return result
 
 
 @app.get("/datasets/{dataset_id}", response_model=dict[str, Any])
@@ -270,12 +270,6 @@ async def get_dataset_by_id(dataset_id: int) -> Any:
         return dataset
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error fetching dataset {dataset_id}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while fetching the dataset: {e}",
-        )
 
 
 @app.put("/authorized/datasets/{dataset_id}", response_model=dict[str, Any])
@@ -298,12 +292,6 @@ async def update_dataset(dataset_id: int, update_data: DatasetUpdate) -> Any:
         return updated_dataset
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error updating dataset {dataset_id}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occurred while updating the dataset: {e}",
-        )
 
 
 @app.get("/authorized/test")

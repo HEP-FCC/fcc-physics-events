@@ -246,6 +246,10 @@ class SqlTranslator:
             return f"{sql_field} IS NOT NULL"
 
     def _translate_global_search(self, node: GlobalSearch) -> str:
+        # If the search value is '*' or empty, do not filter (all values are good)
+        if str(node.value).strip() in ("*", ""):
+            return "TRUE"
+
         clauses = []
         for field_name in self.global_search_fields:
             self.param_index += 1

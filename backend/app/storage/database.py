@@ -69,10 +69,42 @@ class Database:
             schema_file = config.get(
                 "schema_file", Path(__file__).parent / "database.sql"
             )
+
             with open(schema_file, encoding="utf-8") as f:
                 schema_sql = f.read()
+
+            # Use advisory lock to prevent concurrent schema application from multiple workers
             async with self.session() as conn:
-                await conn.execute(schema_sql)
+                # Use a consistent advisory lock ID for this application
+                # This prevents multiple workers from applying schema simultaneously
+                await conn.execute("SELECT pg_advisory_lock(1234567890)")
+                try:
+                    # Check if our application schema has been applied by looking for our custom function
+                    # This is more reliable than checking for tables since the public schema always exists
+                    schema_applied = await conn.fetchval("""
+                        SELECT EXISTS(
+                            SELECT 1 FROM pg_proc p
+                            JOIN pg_namespace n ON p.pronamespace = n.oid
+                            WHERE n.nspname = 'public'
+                            AND p.proname = 'jsonb_values_to_text'
+                        )
+                    """)
+
+                    if not schema_applied:
+                        logger.info(
+                            "Application schema not found, applying schema (this worker won the race)..."
+                        )
+                        async with conn.transaction():
+                            await conn.execute(schema_sql)
+                        logger.info("Database schema applied successfully")
+                    else:
+                        logger.info(
+                            "Application schema already exists, skipping schema application..."
+                        )
+                finally:
+                    # Release advisory lock
+                    await conn.execute("SELECT pg_advisory_unlock(1234567890)")
+
             logger.info("Database setup successfully.")
         except Exception as e:
             logger.error(f"Error setting up database: {e}")
