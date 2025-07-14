@@ -1,6 +1,6 @@
 <template>
     <UContainer class="py-4 sm:py-6 lg:py-8">
-        <MegaDatasetInterface :initial-filters="activeFilters" :route-params="routeParams" />
+        <DatasetSearchInterface :initial-filters="activeFilters" :route-params="routeParams" />
     </UContainer>
 </template>
 

@@ -1,7 +1,9 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
     compatibilityDate: "2025-05-15",
-    // devtools: { enabled: true },
+
+    // Enable CSR mode for better search application performance
+    ssr: false,
+
     colorMode: {
         preference: "light",
     },
@@ -10,21 +12,28 @@ export default defineNuxtConfig({
     css: ["assets/css/main.css"],
 
     runtimeConfig: {
-        // Private config that is only available on the server
-
-        // Public config that is available on both server and client
         public: {
             apiBaseUrl: process.env.BACKEND_URL || "http://localhost:8000",
         },
     },
 
-    // Add this vite configuration for better file system watching in Docker
+    // Fix for module resolution issues
     vite: {
-        server: {
-            watch: {
-                usePolling: true,
-                interval: 100,
-            },
+        optimizeDeps: {
+            exclude: ["@nuxt/kit"],
+        },
+    },
+
+    // Performance optimizations for CSR
+    experimental: {
+        payloadExtraction: false,
+    },
+
+    // App configuration
+    app: {
+        head: {
+            viewport: "width=device-width,initial-scale=1",
+            charset: "utf-8",
         },
     },
 });

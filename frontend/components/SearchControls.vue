@@ -9,13 +9,12 @@
         <div class="flex gap-2 items-center">
             <div class="flex-grow relative">
                 <UInput
-                    :model-value="modelValue"
-                    :placeholder="placeholder"
+                    v-model="searchQuery"
+                    :placeholder="searchPlaceholderText"
                     size="lg"
                     icon="i-heroicons-magnifying-glass"
                     class="pr-10 w-full"
-                    @update:model-value="$emit('update:modelValue', $event)"
-                    @keydown.enter="handleSearch"
+                    @keydown.enter="$emit('search')"
                 />
                 <UTooltip
                     class="absolute right-2 top-1/2 transform -translate-y-1/2 z-10"
@@ -38,10 +37,6 @@
                                             <code :class="codeClass">"H to cu"</code>
                                             - Filter by any field containing this string
                                         </div>
-                                        <!-- <div>
-                                            <code :class="codeClass">last_edited_at>="2024-01-01"</code>
-                                            - Date filter # TODO:
-                                        </div> -->
                                         <div>
                                             <code :class="codeClass">metadata.description:"ee -> Z(nu nu)"</code>
                                             - Metadata text field
@@ -69,10 +64,10 @@
                                     <div class="flex flex-wrap gap-1">
                                         <code :class="codeClass">=</code>
                                         <code :class="codeClass">!=</code>
-                                        <code :class="codeClass">></code>
-                                        <code :class="codeClass"><</code>
-                                        <code :class="codeClass">>=</code>
-                                        <code :class="codeClass"><=</code>
+                                        <code :class="codeClass">&gt;</code>
+                                        <code :class="codeClass">&lt;</code>
+                                        <code :class="codeClass">&gt;=</code>
+                                        <code :class="codeClass">&lt;=</code>
                                     </div>
                                     <div class="text-xs text-gray-600 dark:text-gray-400 mt-2">
                                         <div>
@@ -125,7 +120,7 @@
                 variant="solid"
                 size="lg"
                 class="cursor-pointer"
-                @click="handleSearch"
+                @click="$emit('search')"
             >
                 Search
             </UButton>
@@ -151,72 +146,103 @@
                 </div>
             </div>
         </div>
+
+        <UAlert
+            v-if="searchError"
+            color="error"
+            variant="soft"
+            icon="i-heroicons-exclamation-triangle"
+            :title="searchError"
+            description="Please check your query syntax and try again."
+            closable
+            @close="$emit('clearError')"
+        />
+
+        <UAlert
+            v-if="!apiAvailable"
+            color="warning"
+            variant="soft"
+            icon="i-heroicons-exclamation-triangle"
+            title="API Server Unavailable"
+            description="Unable to connect to the backend server. Please check if the server is running."
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import type { SearchControlsProps, SearchEvents } from "~/types/components";
-
-const codeClass = "bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono";
-
-const props = withDefaults(defineProps<SearchControlsProps & { modelValue: string }>(), {
-    placeholder: "Search datasets...",
-    showFilterNote: false,
-    canCopyLink: false,
-});
-
-const emit = defineEmits<
-    {
-        "update:modelValue": [value: string];
-        search: [];
-    } & SearchEvents
->();
-
-const isPermalinkCopyInProgress = ref(false);
-const showLinkCopiedFeedback = ref(false);
-
-function handleSearch() {
-    emit("search");
+interface Props {
+    searchQuery: string;
+    searchPlaceholderText: string;
+    showFilterNote: boolean;
+    canCopyLink: boolean;
+    searchError: string | null;
+    apiAvailable: boolean;
 }
 
-function openQueryDocumentation() {
+interface Emits {
+    (e: "update:searchQuery", value: string): void;
+    (e: "search" | "clearError"): void;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+
+// Search query model with emit on update
+const searchQuery = computed({
+    get: () => props.searchQuery,
+    set: (value: string) => emit("update:searchQuery", value),
+});
+
+// UI state for permalink functionality
+const isPermalinkCopyInProgress = ref(false);
+const showLinkCopiedFeedback = ref(false);
+const codeClass = "bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono";
+
+// Utility functions
+const { copyToClipboard } = useUtils();
+
+/**
+ * Open external query documentation
+ */
+function openQueryDocumentation(): void {
     window.open("https://cloud.google.com/logging/docs/view/logging-query-language", "_blank");
 }
 
-function showSuccessNotification() {
+/**
+ * Show success notification for link copied
+ */
+function showSuccessNotification(): void {
     showLinkCopiedFeedback.value = true;
     setTimeout(() => {
         showLinkCopiedFeedback.value = false;
     }, 2000);
 }
 
-// Utility for copying text to clipboard with fallback
-async function copyToClipboard(text: string): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(text);
-    } catch {
-        // Fallback for older browsers
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textArea);
-    }
-}
+/**
+ * Generate shareable permalink URL with current search state
+ */
+const generatePermalinkUrl = (): string => {
+    const currentUrl = new URL(window.location.href);
+    const params = new URLSearchParams();
 
-async function handleCopyPermalink() {
+    if (props.searchQuery.trim()) params.set("q", props.searchQuery.trim());
+
+    const baseUrl = `${currentUrl.origin}${currentUrl.pathname}`;
+    const queryString = params.toString();
+    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+};
+
+/**
+ * Handle permalink copy action with loading states
+ */
+async function handleCopyPermalink(): Promise<void> {
     if (isPermalinkCopyInProgress.value) return;
 
     try {
         isPermalinkCopyInProgress.value = true;
-        const permalinkUrl = props.generatePermalinkUrl();
+        const permalinkUrl = generatePermalinkUrl();
         await copyToClipboard(permalinkUrl);
         showSuccessNotification();
-        emit("permalink-copied");
     } catch (error) {
         console.error("Failed to copy permalink:", error);
     } finally {

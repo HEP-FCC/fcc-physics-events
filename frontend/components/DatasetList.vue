@@ -1,48 +1,209 @@
 <template>
-    <div class="space-y-2">
-        <!-- Dataset cards -->
-        <DatasetCard
-            v-for="(dataset, index) in datasets"
-            :key="dataset.dataset_id"
-            :dataset="dataset"
-            :index="index"
-            :is-selected="isDatasetSelected(dataset.dataset_id)"
-            :is-expanded="isMetadataExpanded(dataset.dataset_id)"
-            @toggle-selection="$emit('toggle-selection', $event)"
-            @toggle-metadata="$emit('toggle-metadata', $event)"
-            @row-click="(event, datasetId) => $emit('row-click', event, datasetId)"
-        />
+    <div>
+        <!-- Dataset List -->
+        <div class="space-y-2">
+            <!-- Dataset cards -->
+            <UCard
+                v-for="(dataset, index) in datasets"
+                :key="dataset.dataset_id"
+                :data-dataset-card="index"
+                class="overflow-hidden select-text cursor-pointer"
+                @click="handleRowClick($event, dataset.dataset_id)"
+            >
+                <div class="px-2 py-1.5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <!-- Row 1: Dataset name (full width) -->
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <UCheckbox
+                                    :model-value="isDatasetSelected(dataset.dataset_id)"
+                                    class="flex-shrink-0"
+                                    @click.stop
+                                    @change="toggleDatasetSelection(dataset.dataset_id)"
+                                />
+                                <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
+                                    {{ dataset.name }}
+                                </h3>
+                                <UBadge color="neutral" variant="soft" size="xs" class="flex-shrink-0">
+                                    ID: {{ dataset.dataset_id }}
+                                </UBadge>
+                            </div>
 
-        <!-- Loading states and load more controls -->
-        <div v-if="shouldShowLoadingIndicator" class="flex justify-center py-8">
-            <div class="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
-                <span>Loading more results...</span>
+                            <!-- Row 2: Badges and timestamps in one compact row -->
+                            <div class="flex items-center justify-between gap-4 ml-6">
+                                <!-- Left side: Dataset badges -->
+                                <div class="flex flex-wrap gap-1.5 flex-1">
+                                    <template v-for="badge in getBadgeItems(dataset)" :key="badge.key">
+                                        <UBadge
+                                            v-if="badge.value"
+                                            :color="badge.color"
+                                            :variant="badge.key.startsWith('status_') ? 'soft' : 'subtle'"
+                                            size="sm"
+                                        >
+                                            {{ badge.label }}: {{ badge.value }}
+                                        </UBadge>
+                                    </template>
+                                </div>
+
+                                <!-- Right side: Timestamps -->
+                                <div class="flex gap-4 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                    <span>Created: {{ formatTimestamp(dataset.created_at) }}</span>
+                                    <span
+                                        v-if="wasDatasetEdited(dataset)"
+                                        class="text-amber-600 dark:text-amber-400 flex items-center gap-1 cursor-help"
+                                        :title="`Last edited: ${formatTimestamp(dataset.last_edited_at!)}`"
+                                    >
+                                        <span class="text-[10px]">✎</span>
+                                        Edited
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <UButton
+                            :icon="
+                                isMetadataExpanded(dataset.dataset_id)
+                                    ? 'i-heroicons-chevron-up'
+                                    : 'i-heroicons-chevron-down'
+                            "
+                            color="neutral"
+                            variant="ghost"
+                            size="xs"
+                            class="flex-shrink-0"
+                            @click.stop="toggleMetadata(dataset.dataset_id)"
+                        />
+                    </div>
+                </div>
+
+                <!-- Metadata component (inline) -->
+                <div
+                    v-if="isMetadataExpanded(dataset.dataset_id)"
+                    class="border-t border-gray-200 bg-gray-50 cursor-default"
+                    @click.stop
+                >
+                    <DatasetMetadata
+                        :dataset-id="dataset.dataset_id"
+                        :metadata="dataset.metadata"
+                        :edit-state="metadataEditState[dataset.dataset_id]"
+                        @enter-edit="enterEditMode"
+                        @cancel-edit="cancelEdit"
+                        @save-metadata="saveMetadata"
+                    />
+                </div>
+            </UCard>
+
+            <!-- Loading states and load more controls -->
+            <div v-if="shouldShowLoadingIndicator" class="flex justify-center py-8">
+                <div class="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
+                    <span>Loading more results...</span>
+                </div>
             </div>
-        </div>
 
-        <div v-else-if="shouldShowCompletionMessage" class="flex justify-center py-6">
-            <div class="text-center text-sm text-gray-500 dark:text-gray-400">
-                <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
-                All {{ totalDatasets }} results loaded
+            <div v-else-if="shouldShowCompletionMessage" class="flex justify-center py-6">
+                <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+                    <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
+                    All {{ pagination.totalDatasets }} results loaded
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import type { DatasetListProps, DatasetSelectionEvents, PaginationEvents } from "~/types/components";
+import type {
+    Dataset,
+    PaginationState,
+    SortState,
+    SelectionState,
+    SearchState,
+    MetadataEditState,
+} from "~/types/dataset";
 
-const props = defineProps<DatasetListProps>();
-defineEmits<DatasetSelectionEvents & PaginationEvents>();
+/**
+ * Dataset List Component
+ * Handles dataset display, selection, metadata expansion, and infinite scroll
+ */
 
-// Computed properties for loading state management
-const shouldShowLoadingIndicator = computed(() => {
-    return props.isLoadingMore && props.infiniteScrollEnabled && props.canAutoLoad;
-});
+interface Props {
+    datasets: Dataset[];
+    pagination: PaginationState;
+    sortState: SortState;
+    selectionState: SelectionState;
+    searchState: SearchState;
+    metadataEditState: Record<number, MetadataEditState>;
+    infiniteScrollEnabled: boolean;
+    sortingFieldOptions: Array<{ label: string; value: string }>;
+    currentDisplayRange: { start: number; end: number; total: number };
+    shouldShowLoadingIndicator: boolean;
+    shouldShowCompletionMessage: boolean;
+}
 
+interface Emits {
+    (e: "toggleDatasetSelection" | "toggleMetadata" | "cancelEdit" | "saveMetadata", datasetId: number): void;
+    (e: "enterEditMode", datasetId: number, metadata: Record<string, unknown>): void;
+}
 
-const shouldShowCompletionMessage = computed(() => {
-    return !props.hasMore && props.datasets.length > 0 && props.totalDatasets > 0;
-});
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+
+// Composables
+const { getBadgeItems, formatTimestamp } = useUtils();
+
+// Helper function to check if dataset was actually edited
+function wasDatasetEdited(dataset: Dataset): boolean {
+    if (!dataset.last_edited_at) return false;
+
+    // Parse dates and compare timestamps
+    const created = new Date(dataset.created_at).getTime();
+    const edited = new Date(dataset.last_edited_at).getTime();
+
+    // Consider edited if there's more than 1 second difference (to account for minor timing differences)
+    return Math.abs(edited - created) > 1000;
+}
+
+// Methods
+function toggleDatasetSelection(datasetId: number): void {
+    emit("toggleDatasetSelection", datasetId);
+}
+
+function toggleMetadata(datasetId: number): void {
+    emit("toggleMetadata", datasetId);
+}
+
+function enterEditMode(datasetId: number, metadata: Record<string, unknown>): void {
+    emit("enterEditMode", datasetId, metadata);
+}
+
+function cancelEdit(datasetId: number): void {
+    emit("cancelEdit", datasetId);
+}
+
+function saveMetadata(datasetId: number): void {
+    emit("saveMetadata", datasetId);
+}
+
+function isDatasetSelected(datasetId: number): boolean {
+    return props.selectionState.selectedDatasets.has(datasetId);
+}
+
+function isMetadataExpanded(datasetId: number): boolean {
+    return props.selectionState.expandedMetadata.has(datasetId);
+}
+
+function handleRowClick(event: MouseEvent, datasetId: number): void {
+    // Don't trigger row click if text is being selected
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+        return;
+    }
+
+    // Don't trigger row click for interactive elements
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input")) {
+        return;
+    }
+
+    toggleMetadata(datasetId);
+}
 </script>

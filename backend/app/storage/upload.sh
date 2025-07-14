@@ -28,7 +28,7 @@ log() {
 
 # --- Pre-flight Checks ---
 # Check if the 'curl' command is available.
-if ! command -v curl &> /dev/null; then
+if ! command -v curl &>/dev/null; then
   log "ERROR: 'curl' command is not installed. Please install it to continue."
   exit 1
 fi
@@ -49,7 +49,6 @@ if [ ! -d "$SOURCE_DIR" ]; then
   exit 1
 fi
 
-
 # --- Main Logic ---
 log "Starting batch upload from directory: $SOURCE_DIR"
 log "Target API endpoint: $API_ENDPOINT"
@@ -58,7 +57,7 @@ echo "--------------------------------------------------"
 # Find all files ending with .json (case-insensitive) in the source directory.
 # The `-print0` and `while read -d ''` combination handles filenames with spaces.
 find "$SOURCE_DIR" -type f -iname "*.json" -print0 | while IFS= read -r -d '' json_file; do
-#   log "Uploading file: '$json_file'"
+  #   log "Uploading file: '$json_file'"
 
   # Use curl to upload the file.
   # -X POST: Specifies the HTTP POST method.
@@ -66,7 +65,8 @@ find "$SOURCE_DIR" -type f -iname "*.json" -print0 | while IFS= read -r -d '' js
   #   This is what FastAPI's `UploadFile` expects. 'file' is the name of the field.
   # -s: Silent mode to suppress progress meter.
   # -w "\nHTTP Status: %{http_code}\n": Prints the HTTP status code after the request.
-  response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -F "file=@$json_file;type=application/json" "$API_ENDPOINT")
+  # response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -F "file=@$json_file;type=application/json" "$API_ENDPOINT")
+  response=$(curl "\nHTTP_STATUS:%{http_code}" -X POST -F "file=@$json_file;type=application/json" "$API_ENDPOINT")
 
   # Extract the body and status code from the response
   http_body=$(echo "$response" | sed '$d')
@@ -83,4 +83,3 @@ find "$SOURCE_DIR" -type f -iname "*.json" -print0 | while IFS= read -r -d '' js
 done
 
 log "Batch upload complete."
-

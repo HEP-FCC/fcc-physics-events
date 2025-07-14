@@ -99,7 +99,7 @@ async def root() -> dict[str, str]:
     return {"message": "Welcome to the FCC Physics Events API"}
 
 
-@app.post("/authorized/upload-fcc-dict/", status_code=202)
+@app.post("/upload-fcc-dict/", status_code=202)
 async def upload_fcc_dictionary(file: UploadFile = File(...)) -> dict[str, str]:
     """Accepts and processes an FCC JSON dictionary with proper transaction handling."""
     if file.content_type != "application/json":
@@ -272,7 +272,7 @@ async def get_dataset_by_id(dataset_id: int) -> Any:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.put("/authorized/datasets/{dataset_id}", response_model=dict[str, Any])
+@app.put("/datasets/{dataset_id}", response_model=dict[str, Any])
 async def update_dataset(dataset_id: int, update_data: DatasetUpdate) -> Any:
     """
     Update a dataset with the provided data.
