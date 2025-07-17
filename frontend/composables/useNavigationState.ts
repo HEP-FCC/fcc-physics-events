@@ -103,14 +103,9 @@ export function useNavigationState() {
         }
 
         loadingRef.value = true;
-
         try {
-            console.log(`Loading ${type} options with filters:`, filters);
             const newItems = await apiClient.getNavigationOptions(type, filters);
-            console.log(`Loaded ${newItems.length} ${type} options:`, newItems);
-
             itemsRef.value = newItems;
-            console.log(`After assignment, ${type} items:`, itemsRef.value);
         } catch (error) {
             console.error(`Error loading ${type}:`, error);
             itemsRef.value = [];

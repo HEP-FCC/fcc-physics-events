@@ -139,6 +139,14 @@ export function useDatasetSearch() {
      * Main search function with pagination and error handling
      */
     async function performSearch(resetResults = true): Promise<void> {
+        console.log("🚀 performSearch called", {
+            resetResults,
+            apiAvailable: apiAvailable.value,
+            combinedQuery: combinedSearchQuery.value,
+            userQuery: userSearchQuery.value,
+            activeFilters: activeFilters.value
+        });
+
         if (!apiAvailable.value) {
             console.warn("API is unavailable, skipping search");
             return;
@@ -311,16 +319,37 @@ export function useDatasetSearch() {
      * Initialize search with auto-search if needed
      */
     async function initializeSearch(initialFilters: Record<string, string>): Promise<void> {
+        console.log("🔍 initializeSearch called", {
+            initialFilters,
+            userSearchQuery: userSearchQuery.value,
+            activeFilters: activeFilters.value,
+            routeQuery: route.query
+        });
+
         // Initialize filters from props first
         if (Object.keys(initialFilters).length > 0) {
             updateFilters(initialFilters);
+            console.log("📝 Updated filters, activeFilters now:", activeFilters.value);
         }
 
-        // Automatically perform search if query or filters are present
-        if (
-            (userSearchQuery.value && userSearchQuery.value.trim() !== "") ||
-            Object.keys(activeFilters.value).length > 0
-        ) {
+        // Check conditions for auto-search
+        const hasUserQuery = userSearchQuery.value && userSearchQuery.value.trim() !== "";
+        const hasActiveFilters = Object.keys(activeFilters.value).length > 0;
+        const hasInitialFilters = Object.keys(initialFilters).length > 0;
+
+        console.log("🤔 Search conditions:", {
+            hasUserQuery,
+            hasActiveFilters,
+            hasInitialFilters,
+            combinedQuery: combinedSearchQuery.value
+        });
+
+        // Automatically perform search if query or filters are present, OR if no conditions are met (show all)
+        if (hasUserQuery || hasActiveFilters || hasInitialFilters) {
+            console.log("✅ Triggering initial search with conditions");
+            await performSearch(true);
+        } else {
+            console.log("✅ Triggering initial search to show all datasets (no filters)");
             await performSearch(true);
         }
     }

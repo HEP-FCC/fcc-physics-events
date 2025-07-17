@@ -204,22 +204,34 @@ export function useDatasetSelection() {
         datasetId: number,
         datasets: Dataset[],
         updateDataset: (index: number, dataset: Dataset) => void,
+        editedJson?: string,
     ): Promise<void> {
         const editState = metadataEditState[datasetId];
         if (!editState) return;
 
         const toast = useToast();
+        // const { isAuthenticated, login } = useAuth();
+
+        // // Check if user is authenticated
+        // if (!isAuthenticated.value) {
+        //     toast.add({
+        //         title: "Authentication Required",
+        //         description: "Please login to save dataset metadata.",
+        //         color: "warning",
+        //     });
+
+        //     // Trigger login
+        //     login();
+        //     return;
+        // }
 
         try {
-            const parsedMetadata = JSON.parse(editState.json);
+            // Use the edited JSON if provided, otherwise fall back to the edit state JSON
+            const jsonToSave = editedJson || editState.json;
+            const parsedMetadata = JSON.parse(jsonToSave);
 
-            console.log("GOING TO CALL THE BACKEND API NOW.");
-            console.log("API URL will be:", `${apiClient.baseUrl}/authorized/datasets/${datasetId}`);
-            console.log("Metadata to send:", parsedMetadata);
-
-            // Call the backend API to save metadata
+            // Call the backend API to save metadata with session-based authentication
             await apiClient.updateDataset(datasetId, parsedMetadata);
-            console.log("CALLED THE BACKEND API NOW.");
 
             toast.add({
                 title: "Success",
@@ -243,6 +255,17 @@ export function useDatasetSelection() {
             }
         } catch (error: unknown) {
             if (apiAvailable.value) {
+                // Check if it's an authentication error
+                if (error instanceof Error && error.message.includes("401")) {
+                    toast.add({
+                        title: "Authentication Required",
+                        description: "Your session has expired. Please login again.",
+                        color: "warning",
+                    });
+                    // login();
+                    return;
+                }
+
                 const errorMessage =
                     error instanceof Error
                         ? error.message

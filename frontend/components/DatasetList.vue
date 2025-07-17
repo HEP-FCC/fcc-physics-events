@@ -140,7 +140,8 @@ interface Props {
 }
 
 interface Emits {
-    (e: "toggleDatasetSelection" | "toggleMetadata" | "cancelEdit" | "saveMetadata", datasetId: number): void;
+    (e: "toggleDatasetSelection" | "toggleMetadata" | "cancelEdit", datasetId: number): void;
+    (e: "saveMetadata", datasetId: number, editedJson?: string): void;
     (e: "enterEditMode", datasetId: number, metadata: Record<string, unknown>): void;
 }
 
@@ -179,8 +180,8 @@ function cancelEdit(datasetId: number): void {
     emit("cancelEdit", datasetId);
 }
 
-function saveMetadata(datasetId: number): void {
-    emit("saveMetadata", datasetId);
+function saveMetadata(datasetId: number, editedJson?: string): void {
+    emit("saveMetadata", datasetId, editedJson);
 }
 
 function isDatasetSelected(datasetId: number): boolean {

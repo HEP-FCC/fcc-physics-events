@@ -10,12 +10,30 @@
                     </p>
                 </div>
                 <div class="flex gap-2">
-                    <UButton icon="i-heroicons-check" color="primary" variant="solid" size="sm" @click="saveMetadata">
-                        Save Changes
+                    <UButton
+                        icon="i-heroicons-check"
+                        color="primary"
+                        variant="solid"
+                        size="sm"
+                        @click="saveMetadata"
+                        :disabled="isAuthenticated"
+                    >
+
+                        <!-- # TODO:  {{ isAuthenticated ? "Save Changes" : "Login Required" }} -->
+                        {{ !isAuthenticated ? "Save Changes" : "Login Required" }}
                     </UButton>
                     <UButton icon="i-heroicons-x-mark" color="neutral" variant="outline" size="sm" @click="cancelEdit">
                         Cancel
                     </UButton>
+                </div>
+
+                <!-- Authentication notice -->
+                <div
+                    v-if="isAuthenticated"
+                    class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded border border-amber-200 dark:border-amber-800"
+                >
+                    <Icon name="i-heroicons-exclamation-triangle" class="w-3 h-3 inline mr-1" />
+                    Authentication required to save metadata changes
                 </div>
             </div>
 
@@ -202,7 +220,7 @@ interface Props {
 
 interface Emits {
     (e: "enterEdit", datasetId: number, metadata: Record<string, unknown>): void;
-    (e: "cancelEdit" | "saveMetadata", datasetId: number): void;
+    (e: "cancelEdit" | "saveMetadata", datasetId: number, editedJson?: string): void;
 }
 
 const props = defineProps<Props>();
@@ -210,6 +228,7 @@ const emit = defineEmits<Emits>();
 
 // Composables
 const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField } = useUtils();
+const { isAuthenticated } = useAuth();
 
 // Local reactive state for editing
 const localEditJson = ref(props.editState?.json || "");
@@ -235,7 +254,7 @@ const cancelEdit = (): void => {
 };
 
 const saveMetadata = (): void => {
-    emit("saveMetadata", props.datasetId);
+    emit("saveMetadata", props.datasetId, localEditJson.value);
 };
 
 const formatJson = (): void => {
@@ -455,10 +474,10 @@ const getGridSpanClass = (key: string, value: unknown, type: string): string => 
         return contentLength <= 30
             ? "col-span-3"
             : contentLength <= 50
-              ? "col-span-4"
-              : contentLength <= 70
-                ? "col-span-6"
-                : "col-span-12";
+            ? "col-span-4"
+            : contentLength <= 70
+            ? "col-span-6"
+            : "col-span-12";
     } else {
         // Short strings - be more aggressive with space
         if (contentLength <= 15) return "col-span-2";

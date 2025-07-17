@@ -12,6 +12,12 @@ dependencies = [
     "structlog>=25.4.0",
     "pyhocon>=0.3.61",
     "fastapi-oidc>=0.0.10",
+    "authlib>=1.6.0",
+    "httpx>=0.28.1",
+    "starlette>=0.38.6",
+    "itsdangerous>=2.2.0",
+    "pyjwt[crypto]>=2.9.0",
+    "cryptography>=42.0.0",
 ]
 
 [tool.uv]
@@ -55,5 +61,5 @@ ignore = [
 keep-runtime-typing = true
 
 [[tool.mypy.overrides]]
-module = ["asyncpg.*", "pyhocon.*"]
+module = ["asyncpg.*", "pyhocon.*", "authlib.*"]
 ignore_missing_imports = true

@@ -23,6 +23,8 @@
             </div>
         </UCard>
 
+
+
         <!-- Results -->
         <div v-else-if="search.datasets.value.length > 0" class="space-y-6">
             <!-- Dataset Controls & Results Summary -->
@@ -65,11 +67,12 @@
                 @enter-edit-mode="selection.enterEditMode"
                 @cancel-edit="selection.cancelEdit"
                 @save-metadata="
-                    (datasetId: number) =>
+                    (datasetId: number, editedJson?: string) =>
                         selection.saveMetadataChanges(
                             datasetId,
                             search.datasets.value as Dataset[],
                             search.updateDataset,
+                            editedJson,
                         )
                 "
             />
@@ -218,6 +221,12 @@ useInfiniteScroll(window, () => search.loadMoreData(), {
 
 // Component lifecycle
 onMounted(async () => {
+    console.log("🎯 DatasetSearchInterface onMounted", {
+        initialFilters: props.initialFilters,
+        routeParams: props.routeParams,
+        isInitialized: isInitialized.value
+    });
+
     if (!isInitialized.value) {
         // Initialize search with any initial filters
         await search.initializeSearch(props.initialFilters);
