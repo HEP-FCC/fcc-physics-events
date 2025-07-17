@@ -31,3 +31,12 @@
         </main>
     </UApp>
 </template>
+
+<script setup lang="ts">
+// Check authentication status on app initialization
+const { checkAuthStatus } = useAuth();
+
+onMounted(async () => {
+    await checkAuthStatus();
+});
+</script>

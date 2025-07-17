@@ -47,6 +47,35 @@ async def get_and_validate_user_from_token(
         )
 
 
+async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]:
+    """Get current user from session cookie with CERN validation."""
+    try:
+        # Check if session has auth info
+        token = request.session.get("token")
+        user = request.session.get("user")
+
+        if not token or not user:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication required. Please login.",
+            )
+
+        # Validate the token with CERN
+        decoded_token = cern_auth.jwt_decode_token(token)
+        user_data = await cern_auth.validate_user_from_token(decoded_token)
+
+        return user_data
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during session validation: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Session validation failed. Please login again.",
+        )
+
+
 logger = get_logger(__name__)
 config = get_config()
 
@@ -170,6 +199,15 @@ async def auth(request: Request) -> JSONResponse:
         )
 
     jwt_encoded_token = cern_auth.jwt_encode_token(payload["access_token"])
+
+    # Store auth info in session for cookie-based authentication
+    request.session["token"] = jwt_encoded_token
+    request.session["user"] = {
+        "given_name": userinfo["given_name"],
+        "family_name": userinfo["family_name"],
+        "preferred_username": userinfo.get("preferred_username"),
+    }
+
     return JSONResponse(
         content={
             "token": jwt_encoded_token,
@@ -182,7 +220,25 @@ async def auth(request: Request) -> JSONResponse:
     )
 
 
-# TODO: logout button/api method
+@app.get("/logout")
+async def logout(request: Request) -> JSONResponse:
+    """Get CERN SSO logout URL and clear session."""
+    # Clear the session
+    request.session.clear()
+
+    # Return CERN SSO logout URL
+    cern_logout_url = (
+        "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/logout"
+    )
+    post_logout_redirect_uri = config.get(
+        "general.FRONTEND_URL", "http://localhost:3000"
+    )
+
+    logout_url = (
+        f"{cern_logout_url}?post_logout_redirect_uri={post_logout_redirect_uri}"
+    )
+
+    return JSONResponse(content={"logout_url": logout_url})
 
 
 @app.get("/test")
@@ -207,7 +263,7 @@ async def root() -> list[dict[str, set[str]]]:
 @app.post("/upload-fcc-dict/", status_code=202)
 async def upload_fcc_dictionary(
     file: UploadFile = File(...),
-    user: dict[str, Any] = Depends(get_and_validate_user_from_token),
+    # user: dict[str, Any] = Depends(get_and_validate_user_from_token),
 ) -> dict[str, str]:
     """Accepts and processes an FCC JSON dictionary with proper transaction handling."""
     if file.content_type != "application/json":
@@ -216,9 +272,9 @@ async def upload_fcc_dictionary(
         )
 
     try:
-        logger.info(
-            f"User {user.get('preferred_username', 'unknown')} uploading FCC dictionary: {file.filename}"
-        )
+        # logger.info(
+        #     f"User {user.get('preferred_username', 'unknown')} uploading FCC dictionary: {file.filename}"
+        # )
         contents = await file.read()
         await database.import_fcc_dict(contents)
         return {
@@ -387,11 +443,12 @@ async def get_dataset_by_id(dataset_id: int) -> Any:
 async def update_dataset(
     dataset_id: int,
     update_data: DatasetUpdate,
-    user: dict[str, Any] = Depends(get_and_validate_user_from_token),
+    request: Request,
+    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
 ) -> Any:
     """
     Update a dataset with the provided data.
-    Requires authentication via JWT token.
+    Requires authentication via session cookie.
     """
     try:
         logger.info(
@@ -409,3 +466,17 @@ async def update_dataset(
         return updated_dataset
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/session-status")
+async def get_session_status(request: Request) -> JSONResponse:
+    """Get current session authentication status."""
+    token = request.session.get("token")
+    user = request.session.get("user")
+
+    if token and user:
+        return JSONResponse(content={"authenticated": True, "user": user})
+    else:
+        return JSONResponse(content={"authenticated": False, "user": None})
+
+# TODO: logout button/api method

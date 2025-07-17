@@ -1,11 +1,10 @@
 import { ref, readonly } from "vue";
 
 interface User {
-    email?: string;
-    name?: string;
+    given_name?: string;
+    family_name?: string;
     preferred_username?: string;
-    sub?: string;
-    [key: string]: any;
+    // [key: string]: any;
 }
 
 interface AuthState {
@@ -13,11 +12,10 @@ interface AuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     error: string | null;
-    accessToken: string | null;
 }
 
 /**
- * Authentication composable for CERN OAuth
+ * Authentication composable for CERN OAuth with cookie-based sessions
  * Handles login, logout, and user session management
  */
 export function useAuth() {
@@ -31,39 +29,49 @@ export function useAuth() {
             isAuthenticated: false,
             isLoading: false,
             error: null,
-            accessToken: null,
         }),
     );
 
+    // Watch the cookie for changes and update auth state automatically
+    const authCookie = useCookie("fcc-physics-events-web");
+
+    watch(
+        authCookie,
+        (newCookieValue) => {
+            if (newCookieValue) {
+                const cookieData = newCookieValue as any;
+                if (cookieData.token && cookieData.user) {
+                    authState.value.isAuthenticated = true;
+                    authState.value.user = cookieData.user;
+                    authState.value.error = null;
+                } else {
+                    authState.value.isAuthenticated = false;
+                    authState.value.user = null;
+                }
+            } else {
+                authState.value.isAuthenticated = false;
+                authState.value.user = null;
+            }
+        },
+        { immediate: true },
+    );
+
     /**
-     * Check if user is currently authenticated
+     * Check if user is currently authenticated by checking the frontend cookie
      */
     async function checkAuthStatus(): Promise<void> {
+        // The watcher handles most of the work, but we can trigger it manually if needed
         authState.value.isLoading = true;
         authState.value.error = null;
 
         try {
-            // Check if we have a stored token
-            const token = localStorage.getItem("auth_token");
-            if (!token) {
-                authState.value.isAuthenticated = false;
-                authState.value.user = null;
-                authState.value.accessToken = null;
-                return;
-            }
+            const authCookie = useCookie("fcc-physics-events-web");
+            // Trigger watcher by accessing the cookie value
+            const cookieValue = authCookie.value;
 
-            // Validate token with backend
-            const response = await apiClient.getCurrentUser(token);
-            authState.value.isAuthenticated = response.authenticated;
-            authState.value.user = response.user || null;
-            authState.value.accessToken = token;
+            // The watcher will update the auth state based on the cookie value
         } catch (error) {
-            // Token invalid, clear it
-            localStorage.removeItem("auth_token");
-            authState.value.isAuthenticated = false;
-            authState.value.user = null;
-            authState.value.accessToken = null;
-            authState.value.error = "Authentication expired";
+            authState.value.error = "Authentication check failed";
         } finally {
             authState.value.isLoading = false;
         }
@@ -78,58 +86,46 @@ export function useAuth() {
     }
 
     /**
-     * Logout user and clear token
+     * Logout user and clear cookie
      */
     async function logout(): Promise<void> {
         authState.value.isLoading = true;
         authState.value.error = null;
 
         try {
-            // Clear stored token
-            localStorage.removeItem("auth_token");
-            authState.value.isAuthenticated = false;
-            authState.value.user = null;
-            authState.value.accessToken = null;
+            // Get logout URL from backend
+            const logoutResponse = await apiClient.logout();
 
-            // Optionally notify backend (not strictly necessary for JWT)
-            await apiClient.logout();
-        } catch (error) {
-            // Still clear local state even if server call fails
+            // Clear the auth cookie
+            const authCookie = useCookie("fcc-physics-events-web");
+            authCookie.value = null;
+
             authState.value.isAuthenticated = false;
             authState.value.user = null;
-            authState.value.accessToken = null;
+
+            // Redirect to CERN SSO logout if URL provided
+            if (logoutResponse?.logout_url) {
+                window.location.href = logoutResponse.logout_url;
+            }
+        } catch (error) {
+            // Clear the auth cookie
+            const authCookie = useCookie("fcc-physics-events-web");
+            authCookie.value = null;
+            authState.value.isAuthenticated = false;
+            authState.value.user = null;
         } finally {
             authState.value.isLoading = false;
         }
     }
 
     /**
-     * Handle OAuth callback with token from URL fragment
+     * Handle OAuth callback - not needed with cookie auth,
+     * but kept for compatibility
      */
-    async function handleAuthCallback(token?: string): Promise<void> {
-        authState.value.isLoading = true;
-        authState.value.error = null;
-
-        try {
-            if (!token) {
-                throw new Error("No token provided");
-            }
-
-            // Store token securely
-            localStorage.setItem("auth_token", token);
-            authState.value.accessToken = token;
-
-            // Validate token and get user info
-            await checkAuthStatus();
-        } catch (error) {
-            authState.value.error = "Authentication failed";
-            authState.value.isAuthenticated = false;
-            authState.value.user = null;
-            authState.value.accessToken = null;
-            localStorage.removeItem("auth_token");
-        } finally {
-            authState.value.isLoading = false;
-        }
+    async function handleAuthCallback(): Promise<void> {
+        // With cookie-based auth, this is handled by the backend
+        // Just check auth status after callback
+        await checkAuthStatus();
     }
 
     /**
@@ -140,19 +136,14 @@ export function useAuth() {
     }
 
     /**
-     * Get access token for API calls
+     * Get access token for API calls from cookie
      */
     async function getAccessToken(): Promise<string | null> {
-        // Return stored token if available
-        if (authState.value.accessToken) {
-            return authState.value.accessToken;
-        }
+        const authCookie = useCookie("fcc-physics-events-web");
+        const cookieData = authCookie.value as any;
 
-        // Check localStorage for token
-        const token = localStorage.getItem("auth_token");
-        if (token) {
-            authState.value.accessToken = token;
-            return token;
+        if (cookieData?.token) {
+            return cookieData.token;
         }
 
         throw new Error("No access token available. Please login.");
@@ -162,8 +153,7 @@ export function useAuth() {
      * Refresh current session for browser-based authentication
      */
     async function refreshSession(): Promise<void> {
-        // For JWT tokens, we don't need server-side session refresh
-        // Just validate the current token
+        // Just validate the current cookie
         await checkAuthStatus();
     }
 

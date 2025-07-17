@@ -29,19 +29,20 @@ class ApiClient {
         options: RequestInit = {},
         errorContext: string,
         retryOptions?: RetryOptions,
+        includeCredentials: boolean = false,
     ): Promise<T> {
-        // Get auth token if available
-        const token = localStorage.getItem("auth_token");
-
         const fetchOptions: RequestInit = {
             ...options,
-            credentials: "include", // Include cookies for session management
             headers: {
                 "Content-Type": "application/json",
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 ...options.headers,
             },
         };
+
+        // Only include credentials if requested (for authenticated endpoints)
+        if (includeCredentials) {
+            fetchOptions.credentials = "include";
+        }
 
         // Define the actual fetch operation
         const fetchOperation = async (): Promise<T> => {
@@ -231,43 +232,19 @@ class ApiClient {
     }
 
     /**
-     * Update dataset metadata
+     * Update dataset metadata with authentication
      */
     async updateDataset(datasetId: number, metadata: Record<string, unknown>): Promise<Dataset> {
         const requestUrl = `${this.baseUrl}/datasets/${datasetId}`;
-        // TODO: define the cookie name better
-        const cookie = Object(useCookie("fcc-physics-events-web", { secure: true }).value);
-
         return this.makeRequest<Dataset>(
             requestUrl,
             {
                 method: "PUT",
                 body: JSON.stringify({ metadata }),
-                headers: { Authorization: `Bearer ${cookie.token}` },
             },
             "Failed to update dataset",
-        );
-    }
-
-    /**
-     * Update dataset metadata with authentication
-     */
-    async updateDatasetWithAuth(
-        datasetId: number,
-        metadata: Record<string, unknown>,
-        accessToken: string,
-    ): Promise<Dataset> {
-        const requestUrl = `${this.baseUrl}/datasets/${datasetId}`;
-        return this.makeRequest<Dataset>(
-            requestUrl,
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: accessToken,
-                },
-                body: JSON.stringify({ metadata }),
-            },
-            "Failed to update dataset",
+            undefined, // default retry options
+            true, // include credentials
         );
     }
 
@@ -279,49 +256,16 @@ class ApiClient {
     }
 
     /**
-     * Logout user
+     * Logout user and get logout URL
      */
-    async logout(): Promise<void> {
-        try {
-            await this.makeRequest(`${this.baseUrl}/logout`, { method: "POST" }, "Failed to logout");
-        } catch (error) {
-            console.error("Logout error:", error);
-            // Don't throw here as we want to clear session even if server call fails
-        }
-    }
-
-    /**
-     * Get current user information
-     */
-    async getCurrentUser(token?: string): Promise<{ user?: any; authenticated: boolean }> {
-        const options: RequestInit = {};
-        if (token) {
-            options.headers = { Authorization: `Bearer ${token}` };
-        }
-        return this.makeRequest<{ user?: any; authenticated: boolean }>(
-            `${this.baseUrl}/user`,
-            options,
-            "Failed to get user info",
+    async logout(): Promise<{ logout_url: string }> {
+        return this.makeRequest<{ logout_url: string }>(
+            `${this.baseUrl}/logout`,
+            { method: "GET" },
+            "Failed to logout",
+            undefined, // default retry options
+            true, // include credentials
         );
-    }
-
-    /**
-     * Get access token validation (for checking if current token is valid)
-     */
-    async getAccessToken(): Promise<{
-        access_token: string;
-        token_type: string;
-        user: any;
-    }> {
-        return this.makeRequest<{
-            access_token: string;
-            token_type: string;
-            user: any;
-        }>(`${this.baseUrl}/auth/token`, {}, "Failed to validate access token");
-    }
-
-    async loginAndGetJwtToken(): Promise<{}> {
-        return this.makeRequest<{}>(`${this.baseUrl}/login`, {}, "Failed to login.");
     }
 }
 

@@ -1,19 +1,79 @@
 <template>
-    <div class="auth-callback-page">
-        <div v-if="isLoading" class="loading">
-            <h2>Processing authentication...</h2>
-            <p>Please wait while we complete your login.</p>
-        </div>
+    <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+        <div class="max-w-md w-full">
+            <!-- Loading state -->
+            <UCard v-if="isLoading" class="text-center">
+                <template #header>
+                    <div class="flex items-center justify-center gap-3">
+                        <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin text-primary-500" />
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                            Authenticating
+                        </h2>
+                    </div>
+                </template>
 
-        <div v-else-if="error" class="error">
-            <h2>Authentication Failed</h2>
-            <p>{{ error }}</p>
-            <button @click="redirectToHome" class="retry-btn">Return to Home</button>
-        </div>
+                <p class="text-gray-600 dark:text-gray-400">
+                    Please wait while we complete your login with CERN SSO...
+                </p>
 
-        <div v-else class="success">
-            <h2>Authentication Successful!</h2>
-            <p>You have been successfully logged in. Redirecting...</p>
+                <div class="mt-4">
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="bg-primary-500 h-2 rounded-full animate-pulse" style="width: 60%"></div>
+                    </div>
+                </div>
+            </UCard>
+
+            <!-- Error state -->
+            <UCard v-else-if="error" class="text-center">
+                <template #header>
+                    <div class="flex items-center justify-center gap-3">
+                        <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-red-500" />
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                            Authentication Failed
+                        </h2>
+                    </div>
+                </template>
+
+                <p class="text-gray-600 dark:text-gray-400 mb-6">
+                    {{ error }}
+                </p>
+
+                <UButton
+                    @click="redirectToHome"
+                    color="primary"
+                    variant="solid"
+                    icon="i-heroicons-home"
+                    block
+                >
+                    Return to Home
+                </UButton>
+            </UCard>
+
+            <!-- Success state -->
+            <UCard v-else class="text-center">
+                <template #header>
+                    <div class="flex items-center justify-center gap-3">
+                        <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-500" />
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                            Authentication Successful!
+                        </h2>
+                    </div>
+                </template>
+
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    You have been successfully logged in with CERN SSO.
+                </p>
+
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Redirecting you to the main application...
+                </p>
+
+                <div class="mt-4">
+                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+                </div>
+            </UCard>
         </div>
     </div>
 </template>
@@ -21,6 +81,7 @@
 <script setup lang="ts">
 const route = useRoute();
 const router = useRouter();
+const { checkAuthStatus } = useAuth();
 
 const isLoading = ref(true);
 const error = ref<string | null>(null);
@@ -40,31 +101,41 @@ onMounted(async () => {
         const state = route.query.state as string;
 
         // Call your backend /auth endpoint with the code
-        const response = await fetch(`http://localhost:8000/auth?code=${code}&state=${state}`, {
+        const config = useRuntimeConfig();
+        const response = await fetch(`${config.public.apiBaseUrl}/auth?code=${code}&state=${state}`, {
             method: "GET",
-            credentials: "include",
+            credentials: "include", // Include credentials for auth endpoint
         });
 
         const data = await response.json();
 
         if (data.error) {
             error.value = data.error;
+            isLoading.value = false;
+            return;
         }
 
-        // Save JWT token as cookie
+        // Save auth data as cookie (the backend already sets a session cookie,
+        // but we also store the auth data for frontend use)
         const cookie = useCookie("fcc-physics-events-web", {
             maxAge: 60 * 60 * 24, // 1 day as CERN's tokens also expire in that time
             httpOnly: false,
-            secure: true,
-            sameSite: "lax", // TODO: check wtat does this mean
+            secure: process.env.NODE_ENV === "production", // Only secure in production
+            sameSite: "lax",
         });
 
         cookie.value = data;
 
+        // Update auth state immediately after setting cookie
+        await checkAuthStatus();
+
+        // Show success message briefly before redirect
+        isLoading.value = false;
+
         // Redirect to home after successful authentication
         setTimeout(() => {
             router.push("/");
-        }, 300);
+        }, 2000); // Slightly longer delay for better UX
     } catch (err) {
         console.error("Auth callback error:", err);
         error.value = "An error occurred during authentication.";
@@ -77,63 +148,3 @@ function redirectToHome() {
     router.push("/");
 }
 </script>
-<style scoped>
-.auth-callback-page {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 2rem;
-    font-family: system-ui, sans-serif;
-}
-
-.loading,
-.error,
-.success {
-    text-align: center;
-    max-width: 400px;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.loading {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-}
-
-.error {
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    color: #721c24;
-}
-
-.success {
-    background: #d1edff;
-    border: 1px solid #bee5eb;
-    color: #0c5460;
-}
-
-.retry-btn {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    background: #0066cc;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
-
-.retry-btn:hover {
-    background: #0052a3;
-}
-
-h2 {
-    margin-bottom: 1rem;
-}
-
-p {
-    margin-bottom: 0.5rem;
-}
-</style>

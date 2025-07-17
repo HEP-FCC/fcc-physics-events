@@ -210,27 +210,27 @@ export function useDatasetSelection() {
         if (!editState) return;
 
         const toast = useToast();
-        // const { isAuthenticated, login } = useAuth();
+        const { isAuthenticated, login } = useAuth();
 
-        // // Check if user is authenticated
-        // if (!isAuthenticated.value) {
-        //     toast.add({
-        //         title: "Authentication Required",
-        //         description: "Please login to save dataset metadata.",
-        //         color: "warning",
-        //     });
+        // Check if user is authenticated
+        if (!isAuthenticated.value) {
+            toast.add({
+                title: "Authentication Required",
+                description: "Please login to save dataset metadata.",
+                color: "warning",
+            });
 
-        //     // Trigger login
-        //     login();
-        //     return;
-        // }
+            // Trigger login
+            login();
+            return;
+        }
 
         try {
             // Use the edited JSON if provided, otherwise fall back to the edit state JSON
             const jsonToSave = editedJson || editState.json;
             const parsedMetadata = JSON.parse(jsonToSave);
 
-            // Call the backend API to save metadata with session-based authentication
+            // Call the backend API to save metadata with cookie-based authentication
             await apiClient.updateDataset(datasetId, parsedMetadata);
 
             toast.add({
@@ -262,7 +262,7 @@ export function useDatasetSelection() {
                         description: "Your session has expired. Please login again.",
                         color: "warning",
                     });
-                    // login();
+                    login();
                     return;
                 }
 

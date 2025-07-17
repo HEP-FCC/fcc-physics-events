@@ -144,7 +144,7 @@ export function useDatasetSearch() {
             apiAvailable: apiAvailable.value,
             combinedQuery: combinedSearchQuery.value,
             userQuery: userSearchQuery.value,
-            activeFilters: activeFilters.value
+            activeFilters: activeFilters.value,
         });
 
         if (!apiAvailable.value) {
@@ -197,7 +197,8 @@ export function useDatasetSearch() {
                 pagination.loadedPages.clear();
                 pagination.loadedPages.add(pageToLoad);
             } else {
-                datasets.value.push(...responseDatasets);
+                // Create a new array to ensure reactivity triggers
+                datasets.value = [...datasets.value, ...responseDatasets];
                 pagination.loadedPages.add(pageToLoad);
             }
 
@@ -221,6 +222,8 @@ export function useDatasetSearch() {
                 } else {
                     searchState.isLoadingMore = false;
                 }
+                // Reset filter update progress flag
+                isFilterUpdateInProgress.value = false;
             }
         }
     }
@@ -269,15 +272,36 @@ export function useDatasetSearch() {
      * Load more data for infinite scroll
      */
     async function loadMoreData(): Promise<void> {
+        console.log("🔄 loadMoreData called", {
+            currentPage: pagination.currentPage,
+            datasetsLength: datasets.value.length,
+            pageSize: pagination.pageSize,
+            isFilterUpdateInProgress: isFilterUpdateInProgress.value,
+            isLoadingMore: searchState.isLoadingMore,
+            canLoadMore: canLoadMore.value,
+            hasMore: searchState.hasMore,
+            infiniteScrollEnabled: infiniteScrollEnabled.value,
+            activeFilters: activeFilters.value,
+            userSearchQuery: userSearchQuery.value,
+        });
+
         // Prevent loading more data if the first page isn't full, which can happen on initial load
         if (pagination.currentPage === 1 && datasets.value.length < pagination.pageSize) {
+            console.log("⏹️ Skipping load more: first page not full");
             return;
         }
 
         if (isFilterUpdateInProgress.value || searchState.isLoadingMore || !canLoadMore.value || !searchState.hasMore) {
+            console.log("⏹️ Skipping load more: conditions not met", {
+                isFilterUpdateInProgress: isFilterUpdateInProgress.value,
+                isLoadingMore: searchState.isLoadingMore,
+                canLoadMore: canLoadMore.value,
+                hasMore: searchState.hasMore,
+            });
             return;
         }
         pagination.currentPage += 1;
+        console.log("📄 Loading page", pagination.currentPage);
         await performSearch(false);
     }
 
@@ -323,7 +347,7 @@ export function useDatasetSearch() {
             initialFilters,
             userSearchQuery: userSearchQuery.value,
             activeFilters: activeFilters.value,
-            routeQuery: route.query
+            routeQuery: route.query,
         });
 
         // Initialize filters from props first
@@ -341,7 +365,7 @@ export function useDatasetSearch() {
             hasUserQuery,
             hasActiveFilters,
             hasInitialFilters,
-            combinedQuery: combinedSearchQuery.value
+            combinedQuery: combinedSearchQuery.value,
         });
 
         // Automatically perform search if query or filters are present, OR if no conditions are met (show all)

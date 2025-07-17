@@ -54,8 +54,60 @@
                     </div>
                 </div>
 
-                <!-- Campaign Dropdown -->
+                <!-- Accelerator Dropdown -->
                 <div v-if="currentPath.stage" class="relative dropdown-container">
+                    <UButton
+                        :color="currentPath.accelerator ? 'primary' : 'neutral'"
+                        :variant="currentPath.accelerator ? 'solid' : 'ghost'"
+                        trailing-icon="i-heroicons-chevron-down-20-solid"
+                        :loading="dropdowns.accelerator.isLoading"
+                        @click="handleToggleDropdown('accelerator')"
+                    >
+                        <UIcon name="i-heroicons-bolt" class="mr-2" />
+                        {{ currentPath.accelerator || "Accelerator" }}
+                    </UButton>
+
+                    <div
+                        v-if="dropdowns.accelerator.isOpen"
+                        class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
+                    >
+                        <div class="p-2">
+                            <div v-if="currentPath.accelerator" class="mb-2">
+                                <button
+                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
+                                    @click="handleClearSelection('accelerator')"
+                                >
+                                    <UIcon name="i-heroicons-x-mark" class="mr-2" />
+                                    Clear Accelerator
+                                </button>
+                            </div>
+
+                            <div v-if="dropdowns.accelerator.isLoading" class="p-2">
+                                <USkeleton class="h-4 w-24" />
+                            </div>
+
+                            <div v-else class="space-y-1">
+                                <button
+                                    v-for="item in dropdowns.accelerator.items"
+                                    :key="item.id"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
+                                    :class="{
+                                        'bg-primary-50 text-primary-700': currentPath.accelerator === item.name,
+                                    }"
+                                    @click="handleNavigate('accelerator', item.name)"
+                                >
+                                    {{ item.name }}
+                                </button>
+                                <div v-if="!dropdowns.accelerator.items.length" class="px-3 py-2 text-sm text-gray-500">
+                                    No options available.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campaign Dropdown -->
+                <div v-if="currentPath.stage && currentPath.accelerator" class="relative dropdown-container">
                     <UButton
                         :color="currentPath.campaign ? 'primary' : 'neutral'"
                         :variant="currentPath.campaign ? 'solid' : 'ghost'"
@@ -107,7 +159,10 @@
                 </div>
 
                 <!-- Detector Dropdown -->
-                <div v-if="currentPath.stage && currentPath.campaign" class="relative dropdown-container">
+                <div
+                    v-if="currentPath.stage && currentPath.accelerator && currentPath.campaign"
+                    class="relative dropdown-container"
+                >
                     <UButton
                         :color="currentPath.detector ? 'primary' : 'neutral'"
                         :variant="currentPath.detector ? 'solid' : 'ghost'"
@@ -157,23 +212,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Navigation breadcrumbs -->
-                <div class="flex items-center space-x-2 text-sm text-gray-500 ml-auto">
-                    <span v-if="!Object.values(currentPath).some((v) => v)"> All Datasets </span>
-                    <template v-else>
-                        <span>Filtered by:</span>
-                        <UBadge v-if="currentPath.stage" color="success" variant="soft">
-                            Stage: {{ currentPath.stage }}
-                        </UBadge>
-                        <UBadge v-if="currentPath.campaign" color="warning" variant="soft">
-                            Campaign: {{ currentPath.campaign }}
-                        </UBadge>
-                        <UBadge v-if="currentPath.detector" color="info" variant="soft">
-                            Detector: {{ currentPath.detector }}
-                        </UBadge>
-                    </template>
-                </div>
             </nav>
         </div>
     </div>
@@ -182,6 +220,7 @@
 <script setup lang="ts">
 import type { DropdownType } from "~/types/dataset";
 import { useNavigation } from "~/composables/useNavigation";
+import { parseRouteToPath, buildNavigationPath, buildClearPath, NAVIGATION_CONFIG } from "~/config/navigation";
 
 interface Props {
     routeParams: string[];
@@ -191,40 +230,8 @@ const props = defineProps<Props>();
 
 const { dropdowns, loadDropdownData, toggleDropdown, closeAllDropdowns, clearDependentDropdowns } = useNavigation();
 
-// We need these navigation helper functions from the old composable
-function getCurrentPath(routeParams: string[]) {
-    const dropdownKeys = ["stage", "campaign", "detector"] as const;
-    const pathObj: Record<string, string | null> = {};
-    dropdownKeys.forEach((type, index) => {
-        pathObj[type] = routeParams[index] || null;
-    });
-    return pathObj;
-}
-
-function navigateToPath(type: DropdownType, value: string, currentPath: Record<string, string | null>) {
-    const dropdownKeys = ["stage", "campaign", "detector"] as const;
-    const pathParts = dropdownKeys.map((t) => currentPath[t]);
-    const typeIndex = dropdownKeys.indexOf(type);
-
-    const newPathParts = pathParts.slice(0, typeIndex);
-    newPathParts.push(value);
-
-    const newPath = `/${newPathParts.filter((p) => p).join("/")}`;
-    navigateTo(newPath);
-}
-
-function clearSelectionPath(type: DropdownType, currentPath: Record<string, string | null>) {
-    const dropdownKeys = ["stage", "campaign", "detector"] as const;
-    const pathParts = dropdownKeys.map((t) => currentPath[t]);
-    const typeIndex = dropdownKeys.indexOf(type);
-
-    const newPathParts = pathParts.slice(0, typeIndex).filter((p) => p);
-    const newPath = newPathParts.length === 0 ? "/" : `/${newPathParts.join("/")}`;
-    navigateTo(newPath);
-}
-
 // Computed properties
-const currentPath = computed(() => getCurrentPath(props.routeParams));
+const currentPath = computed(() => parseRouteToPath(props.routeParams));
 
 // Methods
 function handleToggleDropdown(type: DropdownType) {
@@ -239,15 +246,22 @@ function handleToggleDropdown(type: DropdownType) {
     // Load data based on dropdown type and current path
     if (type === "stage") {
         loadDropdownData("stage", {});
-    } else if (type === "campaign") {
-        // Load campaigns filtered by current stage
+    } else if (type === "accelerator") {
+        // Load accelerators filtered by current stage
         const filters: Record<string, string> = {};
         if (currentPath.value.stage) filters.stage_name = currentPath.value.stage;
+        loadDropdownData("accelerator", filters);
+    } else if (type === "campaign") {
+        // Load campaigns filtered by current stage and accelerator
+        const filters: Record<string, string> = {};
+        if (currentPath.value.stage) filters.stage_name = currentPath.value.stage;
+        if (currentPath.value.accelerator) filters.accelerator_name = currentPath.value.accelerator;
         loadDropdownData("campaign", filters);
     } else if (type === "detector") {
-        // Load detectors filtered by current stage and campaign
+        // Load detectors filtered by current stage, accelerator and campaign
         const filters: Record<string, string> = {};
         if (currentPath.value.stage) filters.stage_name = currentPath.value.stage;
+        if (currentPath.value.accelerator) filters.accelerator_name = currentPath.value.accelerator;
         if (currentPath.value.campaign) filters.campaign_name = currentPath.value.campaign;
         loadDropdownData("detector", filters);
     }
@@ -257,7 +271,8 @@ function handleNavigate(type: DropdownType, value: string) {
     // Clear dependent dropdowns when navigating to a higher level
     clearDependentDropdowns(type);
 
-    navigateToPath(type, value, currentPath.value);
+    const newPath = buildNavigationPath(currentPath.value, type, value);
+    navigateTo(newPath);
     closeAllDropdowns();
 }
 
@@ -265,7 +280,8 @@ function handleClearSelection(type: DropdownType) {
     // Clear dependent dropdowns when clearing a selection
     clearDependentDropdowns(type);
 
-    clearSelectionPath(type, currentPath.value);
+    const newPath = buildClearPath(currentPath.value, type);
+    navigateTo(newPath);
     closeAllDropdowns();
 }
 
@@ -281,13 +297,26 @@ const handleClickOutside = (event: Event): void => {
 watch(
     () => currentPath.value,
     async (newPath, oldPath) => {
-        // If stage changed, reload campaigns and clear detectors
+        // If stage changed, reload accelerators and clear dependent dropdowns
         if (newPath.stage !== oldPath?.stage) {
             clearDependentDropdowns("stage");
 
             if (newPath.stage) {
                 const stageFilters = { stage_name: newPath.stage };
-                await loadDropdownData("campaign", stageFilters, true);
+                await loadDropdownData("accelerator", stageFilters, true);
+            }
+        }
+
+        // If accelerator changed, reload campaigns and clear detectors
+        if (newPath.accelerator !== oldPath?.accelerator) {
+            clearDependentDropdowns("accelerator");
+
+            if (newPath.stage && newPath.accelerator) {
+                const acceleratorFilters = {
+                    stage_name: newPath.stage,
+                    accelerator_name: newPath.accelerator,
+                };
+                await loadDropdownData("campaign", acceleratorFilters, true);
             }
         }
 
@@ -295,9 +324,10 @@ watch(
         if (newPath.campaign !== oldPath?.campaign) {
             clearDependentDropdowns("campaign");
 
-            if (newPath.stage && newPath.campaign) {
+            if (newPath.stage && newPath.accelerator && newPath.campaign) {
                 const detectorFilters = {
                     stage_name: newPath.stage,
+                    accelerator_name: newPath.accelerator,
                     campaign_name: newPath.campaign,
                 };
                 await loadDropdownData("detector", detectorFilters, true);
@@ -315,18 +345,28 @@ onMounted(async () => {
     // Load stages first (no dependencies)
     await loadDropdownData("stage", {});
 
-    // If we have a current stage, pre-load campaigns for that stage
+    // If we have a current stage, pre-load accelerators for that stage
     if (currentPath.value.stage) {
         const stageFilters = { stage_name: currentPath.value.stage };
-        await loadDropdownData("campaign", stageFilters);
+        await loadDropdownData("accelerator", stageFilters);
 
-        // If we also have a campaign, pre-load detectors
-        if (currentPath.value.campaign) {
-            const detectorFilters = {
+        // If we also have an accelerator, pre-load campaigns
+        if (currentPath.value.accelerator) {
+            const acceleratorFilters = {
                 stage_name: currentPath.value.stage,
-                campaign_name: currentPath.value.campaign,
+                accelerator_name: currentPath.value.accelerator,
             };
-            await loadDropdownData("detector", detectorFilters);
+            await loadDropdownData("campaign", acceleratorFilters);
+
+            // If we also have a campaign, pre-load detectors
+            if (currentPath.value.campaign) {
+                const detectorFilters = {
+                    stage_name: currentPath.value.stage,
+                    accelerator_name: currentPath.value.accelerator,
+                    campaign_name: currentPath.value.campaign,
+                };
+                await loadDropdownData("detector", detectorFilters);
+            }
         }
     }
 });

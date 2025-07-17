@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS software_stacks (
 CREATE TABLE IF NOT EXISTS datasets (
     dataset_id BIGSERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    -- NOTE: ON DELETE SET NULL will leave orphaned dataset records if a referenced entity is deleted.
+    -- # TODO: ON DELETE SET NULL will leave orphaned dataset records if a referenced entity is deleted.
     -- Consider if ON DELETE RESTRICT or making the column NOT NULL would be more appropriate.
     accelerator_id INTEGER REFERENCES accelerators(accelerator_id) ON DELETE SET NULL,
     stage_id INTEGER REFERENCES stages(stage_id) ON DELETE SET NULL,

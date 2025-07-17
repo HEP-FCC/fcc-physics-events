@@ -23,8 +23,6 @@
             </div>
         </UCard>
 
-
-
         <!-- Results -->
         <div v-else-if="search.datasets.value.length > 0" class="space-y-6">
             <!-- Dataset Controls & Results Summary -->
@@ -105,6 +103,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
 import type { Dataset } from "~/types/dataset";
+import { parseRouteToPath } from "~/config/navigation";
 
 /**
  * Dataset Search Interface Component
@@ -128,18 +127,8 @@ const selection = useDatasetSelection();
 // Component state
 const isInitialized = ref(false);
 
-// Helper function to parse route params into path object
-function getCurrentPath(routeParams: string[]) {
-    const dropdownKeys = ["stage", "campaign", "detector"] as const;
-    const pathObj: Record<string, string | null> = {};
-    dropdownKeys.forEach((type, index) => {
-        pathObj[type] = routeParams[index] || null;
-    });
-    return pathObj;
-}
-
 // Computed values (with stable references)
-const currentPath = computed(() => getCurrentPath(props.routeParams));
+const currentPath = computed(() => parseRouteToPath(props.routeParams));
 
 // Memoized selection state computations
 const allDatasetsSelected = computed(() => selection.getAllDatasetsSelected(search.datasets.value as Dataset[]));
@@ -160,13 +149,10 @@ watch(
         // Build navigation filters from current path
         const navigationFilters = Object.entries(newPath)
             .filter(([, value]) => value !== null)
-            .reduce(
-                (acc, [key, value]) => {
-                    acc[`${key}_name`] = value!;
-                    return acc;
-                },
-                {} as Record<string, string>,
-            );
+            .reduce((acc, [key, value]) => {
+                acc[`${key}_name`] = value!;
+                return acc;
+            }, {} as Record<string, string>);
 
         // Update filters
         search.updateFilters(navigationFilters);
@@ -215,7 +201,7 @@ watch(
 
 // Set up infinite scroll
 useInfiniteScroll(window, () => search.loadMoreData(), {
-    distance: 200,
+    distance: 800,
     canLoadMore: () => search.canLoadMore.value,
 });
 
@@ -224,7 +210,7 @@ onMounted(async () => {
     console.log("🎯 DatasetSearchInterface onMounted", {
         initialFilters: props.initialFilters,
         routeParams: props.routeParams,
-        isInitialized: isInitialized.value
+        isInitialized: isInitialized.value,
     });
 
     if (!isInitialized.value) {

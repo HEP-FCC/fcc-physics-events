@@ -48,7 +48,7 @@ export interface DropdownItem {
 /**
  * Dropdown type for navigation
  */
-export type DropdownType = "stage" | "campaign" | "detector";
+export type DropdownType = "stage" | "accelerator" | "campaign" | "detector";
 
 /**
  * Search operation state management

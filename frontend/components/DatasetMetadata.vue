@@ -16,11 +16,9 @@
                         variant="solid"
                         size="sm"
                         @click="saveMetadata"
-                        :disabled="isAuthenticated"
+                        :disabled="!isAuthenticated"
                     >
-
-                        <!-- # TODO:  {{ isAuthenticated ? "Save Changes" : "Login Required" }} -->
-                        {{ !isAuthenticated ? "Save Changes" : "Login Required" }}
+                        {{ isAuthenticated ? "Save Changes" : "Login Required" }}
                     </UButton>
                     <UButton icon="i-heroicons-x-mark" color="neutral" variant="outline" size="sm" @click="cancelEdit">
                         Cancel
@@ -29,10 +27,10 @@
 
                 <!-- Authentication notice -->
                 <div
-                    v-if="isAuthenticated"
+                    v-if="!isAuthenticated"
                     class="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded border border-amber-200 dark:border-amber-800"
                 >
-                    <Icon name="i-heroicons-exclamation-triangle" class="w-3 h-3 inline mr-1" />
+                    <UIcon name="i-heroicons-exclamation-triangle" class="w-3 h-3 inline mr-1" />
                     Authentication required to save metadata changes
                 </div>
             </div>
@@ -87,7 +85,7 @@
                             v-for="[key, value] in getSpecialFields(props.metadata)"
                             :key="key"
                             :class="getSpecialFieldSpanClass(value)"
-                            class="relative rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/30 p-2"
+                            class="group relative rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-100/60 dark:bg-indigo-950/50 hover:bg-indigo-200/70 dark:hover:bg-indigo-900/60 transition-colors duration-200 shadow-sm p-2"
                         >
                             <!-- Compact special field content -->
                             <div class="flex items-start gap-1.5">
@@ -105,8 +103,20 @@
                                     <h6 class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-0.5">
                                         {{ getSpecialFieldTitle(key) }}
                                     </h6>
-                                    <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight">
-                                        {{ String(value) }}
+                                    <div class="flex items-center justify-between">
+                                        <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
+                                            {{ String(value) }}
+                                        </div>
+                                        <UButton
+                                            icon="i-heroicons-clipboard-document"
+                                            color="neutral"
+                                            variant="ghost"
+                                            size="xs"
+                                            :padded="false"
+                                            class="w-3 h-3 shrink-0 ml-2 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                            @click="copyFieldValue(key, value)"
+                                            :title="`Copy ${getSpecialFieldTitle(key)} value`"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -126,7 +136,7 @@
                                 <!-- Field card -->
                                 <div
                                     :class="[getGridSpanClass(key, value, type), getFieldColorClass(type)]"
-                                    class="group relative overflow-hidden rounded border shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.01]"
+                                    class="group relative overflow-hidden rounded border shadow-sm"
                                 >
                                     <!-- Background gradient -->
                                     <div
@@ -155,20 +165,21 @@
                                                 {{ formatFieldName(key) }}
                                             </span>
                                         </div>
+
                                         <!-- Vector length badge -->
                                         <UBadge
                                             v-if="type === 'vector'"
                                             color="primary"
                                             variant="soft"
-                                            size="xs"
-                                            class="shrink-0 ml-1"
+                                            size="sm"
+                                            class="shrink-0"
                                         >
                                             {{ (value as unknown[]).length }}
                                         </UBadge>
                                     </div>
 
                                     <!-- Field Value -->
-                                    <div class="relative px-2 py-1.5 flex items-center min-h-[1.5rem]">
+                                    <div class="relative px-2 py-1.5 flex items-center justify-between min-h-[1.5rem]">
                                         <div
                                             :class="{
                                                 'font-mono text-xs': type === 'vector',
@@ -176,7 +187,7 @@
                                                 'font-medium': type === 'shortString' || type === 'longString',
                                                 truncate: type !== 'longString',
                                             }"
-                                            class="w-full text-xs leading-tight"
+                                            class="flex-1 text-xs leading-tight"
                                             :title="getFieldValueTitle(key, value, type)"
                                         >
                                             <template v-if="type === 'vector'">
@@ -192,6 +203,18 @@
                                                 {{ formatShortValue(value) }}
                                             </template>
                                         </div>
+
+                                        <!-- Copy button -->
+                                        <UButton
+                                            icon="i-heroicons-clipboard-document"
+                                            color="neutral"
+                                            variant="ghost"
+                                            size="xs"
+                                            :padded="false"
+                                            class="w-4 h-4 shrink-0 ml-2 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                            @click="copyFieldValue(key, value)"
+                                            :title="`Copy ${formatFieldName(key)} value`"
+                                        />
                                     </div>
                                 </div>
                             </template>
@@ -614,5 +637,44 @@ const getFieldsByType = (
             type,
             fields: grouped.get(type)!,
         }));
+};
+
+// Copy field value to clipboard with type handling
+const copyFieldValue = async (key: string, value: unknown): Promise<void> => {
+    try {
+        let textToCopy: string;
+
+        // Handle different types of values
+        if (Array.isArray(value)) {
+            // For arrays, copy as JSON
+            textToCopy = JSON.stringify(value, null, 2);
+        } else if (typeof value === "object" && value !== null) {
+            // For objects, copy as JSON
+            textToCopy = JSON.stringify(value, null, 2);
+        } else {
+            // For primitives, copy as string
+            textToCopy = String(value);
+        }
+
+        await copyToClipboard(textToCopy);
+
+        // Show success toast
+        const toast = useToast();
+        toast.add({
+            title: "Value copied to clipboard",
+            icon: "i-heroicons-clipboard-document-check",
+        });
+    } catch (error) {
+        console.error("Failed to copy field value:", error);
+
+        // Show error toast
+        const toast = useToast();
+        toast.add({
+            title: "Failed to copy value",
+            description: "Please try again",
+            icon: "i-heroicons-exclamation-triangle",
+            color: "error",
+        });
+    }
 };
 </script>

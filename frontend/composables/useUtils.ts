@@ -1,4 +1,5 @@
 import type { Dataset } from "~/types/dataset";
+import { DROPDOWN_ORDER, NAVIGATION_CONFIG } from "~/config/navigation";
 
 /**
  * Composable for utility functions
@@ -167,36 +168,19 @@ export function useUtils() {
      * Generate badge items for dataset display
      */
     function getBadgeItems(dataset: Dataset) {
-        const standardBadges = [
-            {
-                key: "stage",
-                label: "Stage",
-                value: dataset.stage_name,
-                color: "success" as const,
-                widthClass: "w-42",
-            },
-            {
-                key: "campaign",
-                label: "Campaign",
-                value: dataset.campaign_name,
-                color: "warning" as const,
-                widthClass: "w-60",
-            },
-            {
-                key: "detector",
-                label: "Detector",
-                value: dataset.detector_name,
-                color: "info" as const,
-                widthClass: "w-32",
-            },
-            {
-                key: "accelerator",
-                label: "Accelerator",
-                value: dataset.accelerator_name,
-                color: "secondary" as const,
-                widthClass: "w-40",
-            },
-        ];
+        // Generate standard badges from centralized navigation config
+        const standardBadges = DROPDOWN_ORDER.map((dropdownType) => {
+            const config = NAVIGATION_CONFIG[dropdownType];
+            const fieldName = `${dropdownType}_name` as keyof Dataset;
+
+            return {
+                key: dropdownType,
+                label: config.label,
+                value: dataset[fieldName],
+                color: config.badgeColor,
+                widthClass: getWidthClass(dropdownType),
+            };
+        });
 
         // Add status badges from metadata
         const statusBadges = getStatusFields(dataset.metadata || {}).map((statusField) => ({
@@ -208,6 +192,19 @@ export function useUtils() {
         }));
 
         return [...standardBadges, ...statusBadges];
+    }
+
+    /**
+     * Get appropriate width class for different dropdown types
+     */
+    function getWidthClass(dropdownType: string): string {
+        const widthMap: Record<string, string> = {
+            stage: "w-42",
+            accelerator: "w-40",
+            campaign: "w-60",
+            detector: "w-32",
+        };
+        return widthMap[dropdownType] || "w-auto";
     }
 
     /**
@@ -274,6 +271,7 @@ export function useUtils() {
         downloadAsJsonFile,
         getBadgeColor,
         getBadgeItems,
+        getWidthClass,
         formatFieldName,
         copyToClipboard,
         formatTimestamp,

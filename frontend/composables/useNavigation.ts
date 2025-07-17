@@ -1,5 +1,6 @@
 import { ref, computed } from "vue";
 import type { DropdownItem, DropdownType } from "~/types/dataset";
+import { DROPDOWN_ORDER, NAVIGATION_CONFIG } from "~/config/navigation";
 
 /**
  * Simple navigation state management with explicit reactivity
@@ -9,35 +10,22 @@ export function useNavigation() {
 
     // Use individual refs for each dropdown to ensure reactivity
     const stageItems = ref<DropdownItem[]>([]);
+    const acceleratorItems = ref<DropdownItem[]>([]);
     const campaignItems = ref<DropdownItem[]>([]);
     const detectorItems = ref<DropdownItem[]>([]);
 
     const stageLoading = ref(false);
+    const acceleratorLoading = ref(false);
     const campaignLoading = ref(false);
     const detectorLoading = ref(false);
 
     const stageOpen = ref(false);
+    const acceleratorOpen = ref(false);
     const campaignOpen = ref(false);
     const detectorOpen = ref(false);
 
-    // Navigation configuration
-    const navigationConfig = {
-        stage: {
-            icon: "i-heroicons-cpu-chip",
-            label: "Stage",
-            clearLabel: "Clear Stage",
-        },
-        campaign: {
-            icon: "i-heroicons-calendar-days",
-            label: "Campaign",
-            clearLabel: "Clear Campaign",
-        },
-        detector: {
-            icon: "i-heroicons-beaker",
-            label: "Detector",
-            clearLabel: "Clear Detector",
-        },
-    } as const;
+    // Navigation configuration - now imported from centralized config
+    // NAVIGATION_CONFIG is already imported and contains all dropdown configurations
 
     // Computed dropdowns object
     const dropdowns = computed(() => ({
@@ -45,19 +33,25 @@ export function useNavigation() {
             items: stageItems.value,
             isLoading: stageLoading.value,
             isOpen: stageOpen.value,
-            ...navigationConfig.stage,
+            ...NAVIGATION_CONFIG.stage,
+        },
+        accelerator: {
+            items: acceleratorItems.value,
+            isLoading: acceleratorLoading.value,
+            isOpen: acceleratorOpen.value,
+            ...NAVIGATION_CONFIG.accelerator,
         },
         campaign: {
             items: campaignItems.value,
             isLoading: campaignLoading.value,
             isOpen: campaignOpen.value,
-            ...navigationConfig.campaign,
+            ...NAVIGATION_CONFIG.campaign,
         },
         detector: {
             items: detectorItems.value,
             isLoading: detectorLoading.value,
             isOpen: detectorOpen.value,
-            ...navigationConfig.detector,
+            ...NAVIGATION_CONFIG.detector,
         },
     }));
 
@@ -65,6 +59,8 @@ export function useNavigation() {
         switch (type) {
             case "stage":
                 return stageItems;
+            case "accelerator":
+                return acceleratorItems;
             case "campaign":
                 return campaignItems;
             case "detector":
@@ -76,6 +72,8 @@ export function useNavigation() {
         switch (type) {
             case "stage":
                 return stageLoading;
+            case "accelerator":
+                return acceleratorLoading;
             case "campaign":
                 return campaignLoading;
             case "detector":
@@ -87,6 +85,8 @@ export function useNavigation() {
         switch (type) {
             case "stage":
                 return stageOpen;
+            case "accelerator":
+                return acceleratorOpen;
             case "campaign":
                 return campaignOpen;
             case "detector":
@@ -123,6 +123,7 @@ export function useNavigation() {
 
         // Close all dropdowns
         stageOpen.value = false;
+        acceleratorOpen.value = false;
         campaignOpen.value = false;
         detectorOpen.value = false;
 
@@ -134,6 +135,7 @@ export function useNavigation() {
 
     function closeAllDropdowns() {
         stageOpen.value = false;
+        acceleratorOpen.value = false;
         campaignOpen.value = false;
         detectorOpen.value = false;
     }
@@ -144,25 +146,27 @@ export function useNavigation() {
     }
 
     function clearDependentDropdowns(changedType: DropdownType) {
-        if (changedType === "stage") {
-            // Clear campaign and detector data
-            campaignItems.value = [];
-            detectorItems.value = [];
-        } else if (changedType === "campaign") {
-            // Clear detector data
-            detectorItems.value = [];
-        }
+        const changedIndex = DROPDOWN_ORDER.indexOf(changedType);
+
+        // Clear all dropdowns that come after the changed one in the hierarchy
+        DROPDOWN_ORDER.slice(changedIndex + 1).forEach((type) => {
+            const itemsRef = getItemsRef(type);
+            itemsRef.value = [];
+        });
     }
 
     return {
         dropdowns,
         stageItems,
+        acceleratorItems,
         campaignItems,
         detectorItems,
         stageLoading,
+        acceleratorLoading,
         campaignLoading,
         detectorLoading,
         stageOpen,
+        acceleratorOpen,
         campaignOpen,
         detectorOpen,
         loadDropdownData,

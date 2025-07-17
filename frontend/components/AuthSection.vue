@@ -2,37 +2,72 @@
     <div class="auth-section">
         <!-- Authentication controls -->
         <div v-if="!isAuthenticated" class="login-section">
-            <button @click="handleLogin" :disabled="isLoading" class="login-btn">
-                {{ isLoading ? "Logging in..." : "Login with CERN" }}
-            </button>
+            <UButton
+                @click="handleLogin"
+                :loading="isLoading"
+                color="primary"
+                variant="solid"
+                size="sm"
+                icon="i-heroicons-user-circle"
+                class="login-btn"
+            >
+                {{ isLoading ? "Signing in..." : "Sign in with CERN" }}
+            </UButton>
         </div>
 
         <div v-else class="user-section">
-            <div class="user-info">
-                <span class="user-name">{{ user?.name || user?.preferred_username || "User" }}</span>
-                <span class="user-email">{{ user?.email }}</span>
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {{ displayName }}
+                    </div>
+                    <div v-if="user?.preferred_username" class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ user.preferred_username }}
+                    </div>
+                </div>
+                <UButton
+                    @click="handleLogout"
+                    :loading="isLoading"
+                    color="error"
+                    variant="outline"
+                    size="sm"
+                    icon="i-heroicons-arrow-right-on-rectangle"
+                >
+                    Sign out
+                </UButton>
             </div>
-            <button @click="handleLogout" :disabled="isLoading" class="logout-btn">
-                {{ isLoading ? "Logging out..." : "Logout" }}
-            </button>
         </div>
 
-        <!-- Error message -->
-        <div v-if="error" class="error-message">
-            {{ error }}
-            <button @click="clearError" class="clear-error-btn">×</button>
-        </div>
+        <!-- Error alert -->
+        <UAlert
+            v-if="error"
+            icon="i-heroicons-exclamation-triangle"
+            color="error"
+            variant="soft"
+            :title="error"
+            :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'gray', variant: 'link', padded: false }"
+            @close="clearError"
+            class="fixed top-20 right-4 z-50 max-w-sm"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-const { authState, login, logout, clearError, checkAuthStatus } = useAuth();
+const { authState, login, logout, clearError } = useAuth();
 
 // Computed properties for easy access
 const isAuthenticated = computed(() => authState.value.isAuthenticated);
 const user = computed(() => authState.value.user);
 const isLoading = computed(() => authState.value.isLoading);
 const error = computed(() => authState.value.error);
+
+// Computed display name
+const displayName = computed(() => {
+    if (user.value?.given_name && user.value?.family_name) {
+        return `${user.value.given_name} ${user.value.family_name}`;
+    }
+    return user.value?.preferred_username || "User";
+});
 
 // Handle login
 function handleLogin() {
@@ -43,11 +78,6 @@ function handleLogin() {
 async function handleLogout() {
     await logout();
 }
-
-// Check auth status on component mount
-onMounted(async () => {
-    await checkAuthStatus();
-});
 </script>
 
 <style scoped>

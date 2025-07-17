@@ -45,7 +45,7 @@ class DatasetWithDetails(Dataset):
     detector_name: str | None = None
     campaign_name: str | None = None
     stage_name: str | None = None
-    accelerator_type_name: str | None = None
+    accelerator_name: str | None = None
 
     @model_validator(mode="before")
     @classmethod
