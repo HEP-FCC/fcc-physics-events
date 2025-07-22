@@ -3,30 +3,17 @@
  * Auto-imported by Nuxt 3
  */
 
+import type { Dataset as SchemaDataset } from "~/types/schema";
+
+/**
+ * Re-export Dataset for convenience
+ */
+export type Dataset = SchemaDataset;
+
 /**
  * Sort order for dataset queries
  */
 export type SortOrder = "asc" | "desc";
-
-/**
- * Dataset entity with all properties
- * Some properties are readonly (immutable), others can be modified
- */
-export interface Dataset {
-    readonly dataset_id: number;
-    readonly name: string;
-    metadata: Record<string, unknown>; // Mutable - can be edited via API
-    readonly created_at: string;
-    last_edited_at?: string; // Mutable - updated when metadata changes
-    readonly accelerator_id?: number | null;
-    readonly stage_id?: number | null;
-    readonly campaign_id?: number | null;
-    readonly detector_id?: number | null;
-    readonly detector_name?: string | null;
-    readonly campaign_name?: string | null;
-    readonly stage_name?: string | null;
-    readonly accelerator_name?: string | null;
-}
 
 /**
  * API response structure for paginated dataset queries
@@ -36,19 +23,6 @@ export interface PaginatedResponse<T = Dataset> {
     readonly items?: T[];
     readonly data?: T[];
 }
-
-/**
- * Navigation dropdown item structure
- */
-export interface DropdownItem {
-    readonly id: number;
-    readonly name: string;
-}
-
-/**
- * Dropdown type for navigation
- */
-export type DropdownType = "stage" | "accelerator" | "campaign" | "detector";
 
 /**
  * Search operation state management
@@ -88,19 +62,6 @@ export interface SelectionState {
     selectedDatasets: Set<number>;
     expandedMetadata: Set<number>;
     isDownloading: boolean;
-}
-
-/**
- * Navigation dropdown configuration and state
- */
-export interface NavigationDropdown {
-    items: DropdownItem[]; // Mutable - updated when data is loaded
-    isLoading: boolean;
-    isOpen: boolean;
-    readonly icon: string;
-    readonly label: string;
-    readonly clearLabel: string;
-    readonly apiCall: (filters?: Record<string, string | undefined>) => Promise<DropdownItem[]>;
 }
 
 /**

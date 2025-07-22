@@ -1,4 +1,5 @@
-import { ref, readonly } from "vue";
+import { watch } from "vue";
+import { APP_CONFIG } from "~/config/app.config";
 
 interface User {
     given_name?: string;
@@ -33,13 +34,13 @@ export function useAuth() {
     );
 
     // Watch the cookie for changes and update auth state automatically
-    const authCookie = useCookie("fcc-physics-events-web");
+    const authCookie = useCookie(APP_CONFIG.auth.cookieName);
 
     watch(
         authCookie,
         (newCookieValue) => {
             if (newCookieValue) {
-                const cookieData = newCookieValue as any;
+                const cookieData = newCookieValue as unknown as Record<string, unknown>;
                 if (cookieData.token && cookieData.user) {
                     authState.value.isAuthenticated = true;
                     authState.value.user = cookieData.user;
@@ -65,12 +66,12 @@ export function useAuth() {
         authState.value.error = null;
 
         try {
-            const authCookie = useCookie("fcc-physics-events-web");
+            const authCookie = useCookie(APP_CONFIG.auth.cookieName);
             // Trigger watcher by accessing the cookie value
-            const cookieValue = authCookie.value;
+            const _cookieValue = authCookie.value;
 
             // The watcher will update the auth state based on the cookie value
-        } catch (error) {
+        } catch {
             authState.value.error = "Authentication check failed";
         } finally {
             authState.value.isLoading = false;
@@ -97,7 +98,7 @@ export function useAuth() {
             const logoutResponse = await apiClient.logout();
 
             // Clear the auth cookie
-            const authCookie = useCookie("fcc-physics-events-web");
+            const authCookie = useCookie(APP_CONFIG.auth.cookieName);
             authCookie.value = null;
 
             authState.value.isAuthenticated = false;
@@ -107,9 +108,9 @@ export function useAuth() {
             if (logoutResponse?.logout_url) {
                 window.location.href = logoutResponse.logout_url;
             }
-        } catch (error) {
+        } catch {
             // Clear the auth cookie
-            const authCookie = useCookie("fcc-physics-events-web");
+            const authCookie = useCookie(APP_CONFIG.auth.cookieName);
             authCookie.value = null;
             authState.value.isAuthenticated = false;
             authState.value.user = null;
@@ -139,10 +140,10 @@ export function useAuth() {
      * Get access token for API calls from cookie
      */
     async function getAccessToken(): Promise<string | null> {
-        const authCookie = useCookie("fcc-physics-events-web");
-        const cookieData = authCookie.value as any;
+        const authCookie = useCookie(APP_CONFIG.auth.cookieName);
+        const cookieData = authCookie.value as unknown as Record<string, unknown>;
 
-        if (cookieData?.token) {
+        if (cookieData?.token && typeof cookieData.token === "string") {
             return cookieData.token;
         }
 

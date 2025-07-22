@@ -3,7 +3,6 @@ This is the main FastAPI application file, which orchestrates the API,
 database connections, and data processing modules.
 """
 
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
@@ -14,7 +13,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.responses import JSONResponse, Response
 
 from app.auth import cern_auth
 from app.config import get_config
@@ -181,7 +180,7 @@ async def validation_exception_handler(request: Request, _: Exception) -> JSONRe
 async def login(request: Request) -> Any:
     """Initiate OAuth login with CERN."""
     request.session.clear()
-    return await oauth.cern.authorize_redirect(request, redirect_uri)  # type: ignore
+    return await oauth.cern.authorize_redirect(request, redirect_uri)
 
 
 @app.get("/auth")
@@ -242,7 +241,7 @@ async def logout(request: Request) -> JSONResponse:
 
 
 @app.get("/test")
-async def test(creds=Depends(security)) -> None:
+async def test(creds: HTTPAuthorizationCredentials | None = Depends(security)) -> None:
     # token = "eyJfc3RhdGVfY2Vybl9DYW9pa0Fma2JCM2tkWjllQTNvNHBqZzNjY1hKM2UiOiB7ImRhdGEiOiB7InJlZGlyZWN0X3VyaSI6ICJodHRwOi8vbG9jYWxob3N0OjMwMDAvYXV0aC1jYWxsYmFjayIsICJub25jZSI6ICJhMDBIeEc1a1pLem5wb0tIOExrRCIsICJ1cmwiOiAiaHR0cHM6Ly9hdXRoLmNlcm4uY2gvYXV0aC9yZWFsbXMvY2Vybi9wcm90b2NvbC9vcGVuaWQtY29ubmVjdC9hdXRoP3Jlc3BvbnNlX3R5cGU9Y29kZSZjbGllbnRfaWQ9ZmNjLXBoeXNpY3MtZXZlbnRzLXdlYiZyZWRpcmVjdF91cmk9aHR0cCUzQSUyRiUyRmxvY2FsaG9zdCUzQTMwMDAlMkZhdXRoLWNhbGxiYWNrJnNjb3BlPW9wZW5pZCtlbWFpbCtwcm9maWxlJnN0YXRlPUNhb2lrQWZrYkIza2RaOWVBM280cGpnM2NjWEozZSZub25jZT1hMDBIeEc1a1pLem5wb0tIOExrRCJ9LCAiZXhwIjogMTc1Mjc0MDU5OS4wMDI1Njk3fX0=.aHik5w.qDJJ17PyY-aYinR5XiV3wVfzqt8"
     # token = cern_auth.jwt_decode_token(jwt_encoded_token)
     print(creds)
@@ -443,7 +442,7 @@ async def get_dataset_by_id(dataset_id: int) -> Any:
 async def update_dataset(
     dataset_id: int,
     update_data: DatasetUpdate,
-    request: Request,
+    _request: Request,
     user: dict[str, Any] = Depends(get_and_validate_user_from_session),
 ) -> Any:
     """
@@ -479,4 +478,439 @@ async def get_session_status(request: Request) -> JSONResponse:
     else:
         return JSONResponse(content={"authenticated": False, "user": None})
 
+
 # TODO: logout button/api method
+
+
+# =============================================================================
+# SCHEMA-DRIVEN GENERIC API ENDPOINTS
+# =============================================================================
+
+
+class SearchRequest(BaseModel):
+    """Request model for generic search"""
+
+    filters: dict[str, str] = {}
+    search: str = ""
+    page: int = 1
+    limit: int = 20
+
+
+@app.get("/api/schema")
+async def get_database_schema() -> Any:
+    """
+    Get the complete database schema configuration for frontend.
+    This endpoint analyzes the database structure and returns configuration
+    that allows the frontend to work with any database schema.
+    """
+    try:
+        async with database.session() as conn:
+            from app.schema_discovery import get_schema_discovery
+
+            schema_discovery = await get_schema_discovery(conn)
+
+            # Analyze the navigation structure based on the main table (datasets)
+            navigation_analysis = await schema_discovery.analyze_navigation_structure(
+                "datasets"
+            )
+
+            # Generate default navigation configuration
+            navigation_config = {}
+            default_icons = {
+                "stage": "i-heroicons-cpu-chip",
+                "accelerator": "i-heroicons-bolt",
+                "campaign": "i-heroicons-calendar-days",
+                "detector": "i-heroicons-beaker",
+                "experiment": "i-heroicons-beaker",
+                "project": "i-heroicons-folder",
+                "category": "i-heroicons-tag",
+                "type": "i-heroicons-squares-2x2",
+                "status": "i-heroicons-signal",
+            }
+
+            colors = ["primary", "success", "warning", "info", "neutral"]
+
+            for i, key in enumerate(navigation_analysis["navigation_order"]):
+                entity_info = next(
+                    e
+                    for e in navigation_analysis["navigation_entities"]
+                    if e["key"] == key
+                )
+                label = key.replace("_", " ").title()
+                icon = default_icons.get(key, "i-heroicons-folder")
+                color = colors[i % len(colors)]
+
+                navigation_config[key] = {
+                    "icon": icon,
+                    "label": label,
+                    "clearLabel": f"Clear {label}",
+                    "badgeColor": color,
+                    "columnName": entity_info["column_name"],
+                }
+
+            # Build the response
+            schema_config = {
+                "mainTableSchema": {
+                    "tableName": navigation_analysis["main_table"],
+                    "primaryKey": navigation_analysis["main_table_schema"][
+                        "primary_key"
+                    ],
+                    "nameColumn": "name",  # Datasets typically use 'name'
+                    "columns": [
+                        col["column_name"]
+                        for col in navigation_analysis["main_table_schema"]["columns"]
+                    ],
+                },
+                "navigationTables": navigation_analysis["navigation_tables"],
+                "navigationOrder": navigation_analysis["navigation_order"],
+                "navigation": navigation_config,
+                "appTitle": config.get("app.title", "Data Explorer"),
+                "searchPlaceholder": config.get(
+                    "app.search_placeholder", "Search datasets..."
+                ),
+            }
+
+            return schema_config
+
+    except Exception as e:
+        logger.error(f"Failed to get database schema: {e}")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve database schema"
+        )
+
+
+@app.get("/api/dropdown/{table_key}")
+async def get_dropdown_items(
+    table_key: str,
+    filters: str = Query("", description="JSON string of filters to apply"),
+) -> Any:
+    """
+    Get dropdown items for any navigation table based on schema discovery.
+    This replaces table-specific endpoints like /stages/, /detectors/, etc.
+    Returns only items that have related datasets.
+    """
+    import json
+
+    try:
+        # Parse filters
+        filter_dict = {}
+        if filters:
+            filter_dict = json.loads(filters)
+
+        # Get schema information to find the appropriate table
+        async with database.session() as conn:
+            from app.schema_discovery import get_schema_discovery
+
+            schema_discovery = await get_schema_discovery(conn)
+            navigation_analysis = await schema_discovery.analyze_navigation_structure(
+                "datasets"
+            )
+
+            if table_key not in navigation_analysis["navigation_tables"]:
+                raise HTTPException(
+                    status_code=404, detail=f"Navigation table '{table_key}' not found"
+                )
+
+            table_info = navigation_analysis["navigation_tables"][table_key]
+            table_name = table_info["table_name"]
+            primary_key = table_info["primary_key"]
+            name_column = table_info["name_column"]
+
+            # Build query that only returns items that have datasets
+            # This ensures dropdowns only show relevant options
+            query = f"""
+                SELECT DISTINCT t.{primary_key} as id, t.{name_column} as name
+                FROM {table_name} t
+                INNER JOIN datasets d ON d.{table_key}_id = t.{primary_key}
+            """
+
+            params: list[Any] = []
+            conditions: list[str] = []
+
+            # Apply filters if provided
+            if filter_dict:
+                for filter_key, filter_value in filter_dict.items():
+                    if filter_key.endswith("_name"):
+                        # This is a filter by name, convert to ID
+                        entity_key = filter_key.replace("_name", "")
+                        if entity_key in navigation_analysis["navigation_tables"]:
+                            filter_table_info = navigation_analysis[
+                                "navigation_tables"
+                            ][entity_key]
+                            filter_table_name = filter_table_info["table_name"]
+                            filter_name_column = filter_table_info["name_column"]
+                            filter_pk = filter_table_info["primary_key"]
+
+                            # Get the ID for this filter value
+                            id_result = await conn.fetchval(
+                                f"SELECT {filter_pk} FROM {filter_table_name} WHERE {filter_name_column} = $1",
+                                filter_value,
+                            )
+
+                            if id_result:
+                                # Add filter condition to the query
+                                conditions.append(
+                                    f"d.{entity_key}_id = ${len(params) + 1}"
+                                )
+                                params.append(id_result)
+                    else:
+                        # Direct filter by ID
+                        if filter_key.endswith("_id"):
+                            conditions.append(f"d.{filter_key} = ${len(params) + 1}")
+                            params.append(filter_value)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            query += f" ORDER BY t.{name_column}"
+
+            # Execute the query
+            rows = await conn.fetch(query, *params)
+
+            # Convert to the expected format
+            items = [{"id": row["id"], "name": row["name"]} for row in rows]
+
+            return {"data": items}
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in filters parameter")
+    except Exception as e:
+        logger.error(f"Failed to get dropdown items for {table_key}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to load {table_key} options"
+        )
+
+
+@app.post("/api/search")
+async def search_datasets_generic(request: SearchRequest) -> Any:
+    """
+    Generic search endpoint that works with any database schema.
+    Automatically handles joins based on schema discovery.
+    """
+    try:
+        async with database.session() as conn:
+            from app.schema_discovery import get_schema_discovery
+
+            schema_discovery = await get_schema_discovery(conn)
+            navigation_analysis = await schema_discovery.analyze_navigation_structure(
+                "datasets"
+            )
+
+            # Build the base query
+            main_table = navigation_analysis["main_table"]
+            query_parts = ["SELECT d.*"]
+
+            # Add joins for navigation tables to get names
+            join_parts = []
+            for entity in navigation_analysis["navigation_entities"]:
+                table_alias = entity["key"][0]  # Use first letter as alias
+                referenced_table = entity["referenced_table"]
+                column_name = entity["column_name"]
+                name_column = navigation_analysis["navigation_tables"][entity["key"]][
+                    "name_column"
+                ]
+
+                query_parts.append(
+                    f", {table_alias}.{name_column} as {entity['key']}_name"
+                )
+                join_parts.append(
+                    f"LEFT JOIN {referenced_table} {table_alias} ON d.{column_name} = {table_alias}.{navigation_analysis['navigation_tables'][entity['key']]['primary_key']}"
+                )
+
+            query_parts.append(f" FROM {main_table} d")
+            query_parts.extend(join_parts)
+
+            # Build WHERE conditions
+            conditions: list[str] = []
+            params: list[Any] = []
+
+            # Add filter conditions
+            for filter_key, filter_value in request.filters.items():
+                if filter_key.endswith("_name"):
+                    # Filter by navigation entity name
+                    entity_key = filter_key.replace("_name", "")
+                    if entity_key in navigation_analysis["navigation_tables"]:
+                        table_alias = entity_key[0]
+                        name_column = navigation_analysis["navigation_tables"][
+                            entity_key
+                        ]["name_column"]
+                        conditions.append(
+                            f"{table_alias}.{name_column} = ${len(params) + 1}"
+                        )
+                        params.append(filter_value)
+
+            # Add search condition if provided
+            if request.search:
+                # Search in dataset name and description
+                search_condition = "("
+                search_conditions = []
+
+                # Search in main table text fields
+                for col in navigation_analysis["main_table_schema"]["columns"]:
+                    if any(
+                        text_type in col["data_type"].lower()
+                        for text_type in ["text", "varchar", "character"]
+                    ):
+                        search_conditions.append(
+                            f"d.{col['column_name']} ILIKE ${len(params) + 1}"
+                        )
+
+                if search_conditions:
+                    search_condition += " OR ".join(search_conditions) + ")"
+                    conditions.append(search_condition)
+                    params.append(f"%{request.search}%")
+
+            # Combine query parts
+            query = "".join(query_parts)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            # Add ordering
+            query += f" ORDER BY d.{navigation_analysis['main_table_schema']['primary_key']} DESC"
+
+            # Count query for pagination
+            count_query = query.replace(
+                "SELECT d.*"
+                + "".join(query_parts[1 : query_parts.index(f" FROM {main_table} d")]),
+                "SELECT COUNT(*)",
+            )
+
+            # Execute count query
+            total = await conn.fetchval(count_query, *params) or 0
+
+            # Add pagination
+            offset = (request.page - 1) * request.limit
+            paginated_query = (
+                f"{query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+            )
+
+            # Execute main query
+            rows = await conn.fetch(paginated_query, *params, request.limit, offset)
+
+            # Convert to dictionaries
+            items = [dict(row) for row in rows]
+
+            return {"total": total, "items": items}
+
+    except Exception as e:
+        logger.error(f"Failed to perform generic search: {e}")
+        raise HTTPException(status_code=500, detail="Search failed")
+
+
+@app.post("/api/import/{table_key}")
+async def import_data_generic(
+    table_key: str,
+    _data: dict[str, Any],
+    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+) -> Any:
+    """
+    Generic data import endpoint that works with any table based on schema discovery.
+    """
+    try:
+        logger.info(
+            f"User {user.get('preferred_username', 'unknown')} importing data to {table_key}"
+        )
+
+        async with database.session() as conn:
+            from app.schema_discovery import get_schema_discovery
+
+            schema_discovery = await get_schema_discovery(conn)
+
+            if table_key == "main":
+                # Handle main table import (datasets)
+                # For now, delegate to existing import logic
+                raise HTTPException(
+                    status_code=501,
+                    detail="Main table import not yet implemented via generic endpoint",
+                )
+            else:
+                # Handle navigation table import
+                navigation_analysis = (
+                    await schema_discovery.analyze_navigation_structure("datasets")
+                )
+
+                if table_key not in navigation_analysis["navigation_tables"]:
+                    raise HTTPException(
+                        status_code=404, detail=f"Table '{table_key}' not found"
+                    )
+
+                table_info = navigation_analysis["navigation_tables"][table_key]
+                table_name = table_info["table_name"]
+
+                # Basic validation and insertion logic would go here
+                # For now, return a placeholder response
+                return {
+                    "status": "success",
+                    "message": f"Import to {table_name} would be processed here",
+                }
+
+    except Exception as e:
+        logger.error(f"Failed to import data to {table_key}: {e}")
+        raise HTTPException(status_code=500, detail=f"Import failed for {table_key}")
+
+
+@app.post("/api/validate/{table_key}")
+async def validate_data_generic(table_key: str, data: dict[str, Any]) -> Any:
+    """
+    Generic data validation endpoint that works with any table based on schema discovery.
+    """
+    try:
+        async with database.session() as conn:
+            from app.schema_discovery import get_schema_discovery
+
+            schema_discovery = await get_schema_discovery(conn)
+
+            if table_key == "main":
+                table_metadata = await schema_discovery.get_table_metadata("datasets")
+            else:
+                navigation_analysis = (
+                    await schema_discovery.analyze_navigation_structure("datasets")
+                )
+                if table_key not in navigation_analysis["navigation_tables"]:
+                    raise HTTPException(
+                        status_code=404, detail=f"Table '{table_key}' not found"
+                    )
+
+                table_info = navigation_analysis["navigation_tables"][table_key]
+                table_metadata = await schema_discovery.get_table_metadata(
+                    table_info["table_name"]
+                )
+
+            if not table_metadata:
+                raise HTTPException(
+                    status_code=404, detail=f"Table metadata not found for {table_key}"
+                )
+
+            # Perform basic validation
+            validation_errors = []
+
+            # Check required fields
+            for column in table_metadata["columns"]:
+                if not column["is_nullable"] and column["column_name"] not in data.get(
+                    "data", {}
+                ):
+                    validation_errors.append(
+                        f"Required field '{column['column_name']}' is missing"
+                    )
+
+            # Check data types (basic validation)
+            for field, _value in data.get("data", {}).items():
+                column_info = next(
+                    (
+                        col
+                        for col in table_metadata["columns"]
+                        if col["column_name"] == field
+                    ),
+                    None,
+                )
+                if column_info:
+                    # Add basic type validation here
+                    pass
+
+            return {"valid": len(validation_errors) == 0, "errors": validation_errors}
+
+    except Exception as e:
+        logger.error(f"Failed to validate data for {table_key}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Validation failed for {table_key}"
+        )

@@ -3,13 +3,13 @@
         <!-- Authentication controls -->
         <div v-if="!isAuthenticated" class="login-section">
             <UButton
-                @click="handleLogin"
                 :loading="isLoading"
                 color="primary"
                 variant="solid"
                 size="sm"
                 icon="i-heroicons-user-circle"
                 class="login-btn"
+                @click="handleLogin"
             >
                 {{ isLoading ? "Signing in..." : "Sign in with CERN" }}
             </UButton>
@@ -26,12 +26,12 @@
                     </div>
                 </div>
                 <UButton
-                    @click="handleLogout"
                     :loading="isLoading"
                     color="error"
                     variant="outline"
                     size="sm"
                     icon="i-heroicons-arrow-right-on-rectangle"
+                    @click="handleLogout"
                 >
                     Sign out
                 </UButton>
@@ -46,8 +46,8 @@
             variant="soft"
             :title="error"
             :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'gray', variant: 'link', padded: false }"
-            @close="clearError"
             class="fixed top-20 right-4 z-50 max-w-sm"
+            @close="clearError"
         />
     </div>
 </template>

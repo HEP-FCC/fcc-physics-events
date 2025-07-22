@@ -5,28 +5,58 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watchEffect } from "vue";
 import { useRoute } from "vue-router";
-import { parseRouteToFilters, generatePageTitle, generatePageDescription } from "~/config/navigation";
+import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
 
 const route = useRoute();
-
-const activeFilters = computed(() => {
-    const params = Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];
-    return parseRouteToFilters(params);
-});
+const { parseRouteToFilters, parseRouteToPath, getPageTitle } = useDynamicNavigation();
 
 const routeParams = computed(() => {
     return Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];
 });
 
+// Use refs for async data
+const activeFilters = ref<Record<string, string>>({});
+const currentPath = ref<Record<string, string | null>>({});
+
+// Watch route params and update data asynchronously
+watchEffect(() => {
+    const params = routeParams.value;
+    try {
+        activeFilters.value = parseRouteToFilters(params);
+        currentPath.value = parseRouteToPath(params);
+    } catch (error) {
+        console.error("Error parsing route:", error);
+        activeFilters.value = {};
+        currentPath.value = {};
+    }
+});
+
 // Set the page title and meta
 useHead({
-    title: () => generatePageTitle(activeFilters.value),
+    title: () => {
+        const path = currentPath.value;
+        try {
+            return Object.keys(path).some((key) => path[key]) ? getPageTitle(path) : "FCC Physics Datasets Search";
+        } catch (error) {
+            console.error("Error getting page title:", error);
+            return "FCC Physics Datasets Search";
+        }
+    },
     meta: [
         {
             name: "description",
-            content: computed(() => generatePageDescription(activeFilters.value)),
+            content: () => {
+                const filters = activeFilters.value;
+                if (Object.keys(filters).length > 0) {
+                    const filterDesc = Object.entries(filters)
+                        .map(([key, value]) => `${key.replace("_", " ")}: ${value}`)
+                        .join(", ");
+                    return `Search FCC physics datasets filtered by ${filterDesc}`;
+                }
+                return "Search and explore FCC physics simulation datasets and data";
+            },
         },
     ],
 });

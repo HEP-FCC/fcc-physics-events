@@ -1,5 +1,5 @@
 import type { Dataset } from "~/types/dataset";
-import { DROPDOWN_ORDER, NAVIGATION_CONFIG } from "~/config/navigation";
+import { APP_CONFIG } from "~/config/app.config";
 
 /**
  * Composable for utility functions
@@ -168,9 +168,8 @@ export function useUtils() {
      * Generate badge items for dataset display
      */
     function getBadgeItems(dataset: Dataset) {
-        // Generate standard badges from centralized navigation config
-        const standardBadges = DROPDOWN_ORDER.map((dropdownType) => {
-            const config = NAVIGATION_CONFIG[dropdownType];
+        // Generate standard badges from app config navigation overrides
+        const standardBadges = Object.entries(APP_CONFIG.navigationOverrides).map(([dropdownType, config]) => {
             const fieldName = `${dropdownType}_name` as keyof Dataset;
 
             return {

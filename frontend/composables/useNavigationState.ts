@@ -1,110 +1,99 @@
-import { ref, computed } from "vue";
-import type { DropdownItem, DropdownType } from "~/types/dataset";
+import { ref, computed, readonly, type Ref } from "vue";
+import type { DropdownItem } from "~/types/schema";
+import { APP_CONFIG } from "~/config/app.config";
+import { useApiClient } from "~/composables/useApiClient";
 
 /**
- * Simple navigation state management with explicit reactivity
+ * Dynamic navigation state management with schema-driven configuration
  */
 export function useNavigationState() {
     const { apiClient } = useApiClient();
 
-    // Use individual refs for each dropdown to ensure reactivity
-    const stageItems = ref<DropdownItem[]>([]);
-    const campaignItems = ref<DropdownItem[]>([]);
-    const detectorItems = ref<DropdownItem[]>([]);
+    // Dynamic refs based on navigation order
+    const navigationOrder = APP_CONFIG.navigationOrder;
 
-    const stageLoading = ref(false);
-    const campaignLoading = ref(false);
-    const detectorLoading = ref(false);
+    // Create dynamic refs for each navigation type
+    const itemsRefs: Record<string, Ref<DropdownItem[]>> = {};
+    const loadingRefs: Record<string, Ref<boolean>> = {};
+    const openRefs: Record<string, Ref<boolean>> = {};
 
-    const stageOpen = ref(false);
-    const campaignOpen = ref(false);
-    const detectorOpen = ref(false);
-
-    // Navigation configuration
-    const navigationConfig = {
-        stage: {
-            icon: "i-heroicons-cpu-chip",
-            label: "Stage",
-            clearLabel: "Clear Stage",
-        },
-        campaign: {
-            icon: "i-heroicons-calendar-days",
-            label: "Campaign",
-            clearLabel: "Clear Campaign",
-        },
-        detector: {
-            icon: "i-heroicons-beaker",
-            label: "Detector",
-            clearLabel: "Clear Detector",
-        },
-    } as const;
+    // Initialize refs for each navigation type
+    navigationOrder.forEach((type) => {
+        itemsRefs[type] = ref<DropdownItem[]>([]);
+        loadingRefs[type] = ref(false);
+        openRefs[type] = ref(false);
+    });
 
     // Computed dropdowns object
-    const dropdowns = computed(() => ({
-        stage: {
-            items: stageItems.value,
-            isLoading: stageLoading.value,
-            isOpen: stageOpen.value,
-            ...navigationConfig.stage,
-        },
-        campaign: {
-            items: campaignItems.value,
-            isLoading: campaignLoading.value,
-            isOpen: campaignOpen.value,
-            ...navigationConfig.campaign,
-        },
-        detector: {
-            items: detectorItems.value,
-            isLoading: detectorLoading.value,
-            isOpen: detectorOpen.value,
-            ...navigationConfig.detector,
-        },
-    }));
+    const dropdowns = computed(() => {
+        const result: Record<
+            string,
+            {
+                items: DropdownItem[];
+                isLoading: boolean;
+                isOpen: boolean;
+                icon: string;
+                label: string;
+                clearLabel: string;
+            }
+        > = {};
 
-    function getItemsRef(type: DropdownType) {
-        switch (type) {
-            case "stage":
-                return stageItems;
-            case "campaign":
-                return campaignItems;
-            case "detector":
-                return detectorItems;
-        }
+        navigationOrder.forEach((type) => {
+            const config = APP_CONFIG.navigationOverrides[type as keyof typeof APP_CONFIG.navigationOverrides];
+            result[type] = {
+                items: itemsRefs[type]?.value || [],
+                isLoading: loadingRefs[type]?.value || false,
+                isOpen: openRefs[type]?.value || false,
+                icon: config?.icon || "i-heroicons-folder",
+                label: config?.label || type,
+                clearLabel: `Clear ${config?.label || type}`,
+            };
+        });
+
+        return result;
+    });
+
+    function getItemsRef(type: string): Ref<DropdownItem[]> | null {
+        const result = itemsRefs[type] || null;
+        return result;
     }
 
-    function getLoadingRef(type: DropdownType) {
-        switch (type) {
-            case "stage":
-                return stageLoading;
-            case "campaign":
-                return campaignLoading;
-            case "detector":
-                return detectorLoading;
-        }
+    function getLoadingRef(type: string): Ref<boolean> | null {
+        const result = loadingRefs[type] || null;
+        return result;
     }
 
-    function getOpenRef(type: DropdownType) {
-        switch (type) {
-            case "stage":
-                return stageOpen;
-            case "campaign":
-                return campaignOpen;
-            case "detector":
-                return detectorOpen;
-        }
+    function getOpenRef(type: string): Ref<boolean> | null {
+        return openRefs[type] || null;
     }
 
-    async function loadDropdownData(type: DropdownType, filters: Record<string, string> = {}) {
+    async function loadDropdownData(type: string, filters: Record<string, string> = {}, forceReload: boolean = false) {
         const itemsRef = getItemsRef(type);
         const loadingRef = getLoadingRef(type);
 
-        if (itemsRef.value.length > 0 || loadingRef.value) {
+        if (!itemsRef || !loadingRef) {
+            console.warn(`Unknown navigation type: ${type}`, { itemsRef, loadingRef });
+            return;
+        }
+
+        // Skip if already loading
+        if (loadingRef.value) {
+            return;
+        }
+
+        // Skip if data already loaded and no filters (unless force reload)
+        const hasFilters = Object.keys(filters).length > 0;
+        if (!forceReload && !hasFilters && itemsRef.value.length > 0) {
             return;
         }
 
         loadingRef.value = true;
+
         try {
-            const newItems = await apiClient.getNavigationOptions(type, filters);
+            const newItems = await apiClient.getNavigationOptions(
+                type as "stage" | "campaign" | "detector" | "accelerator",
+                filters,
+            );
             itemsRef.value = newItems;
         } catch (error) {
             console.error(`Error loading ${type}:`, error);
@@ -114,14 +103,16 @@ export function useNavigationState() {
         }
     }
 
-    function toggleDropdown(type: DropdownType) {
+    function toggleDropdown(type: string) {
         const openRef = getOpenRef(type);
+        if (!openRef) {
+            return;
+        }
+
         const wasOpen = openRef.value;
 
         // Close all dropdowns
-        stageOpen.value = false;
-        campaignOpen.value = false;
-        detectorOpen.value = false;
+        closeAllDropdowns();
 
         // Open the clicked one if it wasn't already open
         if (!wasOpen) {
@@ -130,42 +121,64 @@ export function useNavigationState() {
     }
 
     function closeAllDropdowns() {
-        stageOpen.value = false;
-        campaignOpen.value = false;
-        detectorOpen.value = false;
+        navigationOrder.forEach((type) => {
+            const openRef = getOpenRef(type);
+            if (openRef) {
+                openRef.value = false;
+            }
+        });
     }
 
-    function clearDropdownData(type: DropdownType) {
+    function clearDropdownData(type: string) {
         const itemsRef = getItemsRef(type);
-        itemsRef.value = [];
+        if (itemsRef) {
+            itemsRef.value = [];
+        }
     }
 
-    function clearDependentDropdowns(changedType: DropdownType) {
-        if (changedType === "stage") {
-            // Clear campaign and detector data
-            campaignItems.value = [];
-            detectorItems.value = [];
-        } else if (changedType === "campaign") {
-            // Clear detector data
-            detectorItems.value = [];
+    function clearDependentDropdowns(changedType: string) {
+        const typeIndex = (navigationOrder as readonly string[]).indexOf(changedType);
+        if (typeIndex === -1) return;
+
+        // Clear all subsequent navigation types
+        for (let i = typeIndex + 1; i < navigationOrder.length; i++) {
+            const dependentType = navigationOrder[i];
+            const itemsRef = getItemsRef(dependentType);
+            if (itemsRef) {
+                itemsRef.value = [];
+            }
         }
+    }
+
+    // Utility functions for compatibility
+    function getItems(type: string): DropdownItem[] {
+        const itemsRef = getItemsRef(type);
+        return itemsRef ? itemsRef.value : [];
+    }
+
+    function isLoading(type: string): boolean {
+        const loadingRef = getLoadingRef(type);
+        return loadingRef ? loadingRef.value : false;
+    }
+
+    function isOpen(type: string): boolean {
+        const openRef = getOpenRef(type);
+        return openRef ? openRef.value : false;
     }
 
     return {
         dropdowns,
-        stageItems,
-        campaignItems,
-        detectorItems,
-        stageLoading,
-        campaignLoading,
-        detectorLoading,
-        stageOpen,
-        campaignOpen,
-        detectorOpen,
+        itemsRefs: readonly(itemsRefs),
+        loadingRefs: readonly(loadingRefs),
+        openRefs: readonly(openRefs),
         loadDropdownData,
         toggleDropdown,
         closeAllDropdowns,
         clearDropdownData,
         clearDependentDropdowns,
+        getItems,
+        isLoading,
+        isOpen,
+        navigationOrder,
     };
 }

@@ -15,8 +15,8 @@
                         color="primary"
                         variant="solid"
                         size="sm"
-                        @click="saveMetadata"
                         :disabled="!isAuthenticated"
+                        @click="saveMetadata"
                     >
                         {{ isAuthenticated ? "Save Changes" : "Login Required" }}
                     </UButton>
@@ -114,8 +114,8 @@
                                             size="xs"
                                             :padded="false"
                                             class="w-3 h-3 shrink-0 ml-2 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
-                                            @click="copyFieldValue(key, value)"
                                             :title="`Copy ${getSpecialFieldTitle(key)} value`"
+                                            @click="copyFieldValue(key, value)"
                                         />
                                     </div>
                                 </div>
@@ -212,8 +212,8 @@
                                             size="xs"
                                             :padded="false"
                                             class="w-4 h-4 shrink-0 ml-2 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
-                                            @click="copyFieldValue(key, value)"
                                             :title="`Copy ${formatFieldName(key)} value`"
+                                            @click="copyFieldValue(key, value)"
                                         />
                                     </div>
                                 </div>

@@ -100,10 +100,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from "vue";
 import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
 import type { Dataset } from "~/types/dataset";
-import { parseRouteToPath } from "~/config/navigation";
+import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
 
 /**
  * Dataset Search Interface Component
@@ -120,6 +120,9 @@ const props = withDefaults(defineProps<Props>(), {
     routeParams: () => [],
 });
 
+// Dynamic navigation composable
+const { parseRouteToPath } = useDynamicNavigation();
+
 // Composables
 const search = useDatasetSearch();
 const selection = useDatasetSelection();
@@ -127,8 +130,19 @@ const selection = useDatasetSelection();
 // Component state
 const isInitialized = ref(false);
 
-// Computed values (with stable references)
-const currentPath = computed(() => parseRouteToPath(props.routeParams));
+// Async navigation state
+const currentPath = ref<Record<string, string | null>>({});
+
+// Watch route params and update data asynchronously
+watchEffect(() => {
+    const params = props.routeParams;
+    try {
+        currentPath.value = parseRouteToPath(params);
+    } catch (error) {
+        console.error("Error parsing route to path:", error);
+        currentPath.value = {};
+    }
+});
 
 // Memoized selection state computations
 const allDatasetsSelected = computed(() => selection.getAllDatasetsSelected(search.datasets.value as Dataset[]));
@@ -207,12 +221,6 @@ useInfiniteScroll(window, () => search.loadMoreData(), {
 
 // Component lifecycle
 onMounted(async () => {
-    console.log("🎯 DatasetSearchInterface onMounted", {
-        initialFilters: props.initialFilters,
-        routeParams: props.routeParams,
-        isInitialized: isInitialized.value,
-    });
-
     if (!isInitialized.value) {
         // Initialize search with any initial filters
         await search.initializeSearch(props.initialFilters);

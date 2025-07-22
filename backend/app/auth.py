@@ -4,13 +4,10 @@ Handles JWT token validation, CERN OAuth introspection, and secure token managem
 """
 
 import logging
-import time
 from typing import Any
 
 import httpx
 import jwt
-from fastapi import HTTPException
-from jwt.exceptions import InvalidTokenError
 from tenacity import (
     before_sleep_log,
     retry,

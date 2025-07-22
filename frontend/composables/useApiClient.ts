@@ -1,4 +1,5 @@
-import type { Dataset, PaginatedResponse, DropdownItem } from "~/types/dataset";
+import type { Dataset, PaginatedResponse } from "~/types/dataset";
+import type { DropdownItem } from "~/types/schema";
 import { retryWithBackoff, type RetryOptions } from "~/composables/useRetry";
 
 /**
@@ -46,29 +47,16 @@ class ApiClient {
 
         // Define the actual fetch operation
         const fetchOperation = async (): Promise<T> => {
-            console.log(`🌐 API Request: ${fetchOptions.method || "GET"} ${url}`, {
-                options: fetchOptions,
-                context: errorContext,
-            });
             const response = await fetch(url, fetchOptions);
 
             if (response.ok) {
                 this.apiAvailable.value = true;
                 const result = await response.json();
-                console.log(`✅ API Response: ${fetchOptions.method || "GET"} ${url}`, {
-                    status: response.status,
-                    result,
-                });
                 return result;
             }
 
             // Handle specific error cases
             if (response.status === 401) {
-                console.error(`❌ API Error: ${errorContext}`, {
-                    status: response.status,
-                    url,
-                    error: "Authentication failed",
-                });
                 const error = new Error(`Authentication failed: ${errorContext}`) as Error & {
                     status?: number;
                 };
@@ -77,11 +65,6 @@ class ApiClient {
             }
 
             if (response.status === 403) {
-                console.error(`❌ API Error: ${errorContext}`, {
-                    status: response.status,
-                    url,
-                    error: "Access forbidden",
-                });
                 const error = new Error(`Access forbidden: ${errorContext}`) as Error & {
                     status?: number;
                 };
@@ -89,11 +72,6 @@ class ApiClient {
                 throw error;
             }
 
-            console.error(`❌ API Error: ${errorContext}`, {
-                status: response.status,
-                url,
-                error: `Server responded with status ${response.status}`,
-            });
             const error = new Error(`${errorContext}: Server responded with status ${response.status}`) as Error & {
                 status?: number;
             };
@@ -180,27 +158,39 @@ class ApiClient {
 
     /**
      * Get navigation dropdown options with optional filtering
+     * Now uses the new generic /api/dropdown/{table_key} endpoint
      */
     async getNavigationOptions(
         entityType: "stage" | "campaign" | "detector" | "accelerator",
         filters?: Record<string, string | undefined>,
     ): Promise<DropdownItem[]> {
-        const endpoint = `${entityType}s`;
-        let requestUrl = `${this.baseUrl}/${endpoint}/`;
+        // Use the new generic endpoint
+        let requestUrl = `${this.baseUrl}/api/dropdown/${entityType}`;
 
         if (filters) {
             const params = new URLSearchParams();
+            // Convert filters to JSON string format expected by the new endpoint
+            const filterObj: Record<string, string> = {};
             Object.entries(filters).forEach(([key, value]) => {
                 if (value?.trim()) {
-                    params.append(key, value);
+                    filterObj[key] = value;
                 }
             });
-            if (params.toString()) {
+
+            if (Object.keys(filterObj).length > 0) {
+                params.append("filters", JSON.stringify(filterObj));
                 requestUrl += `?${params.toString()}`;
             }
         }
 
-        return this.makeRequest<DropdownItem[]>(requestUrl, {}, `Failed to fetch ${entityType}s`);
+        const response = await this.makeRequest<{ data: DropdownItem[] }>(
+            requestUrl,
+            {},
+            `Failed to fetch ${entityType}s`,
+        );
+
+        // Extract the data array from the response
+        return response.data;
     }
 
     /**
@@ -265,6 +255,17 @@ class ApiClient {
             "Failed to logout",
             undefined, // default retry options
             true, // include credentials
+        );
+    }
+
+    /**
+     * Get database schema configuration
+     */
+    async getSchemaConfiguration(): Promise<Record<string, unknown>> {
+        return this.makeRequest<Record<string, unknown>>(
+            `${this.baseUrl}/api/schema`,
+            { method: "GET" },
+            "Failed to fetch schema configuration",
         );
     }
 }

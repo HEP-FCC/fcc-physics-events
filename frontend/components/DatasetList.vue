@@ -47,11 +47,17 @@
 
                                 <!-- Right side: Timestamps -->
                                 <div class="flex gap-4 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                    <span>Created: {{ formatTimestamp(dataset.created_at) }}</span>
+                                    <span v-if="dataset.created_at"
+                                        >Created: {{ formatTimestamp(dataset.created_at) }}</span
+                                    >
                                     <span
                                         v-if="wasDatasetEdited(dataset)"
                                         class="text-amber-600 dark:text-amber-400 flex items-center gap-1 cursor-help"
-                                        :title="`Last edited: ${formatTimestamp(dataset.last_edited_at!)}`"
+                                        :title="
+                                            dataset.last_edited_at
+                                                ? `Last edited: ${formatTimestamp(dataset.last_edited_at)}`
+                                                : 'Last edited date unknown'
+                                        "
                                     >
                                         <span class="text-[10px]">✎</span>
                                         Edited
@@ -83,7 +89,7 @@
                 >
                     <DatasetMetadata
                         :dataset-id="dataset.dataset_id"
-                        :metadata="dataset.metadata"
+                        :metadata="dataset.metadata || {}"
                         :edit-state="metadataEditState[dataset.dataset_id]"
                         @enter-edit="enterEditMode"
                         @cancel-edit="cancelEdit"
@@ -91,21 +97,6 @@
                     />
                 </div>
             </UCard>
-
-            <!-- Loading states and load more controls -->
-            <div v-if="shouldShowLoadingIndicator" class="flex justify-center py-8">
-                <div class="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
-                    <span>Loading more results...</span>
-                </div>
-            </div>
-
-            <div v-else-if="shouldShowCompletionMessage" class="flex justify-center py-6">
-                <div class="text-center text-sm text-gray-500 dark:text-gray-400">
-                    <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
-                    All {{ pagination.totalDatasets }} results loaded
-                </div>
-            </div>
         </div>
     </div>
 </template>
@@ -153,7 +144,10 @@ const { getBadgeItems, formatTimestamp } = useUtils();
 
 // Helper function to check if dataset was actually edited
 function wasDatasetEdited(dataset: Dataset): boolean {
-    if (!dataset.last_edited_at) return false;
+    if (!dataset.last_edited_at || !dataset.created_at) return false;
+
+    // Ensure we have valid date strings
+    if (typeof dataset.last_edited_at !== "string" || typeof dataset.created_at !== "string") return false;
 
     // Parse dates and compare timestamps
     const created = new Date(dataset.created_at).getTime();

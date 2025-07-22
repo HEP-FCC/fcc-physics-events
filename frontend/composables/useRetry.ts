@@ -132,7 +132,7 @@ export async function retryWithBackoff<T>(
             const delay = calculateDelay(attempt, initialDelay, maxDelay, backoffMultiplier, useJitter);
 
             // Log retry attempt for debugging
-            if (process.dev) {
+            if (import.meta.dev) {
                 console.warn(
                     `Retry attempt ${attempt}/${maxAttempts} failed:`,
                     lastError.message,

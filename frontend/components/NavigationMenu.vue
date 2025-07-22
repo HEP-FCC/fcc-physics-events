@@ -2,225 +2,71 @@
     <div class="bg-white border-b border-gray-200 mb-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="flex space-x-8 py-4">
-                <!-- Stage Dropdown -->
-                <div class="relative dropdown-container">
-                    <UButton
-                        :color="currentPath.stage ? 'primary' : 'neutral'"
-                        :variant="currentPath.stage ? 'solid' : 'ghost'"
-                        trailing-icon="i-heroicons-chevron-down-20-solid"
-                        :loading="dropdowns.stage.isLoading"
-                        @click="handleToggleDropdown('stage')"
-                    >
-                        <UIcon name="i-heroicons-cpu-chip" class="mr-2" />
-                        {{ currentPath.stage || "Stage" }}
-                    </UButton>
-
+                <!-- Dynamic Navigation Dropdowns -->
+                <template v-for="(type, index) in navigationOrder" :key="type">
                     <div
-                        v-if="dropdowns.stage.isOpen"
-                        class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
+                        v-if="index === 0 || currentPath[navigationOrder[index - 1]]"
+                        class="relative dropdown-container"
                     >
-                        <div class="p-2">
-                            <div v-if="currentPath.stage" class="mb-2">
-                                <button
-                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
-                                    @click="handleClearSelection('stage')"
-                                >
-                                    <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                    Clear Stage
-                                </button>
-                            </div>
+                        <UButton
+                            :color="currentPath[type] ? 'primary' : 'neutral'"
+                            :variant="currentPath[type] ? 'solid' : 'ghost'"
+                            trailing-icon="i-heroicons-chevron-down-20-solid"
+                            :loading="dropdowns[type].isLoading"
+                            @click="handleToggleDropdown(type)"
+                        >
+                            <UIcon :name="dropdowns[type].icon" class="mr-2" />
+                            {{ currentPath[type] || dropdowns[type].label }}
+                        </UButton>
 
-                            <div v-if="dropdowns.stage.isLoading" class="p-2">
-                                <USkeleton class="h-4 w-24" />
-                            </div>
+                        <div
+                            v-if="dropdowns[type].isOpen"
+                            class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
+                        >
+                            <div class="p-2">
+                                <div v-if="currentPath[type]" class="mb-2">
+                                    <button
+                                        class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
+                                        @click="handleClearSelection(type)"
+                                    >
+                                        <UIcon name="i-heroicons-x-mark" class="mr-2" />
+                                        {{ dropdowns[type].clearLabel }}
+                                    </button>
+                                </div>
 
-                            <div v-else class="space-y-1">
-                                <button
-                                    v-for="item in dropdowns.stage.items"
-                                    :key="item.id"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                    :class="{
-                                        'bg-primary-50 text-primary-700': currentPath.stage === item.name,
-                                    }"
-                                    @click="handleNavigate('stage', item.name)"
-                                >
-                                    {{ item.name }}
-                                </button>
-                                <div v-if="!dropdowns.stage.items.length" class="px-3 py-2 text-sm text-gray-500">
-                                    No options available.
+                                <div v-if="dropdowns[type].isLoading" class="p-2">
+                                    <USkeleton class="h-4 w-24" />
+                                </div>
+
+                                <div v-else class="space-y-1">
+                                    <button
+                                        v-for="item in dropdowns[type].items"
+                                        :key="item.id"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
+                                        :class="{
+                                            'bg-primary-50 text-primary-700': currentPath[type] === item.name,
+                                        }"
+                                        @click="handleNavigate(type, item.name)"
+                                    >
+                                        {{ item.name }}
+                                    </button>
+                                    <div v-if="!dropdowns[type].items.length" class="px-3 py-2 text-sm text-gray-500">
+                                        No options available.
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Accelerator Dropdown -->
-                <div v-if="currentPath.stage" class="relative dropdown-container">
-                    <UButton
-                        :color="currentPath.accelerator ? 'primary' : 'neutral'"
-                        :variant="currentPath.accelerator ? 'solid' : 'ghost'"
-                        trailing-icon="i-heroicons-chevron-down-20-solid"
-                        :loading="dropdowns.accelerator.isLoading"
-                        @click="handleToggleDropdown('accelerator')"
-                    >
-                        <UIcon name="i-heroicons-bolt" class="mr-2" />
-                        {{ currentPath.accelerator || "Accelerator" }}
-                    </UButton>
-
-                    <div
-                        v-if="dropdowns.accelerator.isOpen"
-                        class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
-                    >
-                        <div class="p-2">
-                            <div v-if="currentPath.accelerator" class="mb-2">
-                                <button
-                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
-                                    @click="handleClearSelection('accelerator')"
-                                >
-                                    <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                    Clear Accelerator
-                                </button>
-                            </div>
-
-                            <div v-if="dropdowns.accelerator.isLoading" class="p-2">
-                                <USkeleton class="h-4 w-24" />
-                            </div>
-
-                            <div v-else class="space-y-1">
-                                <button
-                                    v-for="item in dropdowns.accelerator.items"
-                                    :key="item.id"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                    :class="{
-                                        'bg-primary-50 text-primary-700': currentPath.accelerator === item.name,
-                                    }"
-                                    @click="handleNavigate('accelerator', item.name)"
-                                >
-                                    {{ item.name }}
-                                </button>
-                                <div v-if="!dropdowns.accelerator.items.length" class="px-3 py-2 text-sm text-gray-500">
-                                    No options available.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Campaign Dropdown -->
-                <div v-if="currentPath.stage && currentPath.accelerator" class="relative dropdown-container">
-                    <UButton
-                        :color="currentPath.campaign ? 'primary' : 'neutral'"
-                        :variant="currentPath.campaign ? 'solid' : 'ghost'"
-                        trailing-icon="i-heroicons-chevron-down-20-solid"
-                        :loading="dropdowns.campaign.isLoading"
-                        @click="handleToggleDropdown('campaign')"
-                    >
-                        <UIcon name="i-heroicons-calendar-days" class="mr-2" />
-                        {{ currentPath.campaign || "Campaign" }}
-                    </UButton>
-
-                    <div
-                        v-if="dropdowns.campaign.isOpen"
-                        class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
-                    >
-                        <div class="p-2">
-                            <div v-if="currentPath.campaign" class="mb-2">
-                                <button
-                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
-                                    @click="handleClearSelection('campaign')"
-                                >
-                                    <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                    Clear Campaign
-                                </button>
-                            </div>
-
-                            <div v-if="dropdowns.campaign.isLoading" class="p-2">
-                                <USkeleton class="h-4 w-24" />
-                            </div>
-
-                            <div v-else class="space-y-1">
-                                <button
-                                    v-for="item in dropdowns.campaign.items"
-                                    :key="item.id"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                    :class="{
-                                        'bg-primary-50 text-primary-700': currentPath.campaign === item.name,
-                                    }"
-                                    @click="handleNavigate('campaign', item.name)"
-                                >
-                                    {{ item.name }}
-                                </button>
-                                <div v-if="!dropdowns.campaign.items.length" class="px-3 py-2 text-sm text-gray-500">
-                                    No options available.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Detector Dropdown -->
-                <div
-                    v-if="currentPath.stage && currentPath.accelerator && currentPath.campaign"
-                    class="relative dropdown-container"
-                >
-                    <UButton
-                        :color="currentPath.detector ? 'primary' : 'neutral'"
-                        :variant="currentPath.detector ? 'solid' : 'ghost'"
-                        trailing-icon="i-heroicons-chevron-down-20-solid"
-                        :loading="dropdowns.detector.isLoading"
-                        @click="handleToggleDropdown('detector')"
-                    >
-                        <UIcon name="i-heroicons-beaker" class="mr-2" />
-                        {{ currentPath.detector || "Detector" }}
-                    </UButton>
-
-                    <div
-                        v-if="dropdowns.detector.isOpen"
-                        class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
-                    >
-                        <div class="p-2">
-                            <div v-if="currentPath.detector" class="mb-2">
-                                <button
-                                    class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
-                                    @click="handleClearSelection('detector')"
-                                >
-                                    <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                    Clear Detector
-                                </button>
-                            </div>
-
-                            <div v-if="dropdowns.detector.isLoading" class="p-2">
-                                <USkeleton class="h-4 w-24" />
-                            </div>
-
-                            <div v-else class="space-y-1">
-                                <button
-                                    v-for="item in dropdowns.detector.items"
-                                    :key="item.id"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                    :class="{
-                                        'bg-primary-50 text-primary-700': currentPath.detector === item.name,
-                                    }"
-                                    @click="handleNavigate('detector', item.name)"
-                                >
-                                    {{ item.name }}
-                                </button>
-                                <div v-if="!dropdowns.detector.items.length" class="px-3 py-2 text-sm text-gray-500">
-                                    No options available.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </template>
             </nav>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import type { DropdownType } from "~/types/dataset";
-import { useNavigation } from "~/composables/useNavigation";
-import { parseRouteToPath, buildNavigationPath, buildClearPath, NAVIGATION_CONFIG } from "~/config/navigation";
+import { watchEffect, ref, onMounted, onUnmounted } from "vue";
+import { useNavigationState } from "~/composables/useNavigationState";
+import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
 
 interface Props {
     routeParams: string[];
@@ -228,61 +74,103 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { dropdowns, loadDropdownData, toggleDropdown, closeAllDropdowns, clearDependentDropdowns } = useNavigation();
+const {
+    dropdowns,
+    navigationOrder,
+    loadDropdownData,
+    toggleDropdown,
+    closeAllDropdowns,
+    clearDependentDropdowns,
+    getItems,
+    isLoading,
+    isOpen,
+} = useNavigationState();
 
-// Computed properties
-const currentPath = computed(() => parseRouteToPath(props.routeParams));
+const { parseRouteToPath, buildNavigationUrl, clearNavigationFrom } = useDynamicNavigation();
+
+// Async navigation state
+const currentPath = ref<Record<string, string | null>>({});
+
+// Watch route params and update data asynchronously
+watchEffect(() => {
+    const params = props.routeParams;
+    try {
+        currentPath.value = parseRouteToPath(params);
+    } catch (error) {
+        console.error("Error parsing route to path:", error);
+        currentPath.value = {};
+    }
+});
 
 // Methods
-function handleToggleDropdown(type: DropdownType) {
+function handleToggleDropdown(type: string) {
     toggleDropdown(type);
 
     // Only load data if dropdown is now open and has no data yet
-    if (!dropdowns.value[type].isOpen) return;
+    if (!isOpen(type)) {
+        return;
+    }
 
     // Check if data is already loaded or currently loading
-    if (dropdowns.value[type].items.length > 0 || dropdowns.value[type].isLoading) return;
+    if (getItems(type).length > 0 || isLoading(type)) {
+        return;
+    }
 
-    // Load data based on dropdown type and current path
-    if (type === "stage") {
-        loadDropdownData("stage", {});
-    } else if (type === "accelerator") {
-        // Load accelerators filtered by current stage
+    // Load data
+    loadDropdownData(type);
+}
+
+function handleNavigate(type: string, value: string) {
+    const newPath = buildNavigationUrl(currentPath.value, type, value);
+    navigateTo(newPath);
+    closeAllDropdowns();
+
+    // Load filtered data for the next level
+    const typeIndex = navigationOrder.findIndex((orderType) => orderType === type);
+    if (typeIndex !== -1 && typeIndex < navigationOrder.length - 1) {
+        const nextType = navigationOrder[typeIndex + 1];
+
+        // Build filters up to this level
         const filters: Record<string, string> = {};
-        if (currentPath.value.stage) filters.stage_name = currentPath.value.stage;
-        loadDropdownData("accelerator", filters);
-    } else if (type === "campaign") {
-        // Load campaigns filtered by current stage and accelerator
-        const filters: Record<string, string> = {};
-        if (currentPath.value.stage) filters.stage_name = currentPath.value.stage;
-        if (currentPath.value.accelerator) filters.accelerator_name = currentPath.value.accelerator;
-        loadDropdownData("campaign", filters);
-    } else if (type === "detector") {
-        // Load detectors filtered by current stage, accelerator and campaign
-        const filters: Record<string, string> = {};
-        if (currentPath.value.stage) filters.stage_name = currentPath.value.stage;
-        if (currentPath.value.accelerator) filters.accelerator_name = currentPath.value.accelerator;
-        if (currentPath.value.campaign) filters.campaign_name = currentPath.value.campaign;
-        loadDropdownData("detector", filters);
+        for (let i = 0; i <= typeIndex; i++) {
+            const filterType = navigationOrder[i];
+            const filterValue = filterType === type ? value : currentPath.value[filterType];
+            if (filterValue) {
+                filters[filterType] = filterValue;
+            }
+        }
+
+        // Clear dependent dropdowns first to show filtered results
+        clearDependentDropdowns(type);
+        loadDropdownData(nextType, filters, true); // Force reload with new filters
     }
 }
 
-function handleNavigate(type: DropdownType, value: string) {
-    // Clear dependent dropdowns when navigating to a higher level
-    clearDependentDropdowns(type);
-
-    const newPath = buildNavigationPath(currentPath.value, type, value);
+function handleClearSelection(type: string) {
+    const newPath = clearNavigationFrom(currentPath.value, type);
     navigateTo(newPath);
     closeAllDropdowns();
-}
 
-function handleClearSelection(type: DropdownType) {
-    // Clear dependent dropdowns when clearing a selection
+    // Clear dependent dropdowns and reload unfiltered data
     clearDependentDropdowns(type);
 
-    const newPath = buildClearPath(currentPath.value, type);
-    navigateTo(newPath);
-    closeAllDropdowns();
+    // Reload data for the next level with updated filters
+    const typeIndex = navigationOrder.findIndex((orderType) => orderType === type);
+    if (typeIndex !== -1 && typeIndex < navigationOrder.length - 1) {
+        const nextType = navigationOrder[typeIndex + 1];
+
+        // Build filters up to the previous level (excluding the cleared level)
+        const filters: Record<string, string> = {};
+        for (let i = 0; i < typeIndex; i++) {
+            const filterType = navigationOrder[i];
+            const filterValue = currentPath.value[filterType];
+            if (filterValue) {
+                filters[filterType] = filterValue;
+            }
+        }
+
+        loadDropdownData(nextType, filters, true); // Force reload with updated filters
+    }
 }
 
 // Click outside handler
@@ -293,85 +181,50 @@ const handleClickOutside = (event: Event): void => {
     }
 };
 
-// Watch for path changes to reload dependent dropdowns
-watch(
-    () => currentPath.value,
-    async (newPath, oldPath) => {
-        // If stage changed, reload accelerators and clear dependent dropdowns
-        if (newPath.stage !== oldPath?.stage) {
-            clearDependentDropdowns("stage");
-
-            if (newPath.stage) {
-                const stageFilters = { stage_name: newPath.stage };
-                await loadDropdownData("accelerator", stageFilters, true);
-            }
+// Auto-load first level data on mount
+onMounted(() => {
+    // Load all dropdown data on mount for better UX
+    navigationOrder.forEach((type, index) => {
+        if (index === 0) {
+            // Load first level immediately
+            loadDropdownData(type);
+        } else {
+            // For subsequent levels, load with empty filters to get all options
+            // This gives users a preview of what's available
+            loadDropdownData(type);
         }
+    });
 
-        // If accelerator changed, reload campaigns and clear detectors
-        if (newPath.accelerator !== oldPath?.accelerator) {
-            clearDependentDropdowns("accelerator");
-
-            if (newPath.stage && newPath.accelerator) {
-                const acceleratorFilters = {
-                    stage_name: newPath.stage,
-                    accelerator_name: newPath.accelerator,
-                };
-                await loadDropdownData("campaign", acceleratorFilters, true);
-            }
-        }
-
-        // If campaign changed, reload detectors
-        if (newPath.campaign !== oldPath?.campaign) {
-            clearDependentDropdowns("campaign");
-
-            if (newPath.stage && newPath.accelerator && newPath.campaign) {
-                const detectorFilters = {
-                    stage_name: newPath.stage,
-                    accelerator_name: newPath.accelerator,
-                    campaign_name: newPath.campaign,
-                };
-                await loadDropdownData("detector", detectorFilters, true);
-            }
-        }
-    },
-    { immediate: false },
-);
-
-// Component lifecycle
-onMounted(async () => {
+    // Add click outside handler
     document.addEventListener("click", handleClickOutside);
-
-    // Pre-load all dropdown data on mount for better UX
-    // Load stages first (no dependencies)
-    await loadDropdownData("stage", {});
-
-    // If we have a current stage, pre-load accelerators for that stage
-    if (currentPath.value.stage) {
-        const stageFilters = { stage_name: currentPath.value.stage };
-        await loadDropdownData("accelerator", stageFilters);
-
-        // If we also have an accelerator, pre-load campaigns
-        if (currentPath.value.accelerator) {
-            const acceleratorFilters = {
-                stage_name: currentPath.value.stage,
-                accelerator_name: currentPath.value.accelerator,
-            };
-            await loadDropdownData("campaign", acceleratorFilters);
-
-            // If we also have a campaign, pre-load detectors
-            if (currentPath.value.campaign) {
-                const detectorFilters = {
-                    stage_name: currentPath.value.stage,
-                    accelerator_name: currentPath.value.accelerator,
-                    campaign_name: currentPath.value.campaign,
-                };
-                await loadDropdownData("detector", detectorFilters);
-            }
-        }
-    }
 });
 
 onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
+});
+
+// Watch for changes in navigation path and auto-load dependent data
+watchEffect(() => {
+    navigationOrder.forEach((type, index) => {
+        if (index === 0) return; // Skip first level - already loaded on mount
+
+        // Check if all previous levels are selected
+        const previousLevelsSelected = navigationOrder.slice(0, index).every((prevType) => currentPath.value[prevType]);
+
+        if (previousLevelsSelected && currentPath.value[type]) {
+            // Build filters for this level
+            const filters: Record<string, string> = {};
+            navigationOrder.slice(0, index).forEach((prevType) => {
+                if (currentPath.value[prevType]) {
+                    filters[prevType] = currentPath.value[prevType]!;
+                }
+            });
+
+            // Load data if not already loaded
+            if (getItems(type).length === 0 && !isLoading(type)) {
+                loadDropdownData(type, filters);
+            }
+        }
+    });
 });
 </script>
