@@ -109,7 +109,7 @@ watchEffect(() => {
     const params = props.routeParams;
     try {
         currentPath.value = parseRouteToPath(params);
-        
+
         // Trigger context-aware preloading when path changes
         if (isNavigationReady.value) {
             proactivelyLoadDropdownData(currentPath.value);

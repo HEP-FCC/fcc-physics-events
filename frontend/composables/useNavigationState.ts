@@ -120,7 +120,7 @@ export function useNavigationState() {
         try {
             // Determine which level to preload based on current navigation state
             let levelToPreload = 0; // Default to first level
-            
+
             // Find the deepest level that has a value, then preload the next level
             for (let i = 0; i < order.length; i++) {
                 const type = order[i];
@@ -130,12 +130,12 @@ export function useNavigationState() {
                     break; // Stop at the first empty level
                 }
             }
-            
+
             // Don't preload beyond the available levels
             if (levelToPreload >= order.length) {
                 return;
             }
-            
+
             const typeToPreload = order[levelToPreload];
             const itemsRef = getItemsRef(typeToPreload);
             const loadingRef = getLoadingRef(typeToPreload);
@@ -151,7 +151,7 @@ export function useNavigationState() {
                             return;
                         }
                     }
-                    
+
                     // Build filters for the dropdown based on current path
                     const filters: Record<string, string> = {};
                     for (let i = 0; i < levelToPreload; i++) {
@@ -164,7 +164,7 @@ export function useNavigationState() {
 
                     // Fetch from API with appropriate filters
                     loadingRef.value = true;
-                    
+
                     let requestUrl = `/api/dropdown/${typeToPreload}`;
                     if (Object.keys(filters).length > 0) {
                         const params = new URLSearchParams();
@@ -175,13 +175,13 @@ export function useNavigationState() {
                                 filterObj[filterKey] = value;
                             }
                         });
-                        
+
                         if (Object.keys(filterObj).length > 0) {
                             params.append("filters", JSON.stringify(filterObj));
                             requestUrl += `?${params.toString()}`;
                         }
                     }
-                    
+
                     const response = await fetch(`${apiClient.baseUrl}${requestUrl}`);
 
                     if (response.ok) {
