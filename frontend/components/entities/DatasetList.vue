@@ -112,7 +112,8 @@ import type {
     SearchState,
     MetadataEditState,
 } from "~/types/dataset";
-import { getPrimaryKeyField, getPrimaryKeyValue, getEntityType } from "~/composables/useEntityCompat";
+import { getPrimaryKeyField, getPrimaryKeyValue, getEntityType } from "~/composables/useSchemaUtils";
+import DatasetMetadata from "./DatasetMetadata.vue";
 
 // Import schema utilities for dynamic entity handling
 

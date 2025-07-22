@@ -1,6 +1,6 @@
 import { ref, reactive, shallowReactive, computed } from "vue";
 import type { Dataset, SelectionState, MetadataEditState } from "~/types/dataset";
-import { getPrimaryKeyField, getPrimaryKeyValue, extractEntityIds } from "~/composables/useEntityCompat";
+import { getPrimaryKeyField, getPrimaryKeyValue, extractEntityIds } from "~/composables/useSchemaUtils";
 
 /**
  * Generic entity selection and metadata management composable
@@ -45,14 +45,20 @@ export function useEntitySelection() {
         // Access the reactive version to trigger re-computation
         void selectedEntitiesVersion.value;
         const currentEntityIds = extractEntityIds(entities);
-        return currentEntityIds.length > 0 && currentEntityIds.every((id) => selectionState.selectedEntities.has(id));
+        return (
+            currentEntityIds.length > 0 &&
+            currentEntityIds.every((id: number) => selectionState.selectedEntities.has(id))
+        );
     }
 
     function getAllMetadataExpanded(entities: any[]) {
         // Access the reactive version to trigger re-computation
         void expandedMetadataVersion.value;
         const currentEntityIds = extractEntityIds(entities);
-        return currentEntityIds.length > 0 && currentEntityIds.every((id) => selectionState.expandedMetadata.has(id));
+        return (
+            currentEntityIds.length > 0 &&
+            currentEntityIds.every((id: number) => selectionState.expandedMetadata.has(id))
+        );
     }
 
     /**
@@ -76,12 +82,12 @@ export function useEntitySelection() {
      */
     function toggleSelectAll(entities: any[]): void {
         const currentEntityIds = extractEntityIds(entities);
-        const allSelected = currentEntityIds.every((id) => selectionState.selectedEntities.has(id));
+        const allSelected = currentEntityIds.every((id: number) => selectionState.selectedEntities.has(id));
 
         if (allSelected) {
-            currentEntityIds.forEach((id) => selectionState.selectedEntities.delete(id));
+            currentEntityIds.forEach((id: number) => selectionState.selectedEntities.delete(id));
         } else {
-            currentEntityIds.forEach((id) => selectionState.selectedEntities.add(id));
+            currentEntityIds.forEach((id: number) => selectionState.selectedEntities.add(id));
         }
         selectedEntitiesVersion.value++;
     }
@@ -108,7 +114,8 @@ export function useEntitySelection() {
     function toggleAllMetadata(entities: any[]): void {
         const currentEntityIds = extractEntityIds(entities);
         const allExpanded =
-            currentEntityIds.length > 0 && currentEntityIds.every((id) => selectionState.expandedMetadata.has(id));
+            currentEntityIds.length > 0 &&
+            currentEntityIds.every((id: number) => selectionState.expandedMetadata.has(id));
 
         if (allExpanded) {
             currentEntityIds.forEach((id: number) => selectionState.expandedMetadata.delete(id));
@@ -193,6 +200,7 @@ export function useEntitySelection() {
     function enterEditMode(datasetId: number, metadata: Record<string, unknown>): void {
         metadataEditState[datasetId] = {
             isEditing: true,
+            json: JSON.stringify(metadata, null, 2),
             editedJson: JSON.stringify(metadata, null, 2),
             originalMetadata: metadata,
         };

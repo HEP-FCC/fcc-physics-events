@@ -15,12 +15,11 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, Response
 
-from app.app_logging import get_logger, setup_logging
 from app.auth import cern_auth
-from app.config import Config, get_config
 from app.gclql_query_parser import QueryParser
 from app.models.dataset import DatasetUpdate
 from app.storage.database import Database
+from app.utils import Config, get_config, get_logger, setup_logging
 
 security = HTTPBearer(auto_error=False)
 
@@ -429,7 +428,7 @@ async def get_database_schema() -> Any:
     that allows the frontend to work with any database schema.
     """
     try:
-        from app.config import get_config
+        from app.utils import get_config
 
         config = get_config()
         main_table = config["application"]["main_table"]
@@ -557,7 +556,7 @@ async def get_dropdown_items(
             filter_dict = json.loads(filters)
 
         # Get schema information to find the appropriate table
-        from app.config import get_config
+        from app.utils import get_config
 
         config = get_config()
         main_table = config["application"]["main_table"]
@@ -652,7 +651,7 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
     Automatically handles joins based on schema discovery.
     """
     try:
-        from app.config import get_config
+        from app.utils import get_config
 
         config = get_config()
         main_table = config["application"]["main_table"]
@@ -794,7 +793,7 @@ async def import_data_generic(
                 )
             else:
                 # Handle navigation table import
-                from app.config import get_config
+                from app.utils import get_config
 
                 config = get_config()
                 main_table = config["application"]["main_table"]
@@ -829,7 +828,7 @@ async def validate_data_generic(table_key: str, data: dict[str, Any]) -> Any:
     Generic data validation endpoint that works with any table based on schema discovery.
     """
     try:
-        from app.config import get_config
+        from app.utils import get_config
 
         config = get_config()
         main_table = config["application"]["main_table"]

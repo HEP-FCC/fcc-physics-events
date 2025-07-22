@@ -1,6 +1,8 @@
 """
-This file contains a hack to make typed struct logger without needing
-to import two things every time.
+Logging utilities for the FCC Physics Events application.
+
+This module provides a structured logging setup using structlog,
+with proper configuration and type hints.
 """
 
 import logging
@@ -9,7 +11,7 @@ from typing import cast
 
 import structlog
 
-from app.config import get_config
+from app.utils.config import get_config
 
 config = get_config()
 LOG_LEVEL = config.get("general.log_level", "INFO").upper()
@@ -48,49 +50,42 @@ def setup_logging() -> None:
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f"),
             structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.UnicodeDecoder(),
-            structlog.dev.ConsoleRenderer(
-                colors=False,
-            ),
+            structlog.dev.ConsoleRenderer(colors=True)
+            if LOG_LEVEL == "DEBUG"
+            else structlog.processors.JSONRenderer(),
         ],
-        logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
+        context_class=dict,
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
 
-    # Get the root logger and set its level
-    root_logger = logging.getLogger()
-    root_logger.setLevel(LOG_LEVEL)
-
-    # Remove any existing handlers to avoid duplicates
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Add a new handler that uses structlog
+    # Add handler to root logger
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(message)s"))
+    handler.setLevel(LOG_LEVEL)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
     root_logger.addHandler(handler)
 
-    # Prevent propagation to avoid any potential parent logger duplication
-    root_logger.propagate = False
-
-    # Disable uvicorn access logging to prevent duplicates
-    uvicorn_access = logging.getLogger("uvicorn.access")
-    uvicorn_access.disabled = True
-    uvicorn_access.propagate = False
-
-    # Also disable uvicorn error logger's access-like messages
-    uvicorn_error = logging.getLogger("uvicorn.error")
-    uvicorn_error.setLevel(logging.WARNING)  # Only show warnings and errors
-    uvicorn_error.propagate = False
-
-    # Mark as configured
     _logging_configured = True
 
 
 def get_logger(name: str | None = None) -> Logger:
     """
-    Get a logger with the specified name.
+    Get a logger instance for the given name.
+
+    Args:
+        name: Logger name, typically __name__ from the calling module
+
+    Returns:
+        Configured logger instance
     """
-    return cast(Logger, structlog.get_logger(name))
+    # Ensure logging is set up
+    if not _logging_configured:
+        setup_logging()
+
+    # Get the logger and ensure it's typed correctly
+    logger = structlog.stdlib.get_logger(name)
+    return cast(Logger, logger)

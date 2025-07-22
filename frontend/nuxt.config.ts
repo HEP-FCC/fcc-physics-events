@@ -11,6 +11,14 @@ export default defineNuxtConfig({
     modules: ["@nuxt/eslint", "@nuxt/fonts", "@nuxt/icon", "@nuxt/image", "@nuxt/scripts", "@nuxt/ui"],
     css: ["assets/css/main.css"],
 
+    // Ensure components in subdirectories are auto-imported
+    components: [
+        {
+            path: "~/components",
+            pathPrefix: false,
+        },
+    ],
+
     runtimeConfig: {
         public: {
             apiBaseUrl: process.env.BACKEND_URL || "http://localhost:8000",

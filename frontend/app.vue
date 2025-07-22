@@ -33,6 +33,8 @@
 </template>
 
 <script setup lang="ts">
+import AuthSection from "~/components/auth/AuthSection.vue";
+
 // Check authentication status on app initialization
 const { checkAuthStatus } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();

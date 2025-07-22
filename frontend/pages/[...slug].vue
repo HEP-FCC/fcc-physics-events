@@ -8,6 +8,7 @@
 import { computed, ref, watchEffect } from "vue";
 import { useRoute } from "vue-router";
 import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
+import DatasetSearchInterface from "~/components/search/DatasetSearchInterface.vue";
 
 const route = useRoute();
 const { parseRouteToFilters, parseRouteToPath, getPageTitle } = useDynamicNavigation();

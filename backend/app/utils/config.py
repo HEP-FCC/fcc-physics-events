@@ -1,5 +1,8 @@
 """
-This file contains helper functions for the config.
+Configuration utilities for the FCC Physics Events application.
+
+This module provides configuration loading and management functionality
+using pyhocon for configuration file parsing.
 """
 
 from pathlib import Path
@@ -7,10 +10,12 @@ from typing import cast
 
 from pyhocon import ConfigFactory, ConfigTree
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent / "config.conf"
+DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.conf"
 
 
 class Config(ConfigTree):  # type: ignore
+    """Extended configuration class with type hints."""
+
     pass
 
 

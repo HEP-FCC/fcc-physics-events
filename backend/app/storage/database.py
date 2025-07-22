@@ -14,8 +14,6 @@ import asyncpg
 from asyncpg.pool import Pool
 from pydantic import BaseModel
 
-from app.app_logging import get_logger
-from app.config import Config, get_config
 from app.fcc_dict_parser import DatasetCollection
 from app.models.accelerator import AcceleratorCreate
 from app.models.campaign import CampaignCreate
@@ -24,6 +22,7 @@ from app.models.dataset import (
 )
 from app.models.detector import DetectorCreate
 from app.models.stage import StageCreate
+from app.utils import Config, get_config, get_logger
 
 logger = get_logger()
 T = TypeVar("T", bound=BaseModel)

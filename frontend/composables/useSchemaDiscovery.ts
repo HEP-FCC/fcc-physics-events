@@ -75,18 +75,6 @@ export const useSchemaDiscovery = () => {
     const mergeWithStaticConfig = (schemaConfig: RuntimeSchemaConfig): RuntimeSchemaConfig => {
         const merged = { ...schemaConfig };
 
-        // Apply navigation overrides from static config
-        if (APP_CONFIG.navigationOverrides) {
-            for (const [key, override] of Object.entries(APP_CONFIG.navigationOverrides)) {
-                if (merged.navigation[key] && override) {
-                    merged.navigation[key] = {
-                        ...merged.navigation[key],
-                        ...override,
-                    };
-                }
-            }
-        }
-
         // Apply branding overrides
         if (APP_CONFIG.branding) {
             merged.appTitle = APP_CONFIG.branding.title || merged.appTitle;

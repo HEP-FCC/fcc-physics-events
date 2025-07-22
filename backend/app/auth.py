@@ -16,8 +16,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.config import get_config
-from app.logging import get_logger
+from app.utils import get_config, get_logger
 
 # Load configuration
 logger = get_logger(__name__)
@@ -87,7 +86,6 @@ class CERNAuthenticator:
             )
             response.raise_for_status()
             user_data: dict[str, Any] = response.json()
-
 
             username = user_data.get("preferred_username", "unknown")
             print(user_data)

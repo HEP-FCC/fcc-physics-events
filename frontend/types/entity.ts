@@ -14,8 +14,10 @@ export type SortOrder = "asc" | "desc";
  * API response structure for paginated entity queries
  */
 export interface PaginatedResponse<T = DynamicEntity> {
-    data: T[];
-    pagination: {
+    data?: T[];
+    items?: T[];
+    total: number;
+    pagination?: {
         currentPage: number;
         totalPages: number;
         pageSize: number;
@@ -26,7 +28,7 @@ export interface PaginatedResponse<T = DynamicEntity> {
 }
 
 /**
- * Pagination state for entity queries
+ * Pagination state for entity lists
  */
 export interface PaginationState {
     currentPage: number;
@@ -35,14 +37,22 @@ export interface PaginationState {
     totalEntities: number;
     hasNext: boolean;
     hasPrev: boolean;
+    // Additional properties used in useDatasetSearch
+    totalDatasets: number;
+    loadedPages: Set<number>;
 }
 
 /**
- * Sort state for entity queries
+ * Sort state for entity ordering
  */
 export interface SortState {
     field: string;
     order: SortOrder;
+    // Additional properties used in useDatasetSearch
+    sortBy: string;
+    sortOrder: SortOrder;
+    availableFields: string[];
+    isLoading: boolean;
 }
 
 /**
@@ -52,6 +62,34 @@ export interface SearchState {
     query: string;
     filters: Record<string, any>;
     isLoading: boolean;
+    // Additional properties used in useDatasetSearch
+    isLoadingMore: boolean;
+    hasMore: boolean;
+    error: string | null;
+}
+
+/**
+ * Sort state for entity queries
+ */
+export interface SortState {
+    field: string;
+    order: SortOrder;
+    sortBy: string;
+    sortOrder: SortOrder;
+    availableFields: string[];
+    isLoading: boolean;
+}
+
+/**
+ * Search state for entity filtering
+ */
+export interface SearchState {
+    query: string;
+    filters: Record<string, any>;
+    isLoading: boolean;
+    isLoadingMore: boolean;
+    hasMore: boolean;
+    error: string | null;
 }
 
 /**
@@ -68,6 +106,7 @@ export interface SelectionState {
  */
 export interface MetadataEditState {
     isEditing: boolean;
+    json: string;
     editedJson: string;
     originalMetadata: Record<string, unknown>;
 }

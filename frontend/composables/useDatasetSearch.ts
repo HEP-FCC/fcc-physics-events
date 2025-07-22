@@ -21,6 +21,8 @@ export function useDatasetSearch() {
 
     // Search operation state - using shallowReactive for better performance
     const searchState = shallowReactive<SearchState>({
+        query: "",
+        filters: {},
         isLoading: false,
         isLoadingMore: false,
         error: null,
@@ -31,13 +33,18 @@ export function useDatasetSearch() {
     const pagination = shallowReactive<PaginationState>({
         currentPage: 1,
         pageSize: 20,
-        totalDatasets: 0,
         totalPages: 0,
+        totalEntities: 0,
+        hasNext: false,
+        hasPrev: false,
+        totalDatasets: 0,
         loadedPages: new Set<number>(),
     });
 
     // Sorting state management
     const sortState = shallowReactive<SortState>({
+        field: "last_edited_at",
+        order: "desc",
         sortBy: "last_edited_at",
         sortOrder: "desc",
         availableFields: [],
@@ -192,12 +199,12 @@ export function useDatasetSearch() {
             const responseDatasets = response.data || response.items || [];
 
             if (isInitialLoad || !infiniteScrollEnabled.value) {
-                datasets.value = responseDatasets;
+                datasets.value = responseDatasets as Dataset[];
                 pagination.loadedPages.clear();
                 pagination.loadedPages.add(pageToLoad);
             } else {
                 // Create a new array to ensure reactivity triggers
-                datasets.value = [...datasets.value, ...responseDatasets];
+                datasets.value = [...datasets.value, ...(responseDatasets as Dataset[])];
                 pagination.loadedPages.add(pageToLoad);
             }
 

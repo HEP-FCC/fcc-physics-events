@@ -104,7 +104,10 @@ import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from "vue";
 import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
 import type { Dataset } from "~/types/dataset";
 import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
-import { extractEntityIds } from "~/composables/useEntityCompat";
+import { extractEntityIds } from "~/composables/useSchemaUtils";
+import SearchControls from "./SearchControls.vue";
+import DatasetControls from "../entities/DatasetControls.vue";
+import DatasetList from "../entities/DatasetList.vue";
 
 /**
  * Dataset Search Interface Component

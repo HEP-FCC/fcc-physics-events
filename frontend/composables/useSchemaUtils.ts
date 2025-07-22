@@ -84,7 +84,7 @@ export function normalizeEntityData(entityData: EntityData): EntityData & {
     primaryKeyField: string;
 } {
     const primaryKeyField = getPrimaryKeyField(entityData);
-    const id = getPrimaryKeyValue(entityData, primaryKeyField);
+    const id = primaryKeyField ? getPrimaryKeyValue(entityData, primaryKeyField) : null;
     const entityType = primaryKeyField ? getEntityType(primaryKeyField) : "entity";
 
     return {

@@ -9,9 +9,8 @@ from typing import Any, cast
 
 from lark import Lark, Token, Transformer, exceptions
 
-from app.app_logging import get_logger
-from app.config import get_config
 from app.storage.database import Database
+from app.utils import get_config, get_logger
 
 logger = get_logger()
 config = get_config()
