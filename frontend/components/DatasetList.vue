@@ -5,10 +5,10 @@
             <!-- Dataset cards -->
             <UCard
                 v-for="(dataset, index) in datasets"
-                :key="dataset.dataset_id"
+                :key="getEntityId(dataset)"
                 :data-dataset-card="index"
                 class="overflow-hidden select-text cursor-pointer"
-                @click="handleRowClick($event, dataset.dataset_id)"
+                @click="handleRowClick($event, getEntityId(dataset))"
             >
                 <div class="px-2 py-1.5">
                     <div class="flex items-center justify-between gap-3">
@@ -16,16 +16,16 @@
                             <!-- Row 1: Dataset name (full width) -->
                             <div class="flex items-center gap-2 mb-0.5">
                                 <UCheckbox
-                                    :model-value="isDatasetSelected(dataset.dataset_id)"
+                                    :model-value="isEntitySelected(getEntityId(dataset))"
                                     class="flex-shrink-0"
                                     @click.stop
-                                    @change="toggleDatasetSelection(dataset.dataset_id)"
+                                    @change="toggleEntitySelection(getEntityId(dataset))"
                                 />
                                 <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
                                     {{ dataset.name }}
                                 </h3>
                                 <UBadge color="neutral" variant="soft" size="xs" class="flex-shrink-0">
-                                    ID: {{ dataset.dataset_id }}
+                                    ID: {{ getEntityId(dataset) }}
                                 </UBadge>
                             </div>
 
@@ -70,7 +70,7 @@
 
                         <UButton
                             :icon="
-                                isMetadataExpanded(dataset.dataset_id)
+                                isMetadataExpanded(getEntityId(dataset))
                                     ? 'i-heroicons-chevron-up'
                                     : 'i-heroicons-chevron-down'
                             "
@@ -78,21 +78,21 @@
                             variant="ghost"
                             size="xs"
                             class="flex-shrink-0"
-                            @click.stop="toggleMetadata(dataset.dataset_id)"
+                            @click.stop="toggleMetadata(getEntityId(dataset))"
                         />
                     </div>
                 </div>
 
                 <!-- Metadata component (inline) -->
                 <div
-                    v-if="isMetadataExpanded(dataset.dataset_id)"
+                    v-if="isMetadataExpanded(getEntityId(dataset))"
                     class="border-t border-gray-200 bg-gray-50 cursor-default"
                     @click.stop
                 >
                     <DatasetMetadata
-                        :dataset-id="dataset.dataset_id"
+                        :entity-id="getEntityId(dataset)"
                         :metadata="dataset.metadata || {}"
-                        :edit-state="metadataEditState[dataset.dataset_id]"
+                        :edit-state="metadataEditState[getEntityId(dataset)]"
                         @enter-edit="enterEditMode"
                         @cancel-edit="cancelEdit"
                         @save-metadata="saveMetadata"
@@ -112,6 +112,9 @@ import type {
     SearchState,
     MetadataEditState,
 } from "~/types/dataset";
+import { getPrimaryKeyField, getPrimaryKeyValue, getEntityType } from "~/composables/useEntityCompat";
+
+// Import schema utilities for dynamic entity handling
 
 /**
  * Dataset List Component
@@ -133,9 +136,9 @@ interface Props {
 }
 
 interface Emits {
-    (e: "toggleDatasetSelection" | "toggleMetadata" | "cancelEdit", datasetId: number): void;
-    (e: "saveMetadata", datasetId: number, editedJson?: string): void;
-    (e: "enterEditMode", datasetId: number, metadata: Record<string, unknown>): void;
+    (e: "toggleEntitySelection" | "toggleMetadata" | "cancelEdit", entityId: number): void;
+    (e: "saveMetadata", entityId: number, editedJson?: string): void;
+    (e: "enterEditMode", entityId: number, metadata: Record<string, unknown>): void;
 }
 
 const props = defineProps<Props>();
@@ -144,6 +147,14 @@ const emit = defineEmits<Emits>();
 // Composables
 const { formatTimestamp, getStatusFields, formatFieldName } = useUtils();
 const { getNavigationItem, navigationConfig } = useNavigationConfig();
+
+// Detect the primary key field dynamically
+const primaryKeyField = computed(() => getPrimaryKeyField(props.datasets));
+
+// Helper function to get entity ID
+function getEntityId(entity: any): number {
+    return getPrimaryKeyValue(entity) || 0;
+}
 
 // Create a reactive function to get badge items for a dataset
 function getDatasetBadges(dataset: Dataset) {
@@ -202,35 +213,35 @@ function wasDatasetEdited(dataset: Dataset): boolean {
 }
 
 // Methods
-function toggleDatasetSelection(datasetId: number): void {
-    emit("toggleDatasetSelection", datasetId);
+function toggleEntitySelection(entityId: number): void {
+    emit("toggleEntitySelection", entityId);
 }
 
-function toggleMetadata(datasetId: number): void {
-    emit("toggleMetadata", datasetId);
+function toggleMetadata(entityId: number): void {
+    emit("toggleMetadata", entityId);
 }
 
-function enterEditMode(datasetId: number, metadata: Record<string, unknown>): void {
-    emit("enterEditMode", datasetId, metadata);
+function enterEditMode(entityId: number, metadata: Record<string, unknown>): void {
+    emit("enterEditMode", entityId, metadata);
 }
 
-function cancelEdit(datasetId: number): void {
-    emit("cancelEdit", datasetId);
+function cancelEdit(entityId: number): void {
+    emit("cancelEdit", entityId);
 }
 
-function saveMetadata(datasetId: number, editedJson?: string): void {
-    emit("saveMetadata", datasetId, editedJson);
+function saveMetadata(entityId: number, editedJson?: string): void {
+    emit("saveMetadata", entityId, editedJson);
 }
 
-function isDatasetSelected(datasetId: number): boolean {
-    return props.selectionState.selectedDatasets.has(datasetId);
+function isEntitySelected(entityId: number): boolean {
+    return props.selectionState.selectedEntities.has(entityId);
 }
 
 function isMetadataExpanded(datasetId: number): boolean {
     return props.selectionState.expandedMetadata.has(datasetId);
 }
 
-function handleRowClick(event: MouseEvent, datasetId: number): void {
+function handleRowClick(event: MouseEvent, entityId: number): void {
     // Don't trigger row click if text is being selected
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) {
@@ -243,6 +254,6 @@ function handleRowClick(event: MouseEvent, datasetId: number): void {
         return;
     }
 
-    toggleMetadata(datasetId);
+    toggleMetadata(entityId);
 }
 </script>

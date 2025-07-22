@@ -92,6 +92,7 @@ const {
     getItems,
     isLoading,
     isOpen,
+    proactivelyLoadDropdownData,
 } = useNavigationState();
 
 const { parseRouteToPath, buildNavigationUrl, clearNavigationFrom, initializeNavigation } = useDynamicNavigation();
@@ -108,6 +109,11 @@ watchEffect(() => {
     const params = props.routeParams;
     try {
         currentPath.value = parseRouteToPath(params);
+        
+        // Trigger context-aware preloading when path changes
+        if (isNavigationReady.value) {
+            proactivelyLoadDropdownData(currentPath.value);
+        }
     } catch (error) {
         console.error("Error parsing route to path:", error);
         currentPath.value = {};
@@ -228,14 +234,12 @@ onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
 });
 
-// Watch for navigation to become ready and load initial data
+// Watch for navigation to become ready - no need to manually load first level
+// since useNavigationState now handles proactive loading
 watchEffect(() => {
     if (isNavigationReady.value && navigationOrder.value.length > 0) {
-        // Load first level data immediately when navigation becomes ready
-        const firstType = navigationOrder.value[0];
-        if (firstType && getItems(firstType).length === 0 && !isLoading(firstType)) {
-            loadDropdownData(firstType);
-        }
+        // Navigation is ready - trigger context-aware preloading
+        proactivelyLoadDropdownData(currentPath.value);
     }
 });
 

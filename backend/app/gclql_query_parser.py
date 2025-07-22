@@ -9,8 +9,8 @@ from typing import Any, cast
 
 from lark import Lark, Token, Transformer, exceptions
 
+from app.app_logging import get_logger
 from app.config import get_config
-from app.logging import get_logger
 from app.storage.database import Database
 
 logger = get_logger()
@@ -365,7 +365,10 @@ class QueryParser:
         return global_search_fields
 
     def parse_query(
-        self, query_string: str, sort_by: str = "dataset_id", sort_order: str = "asc"
+        self,
+        query_string: str,
+        sort_by: str = "last_edited_at",
+        sort_order: str = "desc",
     ) -> tuple[str, str, list[Any]]:
         if not self.schema_mapping:
             raise RuntimeError("QueryParser not set up.")

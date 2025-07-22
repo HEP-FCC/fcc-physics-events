@@ -14,18 +14,15 @@ import asyncpg
 from asyncpg.pool import Pool
 from pydantic import BaseModel
 
+from app.app_logging import get_logger
 from app.config import Config, get_config
 from app.fcc_dict_parser import DatasetCollection
-from app.logging import get_logger
 from app.models.accelerator import AcceleratorCreate
 from app.models.campaign import CampaignCreate
 from app.models.dataset import (
     DatasetCreate,
-    DatasetWithDetails,
-    PaginatedDatasetSearchResponse,
 )
 from app.models.detector import DetectorCreate
-from app.models.dropdown import DropdownItem
 from app.models.stage import StageCreate
 
 logger = get_logger()
@@ -467,12 +464,12 @@ class Database:
         record = await conn.fetchrow(query, name)
         return int(record[id_column]) if record else None
 
-    async def get_datasets_by_ids(self, dataset_ids: list[int]) -> list[dict[str, Any]]:
+    async def get_entities_by_ids(self, entity_ids: list[int]) -> list[dict[str, Any]]:
         """
-        Get datasets by their IDs with all details and related entity names.
-        Returns a list of dictionaries with all dataset fields plus metadata flattened to top-level.
+        Get entities by their IDs with all details and related entity names.
+        Returns a list of dictionaries with all entity fields plus metadata flattened to top-level.
         """
-        if not dataset_ids:
+        if not entity_ids:
             return []
 
         config = get_config()
@@ -552,41 +549,41 @@ class Database:
             """
 
         async with self.session() as conn:
-            records = await conn.fetch(query, dataset_ids)
+            records = await conn.fetch(query, entity_ids)
 
             result = []
             for record in records:
                 # Convert record to dict
-                dataset_dict = dict(record)
+                entity_dict = dict(record)
 
                 # Extract and flatten metadata
-                metadata_str = dataset_dict.pop("metadata", r"{}")
+                metadata_str = entity_dict.pop("metadata", r"{}")
                 metadata = json.loads(metadata_str)
 
                 # Merge metadata keys into the main dictionary
-                # If there's a conflict, the original dataset fields take precedence
+                # If there's a conflict, the original entity fields take precedence
                 for key, value in metadata.items():
-                    if key not in dataset_dict:
-                        dataset_dict[key] = value
+                    if key not in entity_dict:
+                        entity_dict[key] = value
 
-                result.append(dataset_dict)
+                result.append(entity_dict)
 
             return result
 
-    async def get_dataset_by_id(self, dataset_id: int) -> dict[str, Any] | None:
+    async def get_entity_by_id(self, entity_id: int) -> dict[str, Any] | None:
         """
-        Get a single dataset by ID with all details and related entity names.
-        Returns None if dataset is not found.
+        Get a single entity by ID with all details and related entity names.
+        Returns None if entity is not found.
         """
-        datasets = await self.get_datasets_by_ids([dataset_id])
-        return datasets[0] if datasets else None
+        entities = await self.get_entities_by_ids([entity_id])
+        return entities[0] if entities else None
 
-    async def update_dataset(
-        self, dataset_id: int, update_data: dict[str, Any]
+    async def update_entity(
+        self, entity_id: int, update_data: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Update a dataset with the provided data using full replacement strategy.
-        Returns the updated dataset with all details.
+        Update an entity with the provided data using full replacement strategy.
+        Returns the updated entity with all details.
         """
         config = get_config()
         main_table = config["application"]["main_table"]
@@ -598,13 +595,13 @@ class Database:
             )
 
             async with conn.transaction():
-                # First check if dataset exists
+                # First check if entity exists
                 existing_check = await conn.fetchval(
                     f"SELECT {primary_key_column} FROM {main_table} WHERE {primary_key_column} = $1",
-                    dataset_id,
+                    entity_id,
                 )
                 if not existing_check:
-                    raise ValueError(f"Dataset with ID {dataset_id} not found")
+                    raise ValueError(f"Entity with ID {entity_id} not found")
 
                 # Prepare update fields and values
                 update_fields = []
@@ -658,7 +655,7 @@ class Database:
                         SET last_edited_at = (NOW() AT TIME ZONE 'utc')
                         WHERE {primary_key_column} = ${param_count + 1}
                     """
-                    values.append(dataset_id)
+                    values.append(entity_id)
                 else:
                     # Build the complete update query
                     param_count += 1
@@ -668,28 +665,26 @@ class Database:
                         SET {update_clause}
                         WHERE {primary_key_column} = ${param_count}
                     """
-                    values.append(dataset_id)
+                    values.append(entity_id)
 
                 try:
                     await conn.execute(query, *values)
-                    logger.info(f"Successfully updated dataset {dataset_id}")
+                    logger.info(f"Successfully updated entity {entity_id}")
                 except asyncpg.UniqueViolationError as e:
                     if "name" in str(e):
                         raise ValueError(
-                            f"A dataset with the name '{update_data.get('name')}' already exists"
+                            f"An entity with the name '{update_data.get('name')}' already exists"
                         )
                     raise ValueError(f"Update failed due to constraint violation: {e}")
                 except asyncpg.ForeignKeyViolationError as e:
                     raise ValueError(f"Update failed due to invalid reference: {e}")
 
-                # Return the updated dataset
-                updated_dataset = await self.get_dataset_by_id(dataset_id)
-                if not updated_dataset:
-                    raise RuntimeError(
-                        f"Failed to retrieve updated dataset {dataset_id}"
-                    )
+                # Return the updated entity
+                updated_entity = await self.get_entity_by_id(entity_id)
+                if not updated_entity:
+                    raise RuntimeError(f"Failed to retrieve updated entity {entity_id}")
 
-                return updated_dataset
+                return updated_entity
 
     async def get_sorting_fields(self) -> dict[str, Any]:
         """
@@ -829,7 +824,7 @@ class Database:
         params: list[Any],
         limit: int,
         offset: int,
-    ) -> PaginatedDatasetSearchResponse:
+    ) -> dict[str, Any]:
         async with self.session() as conn:
             total_records = await conn.fetchval(count_query, *params) or 0
 
@@ -839,8 +834,237 @@ class Database:
             )
             records = await conn.fetch(paginated_query, *params, limit, offset)
 
-            items = [
-                DatasetWithDetails.model_validate(dict(record)) for record in records
-            ]
+            # Convert records to dictionaries and parse JSON metadata
+            items = []
+            for record in records:
+                item_dict = dict(record)
 
-            return PaginatedDatasetSearchResponse(total=total_records, items=items)
+                # Parse metadata JSON string to object if it exists
+                if "metadata" in item_dict and item_dict["metadata"]:
+                    try:
+                        item_dict["metadata"] = json.loads(item_dict["metadata"])
+                    except (json.JSONDecodeError, TypeError):
+                        # If parsing fails, keep as string or set to empty dict
+                        item_dict["metadata"] = {}
+                else:
+                    item_dict["metadata"] = {}
+
+                items.append(item_dict)
+
+            return {"total": total_records, "items": items}
+
+    async def import_generic_data(
+        self,
+        navigation_entities: dict[str, list[dict[str, Any]]],
+        main_entities: list[dict[str, Any]],
+        main_table: str,
+    ) -> bool:
+        """
+        Generic data import function that can work with any schema.
+
+        Args:
+            navigation_entities: Dict mapping table names to lists of entity dicts
+            main_entities: List of main entity dicts
+            main_table: Name of the main table
+
+        Returns:
+            True if import succeeded, False otherwise
+        """
+        try:
+            async with self.session() as conn:
+                # Use an explicit transaction for all operations
+                async with conn.transaction():
+                    # First, import navigation/lookup entities
+                    navigation_id_map = {}
+
+                    for table_name, entities in navigation_entities.items():
+                        logger.info(
+                            f"Importing {len(entities)} records into {table_name}"
+                        )
+                        navigation_id_map[table_name] = {}
+
+                        for entity_data in entities:
+                            if (
+                                not isinstance(entity_data, dict)
+                                or "name" not in entity_data
+                            ):
+                                continue
+
+                            name = entity_data["name"]
+                            try:
+                                # Create or get existing entity
+                                entity_id = await self._get_or_create_generic_entity(
+                                    conn, table_name, entity_data
+                                )
+                                navigation_id_map[table_name][name] = entity_id
+                            except Exception as e:
+                                logger.error(
+                                    f"Failed to import {name} into {table_name}: {e}"
+                                )
+
+                    # Then import main table entities
+                    logger.info(
+                        f"Importing {len(main_entities)} records into {main_table}"
+                    )
+
+                    processed_count = 0
+                    failed_count = 0
+
+                    for idx, entity_data in enumerate(main_entities):
+                        try:
+                            await self._import_main_entity_generic(
+                                conn, main_table, entity_data, navigation_id_map
+                            )
+                            processed_count += 1
+                        except Exception as e:
+                            failed_count += 1
+                            logger.error(
+                                f"Failed to process {main_table} entity at index {idx}: {e}"
+                            )
+
+                    if failed_count > 0:
+                        logger.warning(
+                            f"Import completed with {failed_count} failures out of {processed_count + failed_count} total entities"
+                        )
+                    else:
+                        logger.info(
+                            f"Successfully processed all {processed_count} entities"
+                        )
+
+            logger.info("Generic data import completed")
+            return failed_count == 0
+
+        except Exception as e:
+            logger.error(f"Generic data import failed: {e}")
+            return False
+
+    async def _get_or_create_generic_entity(
+        self, conn: asyncpg.Connection, table_name: str, entity_data: dict[str, Any]
+    ) -> int:
+        """Get or create a generic entity and return its ID."""
+        name = entity_data["name"]
+
+        # Simple primary key mapping - this could be made more dynamic later
+        primary_key_map = {
+            "authors": "author_id",
+            "genres": "genre_id",
+            "publishers": "publisher_id",
+            "libraries": "library_id",
+            "collections": "collection_id",
+            "series": "series_id",
+            "books": "book_id",
+        }
+
+        primary_key = primary_key_map.get(table_name)
+        if not primary_key:
+            raise ValueError(f"No primary key mapping found for table {table_name}")
+
+        # Check if entity exists
+        check_query = f"SELECT {primary_key} FROM {table_name} WHERE name = $1"
+        existing_record = await conn.fetchrow(check_query, name)
+
+        if existing_record:
+            return existing_record[primary_key]
+
+        # Create new entity
+        columns = []
+        values = []
+        placeholders = []
+
+        for i, (key, value) in enumerate(entity_data.items(), 1):
+            if key != primary_key:  # Skip primary key as it's auto-generated
+                columns.append(key)
+                values.append(value)
+                placeholders.append(f"${i}")
+
+        insert_query = f"""
+            INSERT INTO {table_name} ({', '.join(columns)})
+            VALUES ({', '.join(placeholders)})
+            RETURNING {primary_key}
+        """
+
+        result = await conn.fetchrow(insert_query, *values)
+        if result:
+            return result[primary_key]
+
+        raise RuntimeError(f"Failed to create entity in {table_name} with name {name}")
+
+    async def _import_main_entity_generic(
+        self,
+        conn: asyncpg.Connection,
+        main_table: str,
+        entity_data: dict[str, Any],
+        navigation_id_map: dict[str, dict[str, int]],
+    ) -> None:
+        """Import a main entity with navigation relationships."""
+        name = entity_data.get("name")
+        if not name:
+            raise ValueError("Main entity must have a name")
+
+        # Simple primary key mapping - this could be made more dynamic later
+        primary_key_map = {
+            "authors": "author_id",
+            "genres": "genre_id",
+            "publishers": "publisher_id",
+            "libraries": "library_id",
+            "collections": "collection_id",
+            "series": "series_id",
+            "books": "book_id",
+        }
+
+        primary_key = primary_key_map.get(main_table)
+        if not primary_key:
+            raise ValueError(f"No primary key mapping found for table {main_table}")
+
+        # Prepare the data for insertion
+        columns = []
+        values = []
+        placeholders = []
+
+        # Process each field in entity_data
+        for i, (key, value) in enumerate(entity_data.items(), 1):
+            if key == primary_key:  # Skip auto-generated primary key
+                continue
+
+            # Check if this is a navigation reference (ends with _name)
+            if key.endswith("_name") and value:
+                # Convert name reference to ID reference
+                table_prefix = key[:-5]  # Remove "_name" suffix
+
+                # Find matching table in navigation_id_map
+                matching_table = None
+                for nav_table in navigation_id_map:
+                    if nav_table.startswith(table_prefix) or table_prefix in nav_table:
+                        matching_table = nav_table
+                        break
+
+                if matching_table and value in navigation_id_map[matching_table]:
+                    # Add the ID column instead of the name column
+                    id_column = f"{table_prefix}_id"
+                    columns.append(id_column)
+                    values.append(navigation_id_map[matching_table][value])
+                    placeholders.append(f"${i}")
+            else:
+                # Handle regular fields
+                if key == "metadata" and isinstance(value, dict):
+                    # Convert metadata dict to JSON string
+                    columns.append(key)
+                    values.append(json.dumps(value))
+                    placeholders.append(f"${i}")
+                elif key not in ["metadata"] or not isinstance(value, dict):
+                    # Regular field
+                    columns.append(key)
+                    values.append(value)
+                    placeholders.append(f"${i}")
+
+        # Insert or update the entity
+        if columns:
+            upsert_query = f"""
+                INSERT INTO {main_table} ({', '.join(columns)})
+                VALUES ({', '.join(placeholders)})
+                ON CONFLICT (name) DO UPDATE SET
+                {', '.join([f"{col} = EXCLUDED.{col}" for col in columns if col != 'name'])},
+                last_edited_at = (NOW() AT TIME ZONE 'utc')
+            """
+
+            await conn.execute(upsert_query, *values)

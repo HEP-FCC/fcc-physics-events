@@ -1,7 +1,7 @@
 import { ref, computed, readonly, watchEffect, type Ref } from "vue";
 import type { DropdownItem } from "~/types/schema";
 import { useApiClient } from "~/composables/useApiClient";
-import { useNavigationConfig } from "~/composables/useNavigationConfig";
+import { useNavigationConfig, getPreloadedDropdownData } from "~/composables/useNavigationConfig";
 
 /**
  * Dynamic navigation state management with schema-driven configuration
@@ -39,6 +39,7 @@ export function useNavigationState() {
     // Initialize navigation configuration and refs
     const initPromise = initializeNavigation().then(() => {
         initializeRefs();
+        proactivelyLoadDropdownData();
     });
 
     // Also watch for changes in navigation order and update refs accordingly
@@ -46,6 +47,10 @@ export function useNavigationState() {
         const order = navigationOrder.value;
         if (order.length > 0) {
             initializeRefs();
+            // Load dropdown data when navigation becomes ready
+            if (isNavigationReady()) {
+                proactivelyLoadDropdownData();
+            }
         }
     });
 
@@ -101,6 +106,104 @@ export function useNavigationState() {
         return openRefs[type] || null;
     }
 
+    /**
+     * Proactively load dropdown data in the background for better UX
+     * Loads the appropriate dropdown level based on current navigation context
+     */
+    async function proactivelyLoadDropdownData(currentPath: Record<string, string | null> = {}) {
+        if (!isNavigationReady() || navigationOrder.value.length === 0) {
+            return;
+        }
+
+        const order = navigationOrder.value;
+
+        try {
+            // Determine which level to preload based on current navigation state
+            let levelToPreload = 0; // Default to first level
+            
+            // Find the deepest level that has a value, then preload the next level
+            for (let i = 0; i < order.length; i++) {
+                const type = order[i];
+                if (currentPath[type]) {
+                    levelToPreload = i + 1; // Preload the next level after this one
+                } else {
+                    break; // Stop at the first empty level
+                }
+            }
+            
+            // Don't preload beyond the available levels
+            if (levelToPreload >= order.length) {
+                return;
+            }
+            
+            const typeToPreload = order[levelToPreload];
+            const itemsRef = getItemsRef(typeToPreload);
+            const loadingRef = getLoadingRef(typeToPreload);
+
+            // Only load if not already loaded or loading
+            if (itemsRef && loadingRef && itemsRef.value.length === 0 && !loadingRef.value) {
+                try {
+                    // Check for preloaded data first (only for first level without filters)
+                    if (levelToPreload === 0) {
+                        const preloadedData = getPreloadedDropdownData(typeToPreload);
+                        if (preloadedData && preloadedData.length > 0) {
+                            itemsRef.value = preloadedData;
+                            return;
+                        }
+                    }
+                    
+                    // Build filters for the dropdown based on current path
+                    const filters: Record<string, string> = {};
+                    for (let i = 0; i < levelToPreload; i++) {
+                        const filterType = order[i];
+                        const filterValue = currentPath[filterType];
+                        if (filterValue) {
+                            filters[filterType] = filterValue;
+                        }
+                    }
+
+                    // Fetch from API with appropriate filters
+                    loadingRef.value = true;
+                    
+                    let requestUrl = `/api/dropdown/${typeToPreload}`;
+                    if (Object.keys(filters).length > 0) {
+                        const params = new URLSearchParams();
+                        const filterObj: Record<string, string> = {};
+                        Object.entries(filters).forEach(([key, value]) => {
+                            if (value?.trim()) {
+                                const filterKey = key.endsWith("_name") ? key : `${key}_name`;
+                                filterObj[filterKey] = value;
+                            }
+                        });
+                        
+                        if (Object.keys(filterObj).length > 0) {
+                            params.append("filters", JSON.stringify(filterObj));
+                            requestUrl += `?${params.toString()}`;
+                        }
+                    }
+                    
+                    const response = await fetch(`${apiClient.baseUrl}${requestUrl}`);
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const items = data.data || [];
+                        itemsRef.value = items;
+                    } else {
+                        console.warn(`Failed to load ${typeToPreload}: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.warn(`Error loading ${typeToPreload}:`, error);
+                } finally {
+                    if (loadingRef) {
+                        loadingRef.value = false;
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn("Error during proactive dropdown loading:", error);
+        }
+    }
+
     async function loadDropdownData(type: string, filters: Record<string, string> = {}, forceReload: boolean = false) {
         // Ensure navigation is initialized first
         await initializeNavigation();
@@ -118,10 +221,20 @@ export function useNavigationState() {
             return;
         }
 
-        // Skip if data already loaded and no filters (unless force reload)
+        // Check for preloaded data first (only if no filters and no force reload)
         const hasFilters = Object.keys(filters).length > 0;
-        if (!forceReload && !hasFilters && itemsRef.value.length > 0) {
-            return;
+        if (!forceReload && !hasFilters) {
+            // First check if we have preloaded data available
+            const preloadedData = getPreloadedDropdownData(type);
+            if (preloadedData && preloadedData.length > 0) {
+                itemsRef.value = preloadedData;
+                return; // Exit early, no need to make API call
+            }
+
+            // If no preloaded data but items already loaded, skip API call
+            if (itemsRef.value.length > 0) {
+                return;
+            }
         }
 
         loadingRef.value = true;
@@ -242,5 +355,6 @@ export function useNavigationState() {
         isLoading,
         isOpen,
         navigationOrder,
+        proactivelyLoadDropdownData,
     };
 }

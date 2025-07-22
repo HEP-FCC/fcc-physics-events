@@ -7,7 +7,7 @@
             <!-- Selection controls -->
             <div class="flex items-center gap-2">
                 <UCheckbox
-                    :model-value="allDatasetsSelected"
+                    :model-value="allEntitiesSelected"
                     :disabled="datasets.length === 0"
                     @change="$emit('toggleSelectAll')"
                 />
@@ -111,7 +111,7 @@ import type { Dataset } from "~/types/dataset";
 
 interface Props {
     datasets: Dataset[];
-    allDatasetsSelected: boolean;
+    allEntitiesSelected: boolean;
     selectedCount: number;
     isDownloading: boolean;
     allMetadataExpanded: boolean;

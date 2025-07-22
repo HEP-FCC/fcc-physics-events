@@ -15,11 +15,11 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, Response
 
+from app.app_logging import get_logger, setup_logging
 from app.auth import cern_auth
-from app.config import get_config
+from app.config import Config, get_config
 from app.gclql_query_parser import QueryParser
-from app.logging import get_logger, setup_logging
-from app.models.dataset import DatasetUpdate, PaginatedDatasetSearchResponse
+from app.models.dataset import DatasetUpdate
 from app.storage.database import Database
 
 security = HTTPBearer(auto_error=False)
@@ -84,10 +84,10 @@ database = Database()
 query_parser = QueryParser(database=database)
 
 
-# Pydantic model for the dataset IDs request
+# Pydantic model for the entity IDs request
 # TODO: move to models
-class DatasetIdsRequest(BaseModel):
-    dataset_ids: list[int]
+class EntityIdsRequest(BaseModel):
+    entity_ids: list[int]
 
 
 oauth = OAuth()
@@ -286,17 +286,17 @@ async def upload_fcc_dictionary(
         raise HTTPException(status_code=500, detail=f"Import failed: {e}")
 
 
-@app.get("/query/", response_model=PaginatedDatasetSearchResponse)
+@app.get("/query/", response_model=dict[str, Any])
 async def execute_gclql_query(
     q: str,
     limit: int = Query(20, ge=20, le=1000),
     offset: int = Query(0, ge=0),
-    sort_by: str = Query("dataset_id", description="Field to sort by"),
-    sort_order: str = Query("asc", description="Sort order: 'asc' or 'desc'"),
+    sort_by: str = Query("last_edited_at", description="Field to sort by"),
+    sort_order: str = Query("desc", description="Sort order: 'asc' or 'desc'"),
 ) -> Any:
     """
     Executes a GCLQL-style query against the database with pagination and sorting.
-    Supports sorting by any dataset field or metadata JSON field (e.g., 'metadata.key').
+    Supports sorting by any entity field or metadata JSON field (e.g., 'metadata.key').
     """
     try:
         # Validate sort_order parameter
@@ -324,17 +324,17 @@ async def execute_gclql_query(
         raise HTTPException(status_code=400, detail=f"Invalid query: {e}")
 
 
-@app.post("/datasets/", response_model=list[dict[str, Any]])
-async def get_datasets_by_ids(request: DatasetIdsRequest) -> Any:
+@app.post("/entities/", response_model=list[dict[str, Any]])
+async def get_entities_by_ids(request: EntityIdsRequest) -> Any:
     """
-    Get datasets by their IDs with all details and metadata flattened to top-level keys.
-    Takes a list of dataset IDs and returns a list of dataset information.
+    Get entities by their IDs with all details and metadata flattened to top-level keys.
+    Takes a list of entity IDs and returns a list of entity information.
     """
-    if not request.dataset_ids:
+    if not request.entity_ids:
         return []
 
-    datasets = await database.get_datasets_by_ids(request.dataset_ids)
-    return datasets
+    entities = await database.get_entities_by_ids(request.entity_ids)
+    return entities
 
 
 @app.get("/sorting-fields/", response_model=dict[str, Any])
@@ -347,36 +347,36 @@ async def get_sorting_fields() -> dict[str, Any]:
     return result
 
 
-@app.get("/datasets/{dataset_id}", response_model=dict[str, Any])
-async def get_dataset_by_id(dataset_id: int) -> Any:
+@app.get("/entities/{entity_id}", response_model=dict[str, Any])
+async def get_entity_by_id(entity_id: int) -> Any:
     """
-    Get a single dataset by its ID with all details and metadata flattened to top-level keys.
+    Get a single entity by its ID with all details and metadata flattened to top-level keys.
     """
     try:
-        dataset = await database.get_dataset_by_id(dataset_id)
-        if not dataset:
+        entity = await database.get_entity_by_id(entity_id)
+        if not entity:
             raise HTTPException(
-                status_code=404, detail=f"Dataset with ID {dataset_id} not found"
+                status_code=404, detail=f"Entity with ID {entity_id} not found"
             )
-        return dataset
+        return entity
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.put("/datasets/{dataset_id}", response_model=dict[str, Any])
-async def update_dataset(
-    dataset_id: int,
+@app.put("/entities/{entity_id}", response_model=dict[str, Any])
+async def update_entity(
+    entity_id: int,
     update_data: DatasetUpdate,
     _request: Request,
     user: dict[str, Any] = Depends(get_and_validate_user_from_session),
 ) -> Any:
     """
-    Update a dataset with the provided data.
+    Update an entity with the provided data.
     Requires authentication via session cookie.
     """
     try:
         logger.info(
-            f"User {user.get('preferred_username', 'unknown')} updating dataset {dataset_id}."
+            f"User {user.get('preferred_username', 'unknown')} updating entity {entity_id}."
         )
 
         update_dict = update_data.model_dump(exclude_none=True)
@@ -386,8 +386,8 @@ async def update_dataset(
                 status_code=400, detail="No valid fields provided for update"
             )
 
-        updated_dataset = await database.update_dataset(dataset_id, update_dict)
-        return updated_dataset
+        updated_entity = await database.update_entity(entity_id, update_dict)
+        return updated_entity
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -444,9 +444,9 @@ async def get_database_schema() -> Any:
                 main_table
             )
 
-            # Fetch navigation configuration from database tables
-            navigation_config = await _get_navigation_config_from_db(
-                conn, navigation_analysis
+            # Fetch navigation configuration from config file
+            navigation_config = _get_navigation_config_from_config(
+                config, navigation_analysis
             )
 
             # Build the response
@@ -493,53 +493,47 @@ async def get_database_schema() -> Any:
         )
 
 
-async def _get_navigation_config_from_db(
-    conn: Any, navigation_analysis: dict[str, Any]
+def _get_navigation_config_from_config(
+    config: Config, navigation_analysis: dict[str, Any]
 ) -> dict[str, Any]:
     """
-    Fetch navigation configuration from database tables.
-    Only retrieves display_order and derives everything else dynamically.
+    Get navigation configuration from config file.
+    Uses the navigation.order setting from config.conf.
     """
+    # Get the navigation order from config, fallback to alphabetical if not defined
+    config_order = config.get("navigation", {}).get("order", [])
+
+    # Map of available navigation entities by key
     navigation_tables = {
         entity["key"]: entity["table_name"]
         for entity in navigation_analysis["navigation_entities"]
     }
 
-    table_orders = []
-
-    for key, table_name in navigation_tables.items():
-        try:
-            # Get the first record's display_order (assuming all records in a table have the same order)
-            order_query = f"""
-                SELECT display_order
-                FROM {table_name}
-                LIMIT 1
-            """  # Safe because table_name comes from schema discovery
-
-            order_result = await conn.fetchval(order_query)
-            display_order = order_result if order_result is not None else 0
-
-            table_orders.append((display_order, key))
-
-        except Exception as e:
-            logger.warning(f"Could not fetch display_order for table {table_name}: {e}")
-            # Use index as fallback for ordering
-            table_orders.append((len(table_orders) * 10, key))
-
-    # Sort by display_order and return
-    table_orders.sort(key=lambda x: x[0])
-    ordered_keys = [key for _, key in table_orders]
+    # Use config order if provided, otherwise use all available entities in alphabetical order
+    if config_order:
+        # Filter to only include entities that actually exist in the schema
+        ordered_keys = [key for key in config_order if key in navigation_tables]
+        # Add any entities not in config (in case schema has more than config)
+        remaining_keys = [
+            key for key in navigation_tables.keys() if key not in ordered_keys
+        ]
+        remaining_keys.sort()  # Alphabetical order for any missing ones
+        ordered_keys.extend(remaining_keys)
+    else:
+        # Fallback to alphabetical order
+        ordered_keys = sorted(navigation_tables.keys())
 
     # Build minimal navigation config - frontend will derive colors, icons, labels
     navigation_configs = {}
     for i, key in enumerate(ordered_keys):
-        entity_info = next(
-            e for e in navigation_analysis["navigation_entities"] if e["key"] == key
-        )
-        navigation_configs[key] = {
-            "columnName": entity_info["column_name"],
-            "orderIndex": i,  # Frontend will use this to derive color from app config
-        }
+        if key in navigation_tables:
+            entity_info = next(
+                e for e in navigation_analysis["navigation_entities"] if e["key"] == key
+            )
+            navigation_configs[key] = {
+                "columnName": entity_info["column_name"],
+                "orderIndex": i,  # Frontend will use this to derive color from app config
+            }
 
     return {"order": ordered_keys, "config": navigation_configs}
 

@@ -194,19 +194,19 @@ class ApiClient {
     }
 
     /**
-     * Download datasets by their IDs with aggressive retry policy
+     * Download entities by their IDs with aggressive retry policy
      * Downloads are critical operations that may need more retry attempts
      */
-    async downloadDatasetsByIds(datasetIds: number[]): Promise<Dataset[]> {
+    async downloadDatasetsByIds(entityIds: number[]): Promise<Dataset[]> {
         return this.makeRequest<Dataset[]>(
-            `${this.baseUrl}/datasets/`,
+            `${this.baseUrl}/entities/`,
             {
                 method: "POST",
                 body: JSON.stringify({
-                    dataset_ids: datasetIds,
+                    entity_ids: entityIds,
                 }),
             },
-            "Failed to download datasets",
+            "Failed to download entities",
         );
     }
 

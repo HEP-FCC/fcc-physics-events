@@ -1,32 +1,34 @@
 import { ref, reactive, shallowReactive, computed } from "vue";
 import type { Dataset, SelectionState, MetadataEditState } from "~/types/dataset";
+import { getPrimaryKeyField, getPrimaryKeyValue, extractEntityIds } from "~/composables/useEntityCompat";
 
 /**
- * Dataset selection and metadata management composable
- * Handles dataset selection, metadata expansion, and download functionality
+ * Generic entity selection and metadata management composable
+ * Handles entity selection, metadata expansion, and download functionality
+ * Works with any entity type (datasets, books, etc.)
  */
-export function useDatasetSelection() {
+export function useEntitySelection() {
     const { apiClient, apiAvailable } = useApiClient();
     const { createDatasetDownloadFilename, downloadAsJsonFile } = useUtils();
 
-    // Dataset selection and UI expansion state
+    // Entity selection and UI expansion state
     const selectionState = reactive<SelectionState>({
-        selectedDatasets: new Set<number>(),
+        selectedEntities: new Set<number>(),
         expandedMetadata: new Set<number>(),
         isDownloading: false,
     });
 
     // Force reactivity triggers for Set changes
-    const selectedDatasetsVersion = ref(0);
+    const selectedEntitiesVersion = ref(0);
     const expandedMetadataVersion = ref(0);
 
-    // Metadata editing state - per-dataset editing context
+    // Metadata editing state - per-entity editing context
     const metadataEditState = shallowReactive<Record<number, MetadataEditState>>({});
 
     // Computed properties for better reactivity
     const selectedCount = computed(() => {
-        void selectedDatasetsVersion.value; // Force reactivity
-        return selectionState.selectedDatasets.size;
+        void selectedEntitiesVersion.value; // Force reactivity
+        return selectionState.selectedEntities.size;
     });
 
     const expandedMetadataList = computed(() => {
@@ -34,60 +36,68 @@ export function useDatasetSelection() {
         return Array.from(selectionState.expandedMetadata);
     });
 
-    const selectedDatasetsList = computed(() => {
-        void selectedDatasetsVersion.value; // Force reactivity
-        return Array.from(selectionState.selectedDatasets);
+    const selectedEntityList = computed(() => {
+        void selectedEntitiesVersion.value; // Force reactivity
+        return Array.from(selectionState.selectedEntities);
     });
 
-    function getAllDatasetsSelected(datasets: Dataset[]) {
+    function getAllEntitiesSelected(entities: Dataset[]) {
         // Access the reactive version to trigger re-computation
-        void selectedDatasetsVersion.value;
-        const currentDatasetIds = datasets.map((dataset) => dataset.dataset_id);
-        return currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.selectedDatasets.has(id));
+        void selectedEntitiesVersion.value;
+        const currentEntityIds = extractEntityIds(entities);
+        return currentEntityIds.length > 0 && currentEntityIds.every((id) => selectionState.selectedEntities.has(id));
     }
 
-    function getAllMetadataExpanded(datasets: Dataset[]) {
+    function getAllMetadataExpanded(entities: any[]) {
         // Access the reactive version to trigger re-computation
         void expandedMetadataVersion.value;
-        const currentDatasetIds = datasets.map((dataset) => dataset.dataset_id);
-        return currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.expandedMetadata.has(id));
+        const currentEntityIds = extractEntityIds(entities);
+        return currentEntityIds.length > 0 && currentEntityIds.every((id) => selectionState.expandedMetadata.has(id));
     }
 
     /**
-     * Toggle individual dataset selection
+     * Toggle individual entity selection
      */
-    function toggleDatasetSelection(datasetId: number): void {
-        if (selectionState.selectedDatasets.has(datasetId)) {
-            selectionState.selectedDatasets.delete(datasetId);
+    function toggleEntitySelection(entityIdOrData: number | any): void {
+        const entityId = typeof entityIdOrData === "number" ? entityIdOrData : getPrimaryKeyValue(entityIdOrData);
+
+        if (entityId === null) return;
+
+        if (selectionState.selectedEntities.has(entityId)) {
+            selectionState.selectedEntities.delete(entityId);
         } else {
-            selectionState.selectedDatasets.add(datasetId);
+            selectionState.selectedEntities.add(entityId);
         }
-        selectedDatasetsVersion.value++;
+        selectedEntitiesVersion.value++;
     }
 
     /**
-     * Toggle select all datasets on current page
+     * Toggle select all entities on current page
      */
-    function toggleSelectAll(datasets: Dataset[]): void {
-        const currentDatasetIds = datasets.map((d) => d.dataset_id);
-        const allSelected = currentDatasetIds.every((id) => selectionState.selectedDatasets.has(id));
+    function toggleSelectAll(entities: any[]): void {
+        const currentEntityIds = extractEntityIds(entities);
+        const allSelected = currentEntityIds.every((id) => selectionState.selectedEntities.has(id));
 
         if (allSelected) {
-            currentDatasetIds.forEach((id) => selectionState.selectedDatasets.delete(id));
+            currentEntityIds.forEach((id) => selectionState.selectedEntities.delete(id));
         } else {
-            currentDatasetIds.forEach((id) => selectionState.selectedDatasets.add(id));
+            currentEntityIds.forEach((id) => selectionState.selectedEntities.add(id));
         }
-        selectedDatasetsVersion.value++;
+        selectedEntitiesVersion.value++;
     }
 
     /**
-     * Toggle metadata expansion for a specific dataset
+     * Toggle metadata expansion for a specific entity
      */
-    function toggleMetadata(datasetId: number): void {
-        if (selectionState.expandedMetadata.has(datasetId)) {
-            selectionState.expandedMetadata.delete(datasetId);
+    function toggleMetadata(entityIdOrData: number | any): void {
+        const entityId = typeof entityIdOrData === "number" ? entityIdOrData : getPrimaryKeyValue(entityIdOrData);
+
+        if (entityId === null) return;
+
+        if (selectionState.expandedMetadata.has(entityId)) {
+            selectionState.expandedMetadata.delete(entityId);
         } else {
-            selectionState.expandedMetadata.add(datasetId);
+            selectionState.expandedMetadata.add(entityId);
         }
         expandedMetadataVersion.value++;
     }
@@ -95,15 +105,15 @@ export function useDatasetSelection() {
     /**
      * Toggle all metadata expansions
      */
-    function toggleAllMetadata(datasets: Dataset[]): void {
-        const currentDatasetIds = datasets.map((dataset) => dataset.dataset_id);
+    function toggleAllMetadata(entities: any[]): void {
+        const currentEntityIds = extractEntityIds(entities);
         const allExpanded =
-            currentDatasetIds.length > 0 && currentDatasetIds.every((id) => selectionState.expandedMetadata.has(id));
+            currentEntityIds.length > 0 && currentEntityIds.every((id) => selectionState.expandedMetadata.has(id));
 
         if (allExpanded) {
-            currentDatasetIds.forEach((id) => selectionState.expandedMetadata.delete(id));
+            currentEntityIds.forEach((id: number) => selectionState.expandedMetadata.delete(id));
         } else {
-            currentDatasetIds.forEach((id) => selectionState.expandedMetadata.add(id));
+            currentEntityIds.forEach((id: number) => selectionState.expandedMetadata.add(id));
         }
         expandedMetadataVersion.value++;
     }
@@ -117,12 +127,12 @@ export function useDatasetSelection() {
     }
 
     /**
-     * Check if dataset is selected
+     * Check if entity is selected
      */
-    function isDatasetSelected(datasetId: number): boolean {
+    function isEntitySelected(entityId: number): boolean {
         // Access the reactive version to trigger re-computation
-        void selectedDatasetsVersion.value;
-        return selectionState.selectedDatasets.has(datasetId);
+        void selectedEntitiesVersion.value;
+        return selectionState.selectedEntities.has(entityId);
     }
 
     /**
@@ -135,24 +145,24 @@ export function useDatasetSelection() {
     }
 
     /**
-     * Download selected datasets as JSON file
+     * Download selected entities as JSON file
      */
-    async function downloadSelectedDatasets(): Promise<void> {
-        const selectedDatasetIds = Array.from(selectionState.selectedDatasets);
-        if (selectedDatasetIds.length === 0) {
+    async function downloadSelectedEntities(): Promise<void> {
+        const selectedEntityIds = Array.from(selectionState.selectedEntities);
+        if (selectedEntityIds.length === 0) {
             return;
         }
 
         selectionState.isDownloading = true;
         try {
-            const datasetsToDownload = await apiClient.downloadDatasetsByIds(selectedDatasetIds);
+            const entitiesToDownload = await apiClient.downloadDatasetsByIds(selectedEntityIds);
 
-            if (datasetsToDownload.length > 0) {
-                const filename = createDatasetDownloadFilename(datasetsToDownload.length);
-                downloadAsJsonFile(datasetsToDownload, filename);
+            if (entitiesToDownload.length > 0) {
+                const filename = createDatasetDownloadFilename(entitiesToDownload.length);
+                downloadAsJsonFile(entitiesToDownload, filename);
             }
         } catch (error) {
-            console.error("Failed to download datasets:", error);
+            console.error("Failed to download entities:", error);
         } finally {
             selectionState.isDownloading = false;
         }
@@ -183,7 +193,8 @@ export function useDatasetSelection() {
     function enterEditMode(datasetId: number, metadata: Record<string, unknown>): void {
         metadataEditState[datasetId] = {
             isEditing: true,
-            json: JSON.stringify(metadata, null, 2),
+            editedJson: JSON.stringify(metadata, null, 2),
+            originalMetadata: metadata,
         };
     }
 
@@ -192,7 +203,6 @@ export function useDatasetSelection() {
      */
     function cancelEdit(datasetId: number): void {
         if (Object.prototype.hasOwnProperty.call(metadataEditState, datasetId)) {
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete metadataEditState[datasetId];
         }
     }
@@ -201,12 +211,12 @@ export function useDatasetSelection() {
      * Save metadata changes
      */
     async function saveMetadataChanges(
-        datasetId: number,
-        datasets: Dataset[],
-        updateDataset: (index: number, dataset: Dataset) => void,
+        entityId: number,
+        entities: any[],
+        updateDataset: (index: number, entity: any) => void,
         editedJson?: string,
     ): Promise<void> {
-        const editState = metadataEditState[datasetId];
+        const editState = metadataEditState[entityId];
         if (!editState) return;
 
         const toast = useToast();
@@ -227,11 +237,11 @@ export function useDatasetSelection() {
 
         try {
             // Use the edited JSON if provided, otherwise fall back to the edit state JSON
-            const jsonToSave = editedJson || editState.json;
+            const jsonToSave = editedJson || editState.editedJson;
             const parsedMetadata = JSON.parse(jsonToSave);
 
             // Call the backend API to save metadata with cookie-based authentication
-            await apiClient.updateDataset(datasetId, parsedMetadata);
+            await apiClient.updateDataset(entityId, parsedMetadata);
 
             toast.add({
                 title: "Success",
@@ -239,19 +249,19 @@ export function useDatasetSelection() {
                 color: "success",
             });
 
-            // Update the dataset in the local state
-            const datasetIndex = datasets.findIndex((d) => d.dataset_id === datasetId);
-            if (datasetIndex !== -1) {
-                updateDataset(datasetIndex, {
-                    ...datasets[datasetIndex],
+            // Update the entity in the local state
+            const entityIndex = entities.findIndex((entity: any) => getPrimaryKeyValue(entity) === entityId);
+            if (entityIndex !== -1) {
+                updateDataset(entityIndex, {
+                    ...entities[entityIndex],
                     metadata: parsedMetadata,
                 });
             }
 
             // Exit edit mode
-            if (Object.prototype.hasOwnProperty.call(metadataEditState, datasetId)) {
+            if (Object.prototype.hasOwnProperty.call(metadataEditState, entityId)) {
                 // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-                delete metadataEditState[datasetId];
+                delete metadataEditState[entityId];
             }
         } catch (error: unknown) {
             if (apiAvailable.value) {
@@ -286,7 +296,7 @@ export function useDatasetSelection() {
     function getTextareaRows(datasetId: number): number {
         const editState = metadataEditState[datasetId];
         if (!editState) return 10;
-        const lineCount = editState.json.split("\n").length;
+        const lineCount = editState.editedJson.split("\n").length;
         return Math.max(10, Math.min(lineCount + 1, 25));
     }
 
@@ -298,19 +308,19 @@ export function useDatasetSelection() {
         // Computed
         selectedCount,
         expandedMetadataList,
-        selectedDatasetsList,
-        getAllDatasetsSelected,
+        selectedEntityList,
+        getAllEntitiesSelected,
         getAllMetadataExpanded,
 
         // Methods
-        toggleDatasetSelection,
+        toggleEntitySelection,
         toggleSelectAll,
         toggleMetadata,
         toggleAllMetadata,
         clearMetadataExpansions,
-        isDatasetSelected,
+        isEntitySelected,
         isMetadataExpanded,
-        downloadSelectedDatasets,
+        downloadSelectedEntities,
         handleRowClick,
         enterEditMode,
         cancelEdit,

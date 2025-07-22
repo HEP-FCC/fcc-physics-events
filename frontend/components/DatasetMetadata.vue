@@ -236,18 +236,22 @@ import type { MetadataEditState } from "~/types/dataset";
  */
 
 interface Props {
-    datasetId: number;
+    entityId?: number;
+    datasetId?: number; // For backward compatibility
     metadata: Record<string, unknown>;
     editState?: MetadataEditState;
 }
 
 interface Emits {
-    (e: "enterEdit", datasetId: number, metadata: Record<string, unknown>): void;
-    (e: "cancelEdit" | "saveMetadata", datasetId: number, editedJson?: string): void;
+    (e: "enterEdit", entityId: number, metadata: Record<string, unknown>): void;
+    (e: "cancelEdit" | "saveMetadata", entityId: number, editedJson?: string): void;
 }
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+// Computed property to handle both entityId and datasetId (backward compatibility)
+const actualEntityId = computed(() => props.entityId ?? props.datasetId ?? 0);
 
 // Composables
 const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField } = useUtils();
@@ -269,15 +273,15 @@ watch(
 
 // Methods
 const enterEditMode = (): void => {
-    emit("enterEdit", props.datasetId, props.metadata);
+    emit("enterEdit", actualEntityId.value, props.metadata);
 };
 
 const cancelEdit = (): void => {
-    emit("cancelEdit", props.datasetId);
+    emit("cancelEdit", actualEntityId.value);
 };
 
 const saveMetadata = (): void => {
-    emit("saveMetadata", props.datasetId, localEditJson.value);
+    emit("saveMetadata", actualEntityId.value, localEditJson.value);
 };
 
 const formatJson = (): void => {

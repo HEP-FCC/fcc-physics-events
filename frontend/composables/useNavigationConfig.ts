@@ -20,17 +20,40 @@ interface NavigationConfig {
     >;
 }
 
+// Global singleton state to prevent multiple API calls
+const globalNavigationConfig = ref<NavigationConfig>({
+    order: [],
+    menu: {},
+});
+
+const globalIsLoading = ref(false);
+const globalError = ref<string | null>(null);
+
+// Global cache for preloaded dropdown data
+let preloadedDropdownCache: Record<string, any[]> = {};
+
+/**
+ * Get preloaded dropdown data for a specific type
+ * This is used by useNavigationState to check for cached data
+ */
+export const getPreloadedDropdownData = (type: string): any[] | null => {
+    return preloadedDropdownCache[type] || null;
+};
+
+/**
+ * Clear preloaded dropdown cache
+ */
+export const clearPreloadedDropdownCache = (): void => {
+    preloadedDropdownCache = {};
+};
+
 export const useNavigationConfig = () => {
     const { apiClient } = useApiClient();
 
-    // Reactive state for navigation configuration
-    const navigationConfig = ref<NavigationConfig>({
-        order: [],
-        menu: {},
-    });
-
-    const isLoading = ref(false);
-    const error = ref<string | null>(null);
+    // Use global singleton state
+    const navigationConfig = globalNavigationConfig;
+    const isLoading = globalIsLoading;
+    const error = globalError;
 
     /**
      * Fetch navigation configuration from backend schema endpoint
@@ -81,7 +104,7 @@ export const useNavigationConfig = () => {
         }
     };
 
-    // Auto-initialize on first use
+    // Initialize on first use only if not already loaded and not currently loading
     if (navigationConfig.value.order.length === 0 && !isLoading.value) {
         fetchNavigationConfig();
     }
@@ -133,11 +156,61 @@ export const useNavigationConfig = () => {
     };
 
     /**
+     * Preload dropdown data for all navigation types concurrently
+     * This actually populates the useNavigationState cache to avoid on-demand loading
+     */
+    const preloadDropdownData = async (): Promise<void> => {
+        const { apiClient } = useApiClient();
+        const order = navigationConfig.value.order;
+
+        if (order.length === 0) {
+            return;
+        }
+
+        try {
+            console.debug(`Starting background preloading for ${order.length} dropdown types:`, order);
+
+            // Create concurrent API calls for all navigation types
+            const preloadPromises = order.map(async (type: string) => {
+                try {
+                    const response = await fetch(`${apiClient.baseUrl}/api/dropdown/${type}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        const items = data.data || [];
+
+                        // Store the preloaded data in module cache
+                        preloadedDropdownCache[type] = items;
+
+                        console.debug(`Preloaded ${type}: ${items.length} items cached`);
+                        return { type, success: true, count: items.length };
+                    } else {
+                        console.warn(`Failed to preload ${type}: ${response.status}`);
+                        return { type, success: false, error: response.status };
+                    }
+                } catch (error) {
+                    console.warn(`Error preloading ${type}:`, error);
+                    return { type, success: false, error };
+                }
+            });
+
+            // Wait for all preload operations to complete
+            const results = await Promise.allSettled(preloadPromises);
+
+            // Log summary
+            const successful = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+            console.debug(`Dropdown preloading completed: ${successful}/${order.length} successful`);
+        } catch (error) {
+            console.warn("Error during dropdown preloading:", error);
+        }
+    };
+
+    /**
      * Initialize navigation configuration if not already loaded
      */
     const initializeNavigation = async (): Promise<void> => {
         if (navigationConfig.value.order.length === 0) {
             await fetchNavigationConfig();
+            // Note: Dropdown preloading is now handled by useNavigationState
         }
     };
 
@@ -151,5 +224,6 @@ export const useNavigationConfig = () => {
         getNavigationMenu,
         getNavigationItem,
         initializeNavigation,
+        preloadDropdownData,
     };
 };

@@ -28,7 +28,7 @@
             <!-- Dataset Controls & Results Summary -->
             <DatasetControls
                 :datasets="search.datasets.value as Dataset[]"
-                :all-datasets-selected="allDatasetsSelected"
+                :all-entities-selected="allEntitiesSelected"
                 :selected-count="selection.selectedCount.value"
                 :is-downloading="selection.selectionState.isDownloading"
                 :all-metadata-expanded="allMetadataExpanded"
@@ -39,7 +39,7 @@
                 :display-range="search.currentDisplayRange.value"
                 :page-size="search.pagination.pageSize"
                 @toggle-select-all="selection.toggleSelectAll(search.datasets.value as Dataset[])"
-                @download-selected="selection.downloadSelectedDatasets"
+                @download-selected="selection.downloadSelectedEntities"
                 @toggle-all-metadata="selection.toggleAllMetadata(search.datasets.value as Dataset[])"
                 @update-sort-by="search.updateSortBy"
                 @toggle-sort-order="search.toggleSortOrder"
@@ -60,7 +60,7 @@
                 :current-display-range="search.currentDisplayRange.value"
                 :should-show-loading-indicator="search.shouldShowLoadingIndicatorDatasets.value"
                 :should-show-completion-message="search.shouldShowCompletionMessage.value"
-                @toggle-dataset-selection="selection.toggleDatasetSelection"
+                @toggle-entity-selection="selection.toggleEntitySelection"
                 @toggle-metadata="selection.toggleMetadata"
                 @enter-edit-mode="selection.enterEditMode"
                 @cancel-edit="selection.cancelEdit"
@@ -104,6 +104,7 @@ import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from "vue";
 import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
 import type { Dataset } from "~/types/dataset";
 import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
+import { extractEntityIds } from "~/composables/useEntityCompat";
 
 /**
  * Dataset Search Interface Component
@@ -125,7 +126,7 @@ const { parseRouteToPath } = useDynamicNavigation();
 
 // Composables
 const search = useDatasetSearch();
-const selection = useDatasetSelection();
+const selection = useEntitySelection();
 
 // Component state
 const isInitialized = ref(false);
@@ -145,7 +146,7 @@ watchEffect(() => {
 });
 
 // Memoized selection state computations
-const allDatasetsSelected = computed(() => selection.getAllDatasetsSelected(search.datasets.value as Dataset[]));
+const allEntitiesSelected = computed(() => selection.getAllEntitiesSelected(search.datasets.value as Dataset[]));
 const allMetadataExpanded = computed(() => selection.getAllMetadataExpanded(search.datasets.value as Dataset[]));
 
 /**
@@ -204,7 +205,7 @@ watchDebounced(
 
 // Clear metadata expansions when datasets change (only when dataset IDs change)
 watch(
-    () => search.datasets.value.map((d) => d.dataset_id),
+    () => extractEntityIds(search.datasets.value),
     () => selection.clearMetadataExpansions(),
     { flush: "post" },
 );
