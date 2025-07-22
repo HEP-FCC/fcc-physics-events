@@ -62,7 +62,7 @@ fi
 git pull 2>&1 >> "${LOGFILE}"
 
 # Make sure the .git folder contains .htaccess file
-echo "deny from all" > ${PHYSEVT_DIR}/.git/
+echo "deny from all" > ${PHYSEVT_DIR}/.git/.htaccess
 
 if [ "$(git rev-parse main)" != "$(git rev-parse origin/main)" ]; then
   echo "`date`  ERROR: Git pull did not succeeded. Aborting..." >> "${LOGFILE}"
