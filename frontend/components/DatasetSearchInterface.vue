@@ -190,13 +190,16 @@ watch(
 watchDebounced(
     search.activeFilters,
     () => {
-        search.isFilterUpdateInProgress.value = true;
+        // Only proceed if not already in a filter update process from elsewhere
+        if (!search.isFilterUpdateInProgress.value) {
+            search.isFilterUpdateInProgress.value = true;
+        }
         search.updateCurrentPage(1);
         search.performSearch(true).finally(() => {
             search.isFilterUpdateInProgress.value = false;
         });
     },
-    { debounce: 200, deep: true, immediate: false, flush: "post" },
+    { debounce: 250, deep: true, immediate: false, flush: "post" },
 );
 
 // Clear metadata expansions when datasets change (only when dataset IDs change)

@@ -127,11 +127,8 @@ export interface Dataset extends DatabaseEntity {
     updated_at?: string;
     last_edited_at?: string;
     metadata?: Record<string, unknown>;
-    // Navigation entity names (populated by joins)
-    stage_name?: string;
-    accelerator_name?: string;
-    campaign_name?: string;
-    detector_name?: string;
+    // Dynamic navigation entity names (populated by joins based on schema)
+    // These will be dynamically added as {entity_type}_name fields
     [key: string]: unknown;
 }
 

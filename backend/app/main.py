@@ -429,14 +429,19 @@ async def get_database_schema() -> Any:
     that allows the frontend to work with any database schema.
     """
     try:
+        from app.config import get_config
+
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
         async with database.session() as conn:
             from app.schema_discovery import get_schema_discovery
 
             schema_discovery = await get_schema_discovery(conn)
 
-            # Analyze the navigation structure based on the main table (datasets)
+            # Analyze the navigation structure based on the main table
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
-                "datasets"
+                main_table
             )
 
             # Fetch navigation configuration from database tables
@@ -558,12 +563,17 @@ async def get_dropdown_items(
             filter_dict = json.loads(filters)
 
         # Get schema information to find the appropriate table
+        from app.config import get_config
+
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
         async with database.session() as conn:
             from app.schema_discovery import get_schema_discovery
 
             schema_discovery = await get_schema_discovery(conn)
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
-                "datasets"
+                main_table
             )
 
             if table_key not in navigation_analysis["navigation_tables"]:
@@ -581,7 +591,7 @@ async def get_dropdown_items(
             query = f"""
                 SELECT DISTINCT t.{primary_key} as id, t.{name_column} as name
                 FROM {table_name} t
-                INNER JOIN datasets d ON d.{table_key}_id = t.{primary_key}
+                INNER JOIN {main_table} d ON d.{table_key}_id = t.{primary_key}
             """
 
             params: list[Any] = []
@@ -648,12 +658,17 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
     Automatically handles joins based on schema discovery.
     """
     try:
+        from app.config import get_config
+
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
         async with database.session() as conn:
             from app.schema_discovery import get_schema_discovery
 
             schema_discovery = await get_schema_discovery(conn)
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
-                "datasets"
+                main_table
             )
 
             # Build the base query
@@ -785,8 +800,13 @@ async def import_data_generic(
                 )
             else:
                 # Handle navigation table import
+                from app.config import get_config
+
+                config = get_config()
+                main_table = config["application"]["main_table"]
+
                 navigation_analysis = (
-                    await schema_discovery.analyze_navigation_structure("datasets")
+                    await schema_discovery.analyze_navigation_structure(main_table)
                 )
 
                 if table_key not in navigation_analysis["navigation_tables"]:
@@ -815,16 +835,21 @@ async def validate_data_generic(table_key: str, data: dict[str, Any]) -> Any:
     Generic data validation endpoint that works with any table based on schema discovery.
     """
     try:
+        from app.config import get_config
+
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
         async with database.session() as conn:
             from app.schema_discovery import get_schema_discovery
 
             schema_discovery = await get_schema_discovery(conn)
 
             if table_key == "main":
-                table_metadata = await schema_discovery.get_table_metadata("datasets")
+                table_metadata = await schema_discovery.get_table_metadata(main_table)
             else:
                 navigation_analysis = (
-                    await schema_discovery.analyze_navigation_structure("datasets")
+                    await schema_discovery.analyze_navigation_structure(main_table)
                 )
                 if table_key not in navigation_analysis["navigation_tables"]:
                     raise HTTPException(

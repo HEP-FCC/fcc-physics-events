@@ -9,10 +9,12 @@ from typing import Any, cast
 
 from lark import Lark, Token, Transformer, exceptions
 
+from app.config import get_config
 from app.logging import get_logger
 from app.storage.database import Database
 
 logger = get_logger()
+config = get_config()
 
 QUERY_LANGUAGE_GRAMMAR = r"""
     ?start: expr
@@ -154,19 +156,16 @@ class AstTransformer(Transformer[Token, AstNode]):
 class SqlTranslator:
     def __init__(self) -> None:
         self.schema_mapping: dict[str, str] = {}
-        self.global_search_fields: list[str] = [
-            "d.name",
-            "det.name",
-            "c.name",
-            "s.name",
-            "at.name",
-            "jsonb_values_to_text(d.metadata)",
-        ]
+        self.global_search_fields: list[str] = []  # Will be set dynamically
         self.params: list[Any] = []
         self.param_index = 0
 
-    def reset(self, schema_mapping: dict[str, str]) -> None:
+    def reset(
+        self, schema_mapping: dict[str, str], global_search_fields: list[str] = None
+    ) -> None:
         self.schema_mapping = schema_mapping
+        if global_search_fields is not None:
+            self.global_search_fields = global_search_fields
         self.params = []
         self.param_index = 0
 
@@ -270,16 +269,100 @@ class QueryParser:
         self.transformer = AstTransformer()
         self.translator = SqlTranslator()
 
-        self.from_and_joins = """
-            FROM datasets d
-            LEFT JOIN detectors det ON d.detector_id = det.detector_id
-            LEFT JOIN campaigns c ON d.campaign_id = c.campaign_id
-            LEFT JOIN stages s ON d.stage_id = s.stage_id
-            LEFT JOIN accelerators at ON d.accelerator_id = at.accelerator_id
-        """
+        # Dynamic FROM and JOINs will be built during setup
+        self.from_and_joins = ""
+        self.navigation_analysis: dict[str, Any] = {}
+        self.entity_aliases: dict[str, str] = {}  # Store entity_key -> alias mapping
 
     async def setup(self) -> None:
         self.schema_mapping = await self.database.generate_schema_mapping()
+
+        # Get navigation structure analysis to build dynamic JOINs
+        from app.schema_discovery import get_schema_discovery
+
+        async with self.database.session() as conn:
+            schema_discovery = await get_schema_discovery(conn)
+            self.navigation_analysis = (
+                await schema_discovery.analyze_navigation_structure(
+                    config["application"]["main_table"]
+                )
+            )
+
+        # Build dynamic FROM and JOIN clauses
+        self._build_dynamic_joins()
+
+    def _build_dynamic_joins(self) -> None:
+        """Build FROM and JOIN clauses dynamically based on schema analysis."""
+        joins = [f"FROM {config['application']['main_table']} d"]
+        used_aliases = {"d"}  # Track used aliases to avoid conflicts
+
+        for entity_key, table_info in self.navigation_analysis[
+            "navigation_tables"
+        ].items():
+            table_name = table_info["table_name"]
+            primary_key = table_info["primary_key"]
+
+            # Create unique alias from entity key
+            alias = self._generate_unique_alias(entity_key, used_aliases)
+            used_aliases.add(alias)
+            self.entity_aliases[entity_key] = alias  # Store for later use
+
+            join_clause = f"LEFT JOIN {table_name} {alias} ON d.{entity_key}_id = {alias}.{primary_key}"
+            joins.append(" " * 12 + join_clause)
+
+        self.from_and_joins = "\n".join(joins)
+
+    def _generate_unique_alias(self, entity_key: str, used_aliases: set[str]) -> str:
+        """Generate a unique alias for a table, avoiding conflicts."""
+        # Start with first 3-4 characters
+        base_alias = entity_key[:3] if len(entity_key) > 3 else entity_key
+
+        # If already used, try first 4 characters
+        if base_alias in used_aliases and len(entity_key) > 3:
+            base_alias = entity_key[:4]
+
+        # If still conflicts, add number suffix
+        if base_alias in used_aliases:
+            counter = 1
+            while f"{base_alias}{counter}" in used_aliases:
+                counter += 1
+            base_alias = f"{base_alias}{counter}"
+
+        return base_alias
+
+    def _build_dynamic_select_fields(self) -> str:
+        """Build dynamic SELECT fields for navigation entities."""
+        select_fields = ["d.*"]
+
+        for entity_key, table_info in self.navigation_analysis[
+            "navigation_tables"
+        ].items():
+            name_column = table_info["name_column"]
+
+            # Use the alias that was generated during join building
+            alias = self.entity_aliases[entity_key]
+
+            select_field = f"{alias}.{name_column} as {entity_key}_name"
+            select_fields.append(" " * 20 + select_field)
+
+        return ",\n".join(select_fields)
+
+    def _build_dynamic_global_search_fields(self) -> list[str]:
+        """Build dynamic global search fields for navigation entities."""
+        global_search_fields = [
+            "d.name",  # Dataset name
+            "jsonb_values_to_text(d.metadata)",  # Metadata values
+        ]
+
+        # Add name fields from all navigation tables using their aliases
+        for entity_key, table_info in self.navigation_analysis[
+            "navigation_tables"
+        ].items():
+            name_column = table_info["name_column"]
+            alias = self.entity_aliases[entity_key]
+            global_search_fields.append(f"{alias}.{name_column}")
+
+        return global_search_fields
 
     def parse_query(
         self, query_string: str, sort_by: str = "dataset_id", sort_order: str = "asc"
@@ -288,16 +371,13 @@ class QueryParser:
             raise RuntimeError("QueryParser not set up.")
 
         if not query_string.strip():
+            select_fields = self._build_dynamic_select_fields()
             select_query = f"""
-                SELECT d.*,
-                    det.name as detector_name,
-                    c.name as campaign_name,
-                    s.name as stage_name,
-                    at.name as accelerator_name
+                SELECT {select_fields}
                 {self.from_and_joins}
                 {self._build_order_by_clause(sort_by, sort_order)}
             """
-            count_query = "SELECT COUNT(*) FROM datasets"
+            count_query = f"SELECT COUNT(*) FROM {config['application']['main_table']}"
             return count_query, select_query, []
 
         try:
@@ -307,14 +387,12 @@ class QueryParser:
         except exceptions.LarkError as e:
             raise ValueError(f"Invalid query syntax: {e}") from e
 
-        self.translator.reset(self.schema_mapping)
+        global_search_fields = self._build_dynamic_global_search_fields()
+        self.translator.reset(self.schema_mapping, global_search_fields)
         where_clause = self.translator.translate(ast)
+        select_fields = self._build_dynamic_select_fields()
         select_query = f"""
-            SELECT d.*,
-                det.name as detector_name,
-                c.name as campaign_name,
-                s.name as stage_name,
-                at.name as accelerator_name
+            SELECT {select_fields}
             {self.from_and_joins}
             WHERE {where_clause}
             {self._build_order_by_clause(sort_by, sort_order)}

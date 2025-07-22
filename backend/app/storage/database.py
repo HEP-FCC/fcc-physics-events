@@ -14,7 +14,7 @@ import asyncpg
 from asyncpg.pool import Pool
 from pydantic import BaseModel
 
-from app.config import Config
+from app.config import Config, get_config
 from app.fcc_dict_parser import DatasetCollection
 from app.logging import get_logger
 from app.models.accelerator import AcceleratorCreate
@@ -127,32 +127,102 @@ class Database:
 
     async def generate_schema_mapping(self) -> dict[str, str]:
         """
-        Generates a static schema mapping for the query parser.
+        Generates a dynamic schema mapping for the query parser based on database schema.
 
-        This is more robust than database introspection for a fixed query structure.
-        It maps logical query fields to their aliased SQL counterparts.
-
-        Available fields for sorting:
+        This method analyzes the database structure and creates mappings for:
         - Dataset fields: dataset_id, name, created_at, last_edited_at
-        - Joined fields: detector_name, campaign_name, stage_name, accelerator_name
+        - Dynamic joined fields: {entity}_name for each navigation entity
         - Metadata fields: metadata.* (any key in the JSONB metadata field)
         """
-        logger.info("Generating static schema mapping for query parser.")
-        return {
-            "name": "d.name",
-            "detector": "det.name",
-            "campaign": "c.name",
-            "stage": "s.name",
-            "accelerator": "at.name",
-            # This field allows querying specific keys within the JSONB object.
-            "metadata": "d.metadata",
-            # This virtual field allows full-text search on all metadata values.
-            "metadata_text": "jsonb_values_to_text(d.metadata)",
-            # Additional dataset fields available for sorting
-            "dataset_id": "d.dataset_id",
-            "created_at": "d.created_at",
-            "last_edited_at": "d.last_edited_at",
-        }
+        logger.info("Generating dynamic schema mapping for query parser.")
+
+        # Add dynamic mappings for navigation entities
+        try:
+            from app.schema_discovery import get_schema_discovery
+
+            config = get_config()
+            main_table = config["application"]["main_table"]
+
+            async with self.session() as conn:
+                # Get the primary key column dynamically
+                primary_key_column = await self._get_main_table_primary_key(
+                    conn, main_table
+                )
+
+                # Base mapping for dataset fields and special fields
+                mapping = {
+                    "name": "d.name",
+                    "metadata": "d.metadata",
+                    "metadata_text": "jsonb_values_to_text(d.metadata)",
+                    primary_key_column: f"d.{primary_key_column}",
+                    "created_at": "d.created_at",
+                    "last_edited_at": "d.last_edited_at",
+                }
+
+                schema_discovery = await get_schema_discovery(conn)
+                navigation_analysis = (
+                    await schema_discovery.analyze_navigation_structure(main_table)
+                )
+
+                # Generate aliases using the same logic as the query parser
+                used_aliases = {"d"}
+                for entity_key, table_info in navigation_analysis[
+                    "navigation_tables"
+                ].items():
+                    name_column = table_info["name_column"]
+
+                    # Generate unique alias using same logic as QueryParser
+                    alias = self._generate_unique_alias(entity_key, used_aliases)
+                    used_aliases.add(alias)
+
+                    # Add mapping for entity field
+                    mapping[entity_key] = f"{alias}.{name_column}"
+
+        except Exception as e:
+            logger.error(f"Failed to generate dynamic schema mapping: {e}")
+            # Fallback to empty mapping for navigation entities if schema discovery fails
+
+        return mapping
+
+    def _generate_unique_alias(self, entity_key: str, used_aliases: set[str]) -> str:
+        """Generate a unique alias for a table, avoiding conflicts. Same logic as QueryParser."""
+        # Start with first 3-4 characters
+        base_alias = entity_key[:3] if len(entity_key) > 3 else entity_key
+
+        # If already used, try first 4 characters
+        if base_alias in used_aliases and len(entity_key) > 3:
+            base_alias = entity_key[:4]
+
+        # If still conflicts, add number suffix
+        if base_alias in used_aliases:
+            counter = 1
+            while f"{base_alias}{counter}" in used_aliases:
+                counter += 1
+            base_alias = f"{base_alias}{counter}"
+
+        return base_alias
+
+    async def _get_main_table_primary_key(
+        self, conn: asyncpg.Connection, main_table: str
+    ) -> str:
+        """Get the primary key column name for the main table."""
+        query = """
+            SELECT column_name
+            FROM information_schema.key_column_usage kcu
+            JOIN information_schema.table_constraints tc
+                ON kcu.constraint_name = tc.constraint_name
+            WHERE tc.constraint_type = 'PRIMARY KEY'
+            AND kcu.table_name = $1
+            AND kcu.table_schema = 'public'
+            ORDER BY kcu.ordinal_position
+            LIMIT 1
+        """
+        result = await conn.fetchval(query, main_table)
+        if not result:
+            # Fallback to convention-based naming
+            table_singular = main_table.rstrip("s")
+            return f"{table_singular}_id"
+        return result
 
     async def _get_or_create_entity(
         self, conn: asyncpg.Connection, model: type[T], table_name: str, **kwargs: Any
@@ -201,6 +271,9 @@ class Database:
             raise ValueError("Invalid JSON format") from e
         except Exception as e:
             raise ValueError(f"Invalid data format: {e}") from e
+
+        config = get_config()
+        main_table = config["application"]["main_table"]
 
         async with self.session() as conn:
             # Use an explicit transaction for all operations
@@ -316,9 +389,8 @@ class Database:
                                 )
                                 metadata_json = json.dumps(dataset_to_create.metadata)
 
-                                await conn.execute(
-                                    """
-                                    INSERT INTO datasets (name, accelerator_id, stage_id, campaign_id, detector_id, metadata)
+                                query = f"""
+                                    INSERT INTO {main_table} (name, accelerator_id, stage_id, campaign_id, detector_id, metadata)
                                     VALUES ($1, $2, $3, $4, $5, $6)
                                     ON CONFLICT (name) DO UPDATE
                                     SET metadata = EXCLUDED.metadata,
@@ -327,7 +399,10 @@ class Database:
                                         campaign_id = EXCLUDED.campaign_id,
                                         detector_id = EXCLUDED.detector_id,
                                         last_edited_at = (NOW() AT TIME ZONE 'utc');
-                                    """,
+                                    """
+
+                                await conn.execute(
+                                    query,
                                     dataset_to_create.name,
                                     dataset_to_create.accelerator_id,
                                     dataset_to_create.stage_id,
@@ -400,35 +475,84 @@ class Database:
         if not dataset_ids:
             return []
 
-        # Create placeholders for the dataset IDs
-        placeholders = ", ".join(f"${i+1}" for i in range(len(dataset_ids)))
+        config = get_config()
+        main_table = config["application"]["main_table"]
 
-        query = f"""
-            SELECT
-                d.dataset_id,
-                d.name,
-                d.accelerator_id,
-                d.stage_id,
-                d.campaign_id,
-                d.detector_id,
-                d.metadata,
-                d.created_at,
-                d.last_edited_at,
-                a.name as accelerator_name,
-                s.name as stage_name,
-                c.name as campaign_name,
-                det.name as detector_name
-            FROM datasets d
-            LEFT JOIN accelerators a ON d.accelerator_id = a.accelerator_id
-            LEFT JOIN stages s ON d.stage_id = s.stage_id
-            LEFT JOIN campaigns c ON d.campaign_id = c.campaign_id
-            LEFT JOIN detectors det ON d.detector_id = det.detector_id
-            WHERE d.dataset_id IN ({placeholders})
-            ORDER BY d.dataset_id
-        """
+        # Build dynamic query with navigation tables
+        try:
+            from app.schema_discovery import get_schema_discovery
+
+            async with self.session() as conn:
+                # Get the primary key column dynamically
+                primary_key_column = await self._get_main_table_primary_key(
+                    conn, main_table
+                )
+
+                schema_discovery = await get_schema_discovery(conn)
+                navigation_analysis = (
+                    await schema_discovery.analyze_navigation_structure(main_table)
+                )
+
+                # Build SELECT fields dynamically
+                select_fields = [
+                    f"d.{primary_key_column}",
+                    "d.name",
+                    "d.metadata",
+                    "d.created_at",
+                    "d.last_edited_at",
+                ]
+
+                # Build JOIN clauses dynamically
+                joins = [f"FROM {main_table} d"]
+                used_aliases = {"d"}
+
+                for entity_key, table_info in navigation_analysis[
+                    "navigation_tables"
+                ].items():
+                    table_name = table_info["table_name"]
+                    primary_key = table_info["primary_key"]
+                    name_column = table_info["name_column"]
+
+                    # Generate unique alias
+                    alias = self._generate_unique_alias(entity_key, used_aliases)
+                    used_aliases.add(alias)
+
+                    # Add foreign key field to SELECT
+                    select_fields.append(f"d.{entity_key}_id")
+
+                    # Add name field to SELECT
+                    select_fields.append(f"{alias}.{name_column} as {entity_key}_name")
+
+                    # Add JOIN clause
+                    joins.append(
+                        f"LEFT JOIN {table_name} {alias} ON d.{entity_key}_id = {alias}.{primary_key}"
+                    )
+
+                query = f"""
+                    SELECT {', '.join(select_fields)}
+                    {' '.join(joins)}
+                    WHERE d.{primary_key_column} = ANY($1)
+                    ORDER BY d.{primary_key_column}
+                """
+
+        except Exception as e:
+            logger.error(f"Failed to build dynamic query: {e}")
+            # Fallback to simpler query without navigation joins
+            # We still need to get the primary key for the fallback
+            async with self.session() as conn:
+                primary_key_column = await self._get_main_table_primary_key(
+                    conn, main_table
+                )
+
+            query = f"""
+                SELECT d.*
+                FROM {main_table} d
+                WHERE d.{primary_key_column} = ANY($1)
+                ORDER BY d.{primary_key_column}
+            """
 
         async with self.session() as conn:
-            records = await conn.fetch(query, *dataset_ids)
+            records = await conn.fetch(query, dataset_ids)
 
             result = []
             for record in records:
@@ -464,12 +588,20 @@ class Database:
         Update a dataset with the provided data using full replacement strategy.
         Returns the updated dataset with all details.
         """
+        config = get_config()
+        main_table = config["application"]["main_table"]
 
         async with self.session() as conn:
+            # Get the primary key column dynamically
+            primary_key_column = await self._get_main_table_primary_key(
+                conn, main_table
+            )
+
             async with conn.transaction():
                 # First check if dataset exists
                 existing_check = await conn.fetchval(
-                    "SELECT dataset_id FROM datasets WHERE dataset_id = $1", dataset_id
+                    f"SELECT {primary_key_column} FROM {main_table} WHERE {primary_key_column} = $1",
+                    dataset_id,
                 )
                 if not existing_check:
                     raise ValueError(f"Dataset with ID {dataset_id} not found")
@@ -522,9 +654,9 @@ class Database:
                 if not update_fields:
                     # Only last_edited_at was updated
                     query = f"""
-                        UPDATE datasets
+                        UPDATE {main_table}
                         SET last_edited_at = (NOW() AT TIME ZONE 'utc')
-                        WHERE dataset_id = ${param_count + 1}
+                        WHERE {primary_key_column} = ${param_count + 1}
                     """
                     values.append(dataset_id)
                 else:
@@ -532,9 +664,9 @@ class Database:
                     param_count += 1
                     update_clause = ", ".join(update_fields)
                     query = f"""
-                        UPDATE datasets
+                        UPDATE {main_table}
                         SET {update_clause}
-                        WHERE dataset_id = ${param_count}
+                        WHERE {primary_key_column} = ${param_count}
                     """
                     values.append(dataset_id)
 
@@ -564,19 +696,22 @@ class Database:
         Dynamically fetch available sorting fields from the database schema.
         Returns categorized lists of sortable fields based on the current database structure.
         """
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
         async with self.session() as conn:
             # Get dataset table columns
-            dataset_columns_query = """
+            dataset_columns_query = f"""
                 SELECT column_name, data_type
                 FROM information_schema.columns
-                WHERE table_name = 'datasets'
+                WHERE table_name = '{main_table}'
                 AND table_schema = 'public'
                 ORDER BY ordinal_position
             """
             dataset_columns = await conn.fetch(dataset_columns_query)
 
-            # Get foreign key relationships from datasets table
-            foreign_keys_query = """
+            # Get foreign key relationships from main table
+            foreign_keys_query = f"""
                 SELECT
                     kcu.column_name,
                     ccu.table_name AS foreign_table_name,
@@ -589,15 +724,15 @@ class Database:
                     ON ccu.constraint_name = tc.constraint_name
                     AND ccu.table_schema = tc.table_schema
                 WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND tc.table_name = 'datasets'
+                AND tc.table_name = '{main_table}'
                 AND tc.table_schema = 'public'
             """
             foreign_keys = await conn.fetch(foreign_keys_query)
 
             # Get common metadata fields by analyzing actual data
-            metadata_fields_query = """
+            metadata_fields_query = f"""
                 SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
-                FROM datasets
+                FROM {main_table}
                 WHERE metadata IS NOT NULL
                 AND metadata != 'null'::jsonb
                 ORDER BY metadata_key
@@ -606,7 +741,7 @@ class Database:
             metadata_keys = await conn.fetch(metadata_fields_query)
 
             # Get nested metadata fields (one level deep)
-            nested_metadata_query = """
+            nested_metadata_query = f"""
                 SELECT DISTINCT
                     parent_key || '.' || child_key as nested_key
                 FROM (
@@ -617,7 +752,7 @@ class Database:
                         SELECT
                             key as parent_key,
                             value as parent_value
-                        FROM datasets, jsonb_each(metadata)
+                        FROM {main_table}, jsonb_each(metadata)
                         WHERE metadata IS NOT NULL
                         AND metadata != 'null'::jsonb
                         AND jsonb_typeof(value) = 'object'

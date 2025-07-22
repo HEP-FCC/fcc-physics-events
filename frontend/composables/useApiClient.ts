@@ -161,7 +161,7 @@ class ApiClient {
      * Now uses the new generic /api/dropdown/{table_key} endpoint
      */
     async getNavigationOptions(
-        entityType: "stage" | "campaign" | "detector" | "accelerator",
+        entityType: string,
         filters?: Record<string, string | undefined>,
     ): Promise<DropdownItem[]> {
         // Use the new generic endpoint

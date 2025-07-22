@@ -67,7 +67,7 @@ export function useDatasetSearch() {
     const searchPlaceholderText = computed(() => {
         return urlFilterQuery.value
             ? "Add additional search terms..."
-            : 'e.g., detector="IDEA" AND metadata.status="done"';
+            : 'e.g., entity_name="value" AND metadata.status="done"';
     });
 
     const showFilterNote = computed(() => !!urlFilterQuery.value);
@@ -112,7 +112,7 @@ export function useDatasetSearch() {
     });
 
     const showLoadingSkeleton = computed(() => {
-        return searchState.isLoading && datasets.value.length === 0;
+        return (searchState.isLoading && datasets.value.length === 0) || isFilterUpdateInProgress.value;
     });
 
     const shouldShowLoadingIndicatorDatasets = computed(() => {
@@ -142,6 +142,13 @@ export function useDatasetSearch() {
         if (!apiAvailable.value) {
             console.warn("API is unavailable, skipping search");
             return;
+        }
+
+        // If this is not a filter-triggered search and filters are updating,
+        // wait a bit to avoid race conditions
+        if (isFilterUpdateInProgress.value && resetResults) {
+            // Wait for a short moment to allow filter updates to settle
+            await new Promise((resolve) => setTimeout(resolve, 50));
         }
 
         if (currentRequestController) {
@@ -307,6 +314,7 @@ export function useDatasetSearch() {
         if (JSON.stringify(activeFilters.value) !== JSON.stringify(newFilters)) {
             isFilterUpdateInProgress.value = true;
             activeFilters.value = { ...newFilters };
+            // Don't trigger immediate search here - let the debounced watcher handle it
         }
     };
 
@@ -317,6 +325,8 @@ export function useDatasetSearch() {
         // Initialize filters from props first
         if (Object.keys(initialFilters).length > 0) {
             updateFilters(initialFilters);
+            // Wait a moment for filter update to settle before performing search
+            await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         // Check conditions for auto-search

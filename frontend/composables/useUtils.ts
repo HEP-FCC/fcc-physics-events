@@ -61,7 +61,6 @@ export function useUtils() {
         return (
             normalizedKey.includes("status") ||
             normalizedKey.includes("state") ||
-            normalizedKey.includes("stage") ||
             normalizedKey.includes("phase") ||
             normalizedKey === "health" ||
             normalizedKey === "condition" ||
