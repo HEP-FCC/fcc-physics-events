@@ -61,9 +61,8 @@ fi
 
 git pull 2>&1 >> "${LOGFILE}"
 
-# Temporary "fix" for security issue
-GITCONFIG="${PHYSEVT_DIR}/.git/config"
-chmod 0600 ${GITCONFIG}
+# Make sure the .git folder contains .htaccess file
+echo "deny from all" > ${PHYSEVT_DIR}/.git/
 
 if [ "$(git rev-parse main)" != "$(git rev-parse origin/main)" ]; then
   echo "`date`  ERROR: Git pull did not succeeded. Aborting..." >> "${LOGFILE}"
