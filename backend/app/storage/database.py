@@ -1067,3 +1067,193 @@ class Database:
             """
 
             await conn.execute(upsert_query, *values)
+
+    async def get_dropdown_items(
+        self,
+        table_key: str,
+        main_table: str,
+        navigation_analysis: dict[str, Any],
+        filter_dict: dict[str, str] = None,
+    ) -> dict[str, Any]:
+        """
+        Get dropdown items for any navigation table based on schema discovery.
+        Returns only items that have related datasets.
+        """
+        if filter_dict is None:
+            filter_dict = {}
+
+        async with self.session() as conn:
+            if table_key not in navigation_analysis["navigation_tables"]:
+                raise ValueError(f"Navigation table '{table_key}' not found")
+
+            table_info = navigation_analysis["navigation_tables"][table_key]
+            table_name = table_info["table_name"]
+            primary_key = table_info["primary_key"]
+            name_column = table_info["name_column"]
+
+            # Build query that only returns items that have datasets
+            query = f"""
+                SELECT DISTINCT t.{primary_key} as id, t.{name_column} as name
+                FROM {table_name} t
+                INNER JOIN {main_table} d ON d.{table_key}_id = t.{primary_key}
+            """
+
+            params: list[Any] = []
+            conditions: list[str] = []
+
+            # Apply filters if provided
+            if filter_dict:
+                for filter_key, filter_value in filter_dict.items():
+                    if filter_key.endswith("_name"):
+                        # This is a filter by name, convert to ID
+                        entity_key = filter_key.replace("_name", "")
+                        if entity_key in navigation_analysis["navigation_tables"]:
+                            filter_table_info = navigation_analysis[
+                                "navigation_tables"
+                            ][entity_key]
+                            filter_table_name = filter_table_info["table_name"]
+                            filter_name_column = filter_table_info["name_column"]
+                            filter_pk = filter_table_info["primary_key"]
+
+                            # Get the ID for this filter value
+                            id_result = await conn.fetchval(
+                                f"SELECT {filter_pk} FROM {filter_table_name} WHERE {filter_name_column} = $1",
+                                filter_value,
+                            )
+
+                            if id_result:
+                                # Add filter condition to the query
+                                conditions.append(
+                                    f"d.{entity_key}_id = ${len(params) + 1}"
+                                )
+                                params.append(id_result)
+                    else:
+                        # Direct filter by ID
+                        if filter_key.endswith("_id"):
+                            conditions.append(f"d.{filter_key} = ${len(params) + 1}")
+                            params.append(filter_value)
+
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            query += f" ORDER BY t.{name_column}"
+
+            # Execute the query
+            rows = await conn.fetch(query, *params)
+
+            # Convert to the expected format
+            items = [{"id": row["id"], "name": row["name"]} for row in rows]
+
+            return {"data": items}
+
+    async def search_datasets_generic(
+        self,
+        main_table: str,
+        navigation_analysis: dict[str, Any],
+        filters: dict[str, str] = None,
+        search: str = "",
+        page: int = 1,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """
+        Generic search endpoint that works with any database schema.
+        Automatically handles joins based on schema discovery.
+        """
+        if filters is None:
+            filters = {}
+
+        async with self.session() as conn:
+            # Build the base query
+            query_parts = ["SELECT d.*"]
+
+            # Add joins for navigation tables to get names
+            join_parts = []
+            for entity in navigation_analysis["navigation_entities"]:
+                table_alias = entity["key"][0]  # Use first letter as alias
+                referenced_table = entity["referenced_table"]
+                column_name = entity["column_name"]
+                name_column = navigation_analysis["navigation_tables"][entity["key"]][
+                    "name_column"
+                ]
+
+                query_parts.append(
+                    f", {table_alias}.{name_column} as {entity['key']}_name"
+                )
+                join_parts.append(
+                    f"LEFT JOIN {referenced_table} {table_alias} ON d.{column_name} = {table_alias}.{navigation_analysis['navigation_tables'][entity['key']]['primary_key']}"
+                )
+
+            query_parts.append(f" FROM {main_table} d")
+            query_parts.extend(join_parts)
+
+            # Build WHERE conditions
+            conditions: list[str] = []
+            params: list[Any] = []
+
+            # Add filter conditions
+            for filter_key, filter_value in filters.items():
+                if filter_key.endswith("_name"):
+                    # Filter by navigation entity name
+                    entity_key = filter_key.replace("_name", "")
+                    if entity_key in navigation_analysis["navigation_tables"]:
+                        table_alias = entity_key[0]
+                        name_column = navigation_analysis["navigation_tables"][
+                            entity_key
+                        ]["name_column"]
+                        conditions.append(
+                            f"{table_alias}.{name_column} = ${len(params) + 1}"
+                        )
+                        params.append(filter_value)
+
+            # Add search condition if provided
+            if search:
+                # Search in dataset name and description
+                search_condition = "("
+                search_conditions = []
+
+                # Search in main table text fields
+                for col in navigation_analysis["main_table_schema"]["columns"]:
+                    if any(
+                        text_type in col["data_type"].lower()
+                        for text_type in ["text", "varchar", "character"]
+                    ):
+                        search_conditions.append(
+                            f"d.{col['column_name']} ILIKE ${len(params) + 1}"
+                        )
+
+                if search_conditions:
+                    search_condition += " OR ".join(search_conditions) + ")"
+                    conditions.append(search_condition)
+                    params.append(f"%{search}%")
+
+            # Combine query parts
+            query = "".join(query_parts)
+            if conditions:
+                query += " WHERE " + " AND ".join(conditions)
+
+            # Add ordering
+            query += f" ORDER BY d.{navigation_analysis['main_table_schema']['primary_key']} DESC"
+
+            # Count query for pagination
+            count_query = query.replace(
+                "SELECT d.*"
+                + "".join(query_parts[1 : query_parts.index(f" FROM {main_table} d")]),
+                "SELECT COUNT(*)",
+            )
+
+            # Execute count query
+            total = await conn.fetchval(count_query, *params) or 0
+
+            # Add pagination
+            offset = (page - 1) * limit
+            paginated_query = (
+                f"{query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+            )
+
+            # Execute main query
+            rows = await conn.fetch(paginated_query, *params, limit, offset)
+
+            # Convert to dictionaries
+            items = [dict(row) for row in rows]
+
+            return {"total": total, "items": items}

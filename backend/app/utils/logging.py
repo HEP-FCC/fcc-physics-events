@@ -51,8 +51,6 @@ def setup_logging() -> None:
             structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f"),
             structlog.processors.StackInfoRenderer(),
             structlog.dev.ConsoleRenderer(colors=True)
-            if LOG_LEVEL == "DEBUG"
-            else structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
