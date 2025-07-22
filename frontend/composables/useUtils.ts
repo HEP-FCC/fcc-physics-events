@@ -1,5 +1,6 @@
 import type { Dataset } from "~/types/dataset";
 import { APP_CONFIG } from "~/config/app.config";
+import { computed, unref, type Ref, type ComputedRef } from "vue";
 
 /**
  * Composable for utility functions
@@ -50,18 +51,6 @@ export function useUtils() {
         downloadLink.click();
         document.body.removeChild(downloadLink);
         URL.revokeObjectURL(downloadUrl);
-    };
-
-    /**
-     * Get badge color for navigation dropdown types
-     */
-    const getBadgeColor = (type: string): "success" | "warning" | "info" | "primary" => {
-        const colorMap: Record<string, "success" | "warning" | "info"> = {
-            stage: "success",
-            campaign: "warning",
-            detector: "info",
-        };
-        return colorMap[type] || "primary";
     };
 
     /**
@@ -165,45 +154,62 @@ export function useUtils() {
     };
 
     /**
-     * Generate badge items for dataset display
+     * Generate badge items for dataset display (completely dynamic based on schema)
      */
     function getBadgeItems(dataset: Dataset) {
-        // Generate standard badges from app config navigation overrides
-        const standardBadges = Object.entries(APP_CONFIG.navigationOverrides).map(([dropdownType, config]) => {
-            const fieldName = `${dropdownType}_name` as keyof Dataset;
+        /**
+         * Generate badge items for dataset display
+         */
+        function getBadgeItems(dataset: Dataset) {
+            const { getNavigationItem } = useNavigationConfig();
 
-            return {
-                key: dropdownType,
-                label: config.label,
-                value: dataset[fieldName],
-                color: config.badgeColor,
-                widthClass: getWidthClass(dropdownType),
-            };
-        });
+            // Generate badges for any field that ends with '_name' and has a value
+            // This works regardless of whether navigation config is loaded
+            const navigationBadges = Object.entries(dataset)
+                .filter(([key, value]) => {
+                    // Check if this is a navigation field with a value
+                    return key.endsWith("_name") && value && typeof value === "string" && value.trim() !== "";
+                })
+                .map(([key, value]) => {
+                    // Extract the navigation type (remove '_name' suffix)
+                    const navType = key.replace("_name", "");
 
-        // Add status badges from metadata
-        const statusBadges = getStatusFields(dataset.metadata || {}).map((statusField) => ({
-            key: `status_${statusField.key}`,
-            label: statusField.label,
-            value: String(statusField.value),
-            color: statusField.color,
-            widthClass: "w-auto",
-        }));
+                    // Get navigation config - will throw if not loaded yet
+                    const config = getNavigationItem(navType);
 
-        return [...standardBadges, ...statusBadges];
+                    return {
+                        key: navType,
+                        label: config.label,
+                        value: String(value),
+                        color: config.badgeColor,
+                        widthClass: "w-auto",
+                    };
+                });
+
+            // Add status badges from metadata
+            const statusBadges = getStatusFields(dataset.metadata || {}).map((statusField) => ({
+                key: `status_${statusField.key}`,
+                label: statusField.label,
+                value: String(statusField.value),
+                color: statusField.color,
+                widthClass: "w-auto",
+            }));
+
+            return [...navigationBadges, ...statusBadges];
+        }
     }
 
     /**
-     * Get appropriate width class for different dropdown types
+     * Create a reactive badge items computed for a dataset
+     * This will automatically update when navigation config loads
      */
-    function getWidthClass(dropdownType: string): string {
-        const widthMap: Record<string, string> = {
-            stage: "w-42",
-            accelerator: "w-40",
-            campaign: "w-60",
-            detector: "w-32",
-        };
-        return widthMap[dropdownType] || "w-auto";
+    function createReactiveBadgeItems(dataset: Ref<Dataset> | ComputedRef<Dataset>) {
+        const { navigationConfig } = useNavigationConfig();
+
+        return computed(() => {
+            // This will re-run when navigationConfig changes or when dataset changes
+            return getBadgeItems(unref(dataset));
+        });
     }
 
     /**
@@ -268,9 +274,7 @@ export function useUtils() {
         formatFieldLabel,
         createDatasetDownloadFilename,
         downloadAsJsonFile,
-        getBadgeColor,
         getBadgeItems,
-        getWidthClass,
         formatFieldName,
         copyToClipboard,
         formatTimestamp,

@@ -12,15 +12,17 @@ import { APP_CONFIG } from "~/config/app.config";
  * Composable for dynamic navigation functionality
  */
 export const useDynamicNavigation = () => {
+    const { getNavigationOrder, getNavigationItem, initializeNavigation } = useNavigationConfig();
+
     /**
-     * Get navigation order from app config (overrides backend order)
+     * Get navigation order from dynamic config (sync version)
      */
-    const getNavigationOrder = () => {
-        return APP_CONFIG.navigationOrder;
+    const getNavigationOrderSync = () => {
+        return getNavigationOrder();
     };
 
     /**
-     * Parse route parameters into a path object using app config order
+     * Parse route parameters into a path object using dynamic navigation order
      */
     const parseRouteToPath = (routeParams: string[]): Record<string, string | null> => {
         const order = getNavigationOrder();
@@ -34,7 +36,7 @@ export const useDynamicNavigation = () => {
     };
 
     /**
-     * Parse route parameters into API filters using app config order
+     * Parse route parameters into API filters using dynamic navigation order
      */
     const parseRouteToFilters = (routeParams: string[]): Record<string, string> => {
         const order = getNavigationOrder();
@@ -128,11 +130,10 @@ export const useDynamicNavigation = () => {
         for (const type of order) {
             if (currentPath[type]) {
                 cumulativePath.push(currentPath[type]!);
-                const navigationConfig =
-                    APP_CONFIG.navigationOverrides[type as keyof typeof APP_CONFIG.navigationOverrides];
+                const navigationConfig = getNavigationItem(type);
 
                 breadcrumbs.push({
-                    label: navigationConfig?.label || type,
+                    label: navigationConfig.label,
                     url: `/${cumulativePath.join("/")}`,
                     type,
                 });
@@ -160,9 +161,8 @@ export const useDynamicNavigation = () => {
         });
 
         if (deepestType && deepestValue) {
-            const navigationConfig =
-                APP_CONFIG.navigationOverrides[deepestType as keyof typeof APP_CONFIG.navigationOverrides];
-            return `${navigationConfig?.label || deepestType}: ${deepestValue}`;
+            const navigationConfig = getNavigationItem(deepestType);
+            return `${navigationConfig.label}: ${deepestValue}`;
         }
 
         return APP_CONFIG.branding.title;
@@ -219,7 +219,7 @@ export const useDynamicNavigation = () => {
     };
 
     return {
-        getNavigationOrder,
+        getNavigationOrder: getNavigationOrderSync,
         parseRouteToPath,
         parseRouteToFilters,
         buildNavigationUrl,
@@ -230,5 +230,6 @@ export const useDynamicNavigation = () => {
         parseSlugToPath,
         getNextNavigationOptions,
         validatePath,
+        initializeNavigation,
     };
 };

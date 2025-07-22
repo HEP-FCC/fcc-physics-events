@@ -15,18 +15,21 @@ $$;
 CREATE TABLE IF NOT EXISTS accelerators (
     accelerator_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    display_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
 CREATE TABLE IF NOT EXISTS stages (
     stage_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    display_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
 CREATE TABLE IF NOT EXISTS campaigns (
     campaign_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    display_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 
@@ -34,6 +37,7 @@ CREATE TABLE IF NOT EXISTS detectors (
     detector_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     accelerator_id INTEGER REFERENCES accelerators(accelerator_id) ON DELETE SET NULL,
+    display_order INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
 );
 

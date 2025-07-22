@@ -35,8 +35,13 @@
 <script setup lang="ts">
 // Check authentication status on app initialization
 const { checkAuthStatus } = useAuth();
+const { initializeNavigation } = useDynamicNavigation();
 
 onMounted(async () => {
+    // Initialize navigation configuration globally
+    await initializeNavigation();
+
+    // Check authentication status
     await checkAuthStatus();
 });
 </script>

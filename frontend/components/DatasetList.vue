@@ -33,11 +33,13 @@
                             <div class="flex items-center justify-between gap-4 ml-6">
                                 <!-- Left side: Dataset badges -->
                                 <div class="flex flex-wrap gap-1.5 flex-1">
-                                    <template v-for="badge in getBadgeItems(dataset)" :key="badge.key">
+                                    <template v-for="badge in getDatasetBadges(dataset)" :key="badge.key">
                                         <UBadge
                                             v-if="badge.value"
                                             :color="badge.color"
-                                            :variant="badge.key.startsWith('status_') ? 'soft' : 'subtle'"
+                                            :variant="
+                                                badge.key && String(badge.key).startsWith('status_') ? 'soft' : 'subtle'
+                                            "
                                             size="sm"
                                         >
                                             {{ badge.label }}: {{ badge.value }}
@@ -140,7 +142,49 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 // Composables
-const { getBadgeItems, formatTimestamp } = useUtils();
+const { formatTimestamp, getStatusFields, formatFieldName } = useUtils();
+const { getNavigationItem, navigationConfig } = useNavigationConfig();
+
+// Create a reactive function to get badge items for a dataset
+function getDatasetBadges(dataset: Dataset) {
+    // Generate navigation badges for any field ending with '_name' that has a value
+    const navigationBadges = Object.entries(dataset)
+        .filter(([key, value]) => {
+            return key.endsWith("_name") && value && typeof value === "string" && value.trim() !== "";
+        })
+        .map(([key, value]) => {
+            const navType = key.replace("_name", "");
+
+            // Try to get navigation config
+            let config;
+            try {
+                config = getNavigationItem(navType);
+            } catch {
+                // Fallback config when navigation not loaded or type not found
+                config = {
+                    label: formatFieldName(navType),
+                    badgeColor: "neutral" as const,
+                };
+            }
+
+            return {
+                key: navType ? String(navType) : "unknown", // Ensure key is always a valid string
+                label: String(config?.label || formatFieldName(navType || "unknown")),
+                value: String(value || ""),
+                color: config?.badgeColor || "neutral",
+            };
+        });
+
+    // Add status badges from metadata
+    const statusBadges = getStatusFields(dataset.metadata || {}).map((statusField) => ({
+        key: statusField.key ? `status_${String(statusField.key)}` : "status_unknown", // Ensure key is always a valid string
+        label: String(statusField.label || "Unknown"),
+        value: String(statusField.value || ""),
+        color: statusField.color || "neutral",
+    }));
+
+    return [...navigationBadges, ...statusBadges];
+}
 
 // Helper function to check if dataset was actually edited
 function wasDatasetEdited(dataset: Dataset): boolean {

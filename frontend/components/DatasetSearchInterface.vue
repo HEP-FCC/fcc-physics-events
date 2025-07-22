@@ -222,6 +222,10 @@ useInfiniteScroll(window, () => search.loadMoreData(), {
 // Component lifecycle
 onMounted(async () => {
     if (!isInitialized.value) {
+        // Initialize navigation configuration first (needed for badges)
+        const { initializeNavigation } = useDynamicNavigation();
+        await initializeNavigation();
+
         // Initialize search with any initial filters
         await search.initializeSearch(props.initialFilters);
 

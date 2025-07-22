@@ -41,42 +41,24 @@ export const APP_CONFIG = {
     },
 
     /**
-     * Navigation order - explicitly defines the hierarchy
-     * This overrides any database-determined order
+     * Navigation order - will be fetched dynamically from backend
+     * This is just a placeholder for type safety
      */
-    navigationOrder: ["accelerator", "stage", "campaign", "detector"] as const,
+    navigationOrder: [] as readonly string[],
 
     /**
-     * Navigation configuration overrides
-     * If not specified, the system will auto-generate based on database schema
-     * Keys should match foreign key column names (without _id suffix)
+     * Navigation configuration - will be fetched dynamically from backend
+     * This is just a placeholder structure for type safety
      */
-    navigationOverrides: {
-        accelerator: {
-            icon: "i-heroicons-bolt",
-            label: "Accelerator",
-            badgeColor: "neutral" as const,
-            description: "Type of particle accelerator used",
-        },
-        stage: {
-            icon: "i-heroicons-cpu-chip",
-            label: "Stage",
-            badgeColor: "success" as const,
-            description: "Processing stage of the dataset",
-        },
-        campaign: {
-            icon: "i-heroicons-calendar-days",
-            label: "Campaign",
-            badgeColor: "warning" as const,
-            description: "Data collection campaign",
-        },
-        detector: {
-            icon: "i-heroicons-beaker",
-            label: "Detector",
-            badgeColor: "info" as const,
-            description: "Detection equipment configuration",
-        },
-    } as const,
+    navigationMenu: {} as Record<
+        string,
+        {
+            icon: string;
+            label: string;
+            badgeColor: "primary" | "neutral" | "success" | "warning" | "info" | "error";
+            description: string;
+        }
+    >,
 
     /**
      * Search and pagination settings
@@ -92,14 +74,8 @@ export const APP_CONFIG = {
      */
     ui: {
         defaultBadgeColors: ["primary", "neutral", "success", "warning", "info", "error"] as const,
-        defaultIcons: [
-            "i-heroicons-squares-2x2",
-            "i-heroicons-tag",
-            "i-heroicons-folder",
-            "i-heroicons-document",
-            "i-heroicons-cube",
-            "i-heroicons-beaker",
-        ] as const,
+        // Use folder icon for all navigation items
+        defaultIcon: "i-heroicons-folder" as const,
     },
 } as const;
 
@@ -107,5 +83,9 @@ export const APP_CONFIG = {
  * Type definitions derived from config
  */
 export type MainTableType = typeof APP_CONFIG.mainTable;
-export type NavigationKey = keyof typeof APP_CONFIG.navigationOverrides;
+
+/**
+ * Type for navigation keys that will be dynamically determined
+ */
+export type NavigationKey = string;
 export type BadgeColor = (typeof APP_CONFIG.ui.defaultBadgeColors)[number];

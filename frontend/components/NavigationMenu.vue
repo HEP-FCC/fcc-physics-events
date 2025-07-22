@@ -2,10 +2,17 @@
     <div class="bg-white border-b border-gray-200 mb-6">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="flex space-x-8 py-4">
+                <!-- Loading state while navigation config is not ready -->
+                <div v-if="!isNavigationReady" class="flex space-x-4">
+                    <div class="animate-pulse">
+                        <div class="h-10 w-32 bg-gray-200 rounded"></div>
+                    </div>
+                </div>
+
                 <!-- Dynamic Navigation Dropdowns -->
-                <template v-for="(type, index) in navigationOrder" :key="type">
+                <template v-else v-for="(type, index) in navigationOrder" :key="type">
                     <div
-                        v-if="index === 0 || currentPath[navigationOrder[index - 1]]"
+                        v-if="(index === 0 || currentPath[navigationOrder[index - 1]]) && dropdowns[type]"
                         class="relative dropdown-container"
                     >
                         <UButton
@@ -15,12 +22,12 @@
                             :loading="dropdowns[type].isLoading"
                             @click="handleToggleDropdown(type)"
                         >
-                            <UIcon :name="dropdowns[type].icon" class="mr-2" />
-                            {{ currentPath[type] || dropdowns[type].label }}
+                            <UIcon :name="'i-heroicons-folder'" class="mr-2" />
+                            {{ currentPath[type] || dropdowns[type]?.label || type }}
                         </UButton>
 
                         <div
-                            v-if="dropdowns[type].isOpen"
+                            v-if="dropdowns[type]?.isOpen"
                             class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
                         >
                             <div class="p-2">
@@ -30,17 +37,17 @@
                                         @click="handleClearSelection(type)"
                                     >
                                         <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                        {{ dropdowns[type].clearLabel }}
+                                        {{ dropdowns[type]?.clearLabel || `Clear ${type}` }}
                                     </button>
                                 </div>
 
-                                <div v-if="dropdowns[type].isLoading" class="p-2">
+                                <div v-if="dropdowns[type]?.isLoading" class="p-2">
                                     <USkeleton class="h-4 w-24" />
                                 </div>
 
                                 <div v-else class="space-y-1">
                                     <button
-                                        v-for="item in dropdowns[type].items"
+                                        v-for="item in dropdowns[type]?.items || []"
                                         :key="item.id"
                                         class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
                                         :class="{
@@ -50,7 +57,7 @@
                                     >
                                         {{ item.name }}
                                     </button>
-                                    <div v-if="!dropdowns[type].items.length" class="px-3 py-2 text-sm text-gray-500">
+                                    <div v-if="!dropdowns[type]?.items?.length" class="px-3 py-2 text-sm text-gray-500">
                                         No options available.
                                     </div>
                                 </div>
@@ -64,8 +71,9 @@
 </template>
 
 <script setup lang="ts">
-import { watchEffect, ref, onMounted, onUnmounted } from "vue";
+import { watchEffect, ref, onMounted, onUnmounted, computed } from "vue";
 import { useNavigationState } from "~/composables/useNavigationState";
+import { useNavigationConfig } from "~/composables/useNavigationConfig";
 import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
 
 interface Props {
@@ -86,7 +94,11 @@ const {
     isOpen,
 } = useNavigationState();
 
-const { parseRouteToPath, buildNavigationUrl, clearNavigationFrom } = useDynamicNavigation();
+const { parseRouteToPath, buildNavigationUrl, clearNavigationFrom, initializeNavigation } = useDynamicNavigation();
+
+// Add navigation ready state from useNavigationConfig
+const { isNavigationReady: configReady } = useNavigationConfig();
+const isNavigationReady = computed(() => configReady() && navigationOrder.value.length > 0);
 
 // Async navigation state
 const currentPath = ref<Record<string, string | null>>({});
@@ -116,24 +128,39 @@ function handleToggleDropdown(type: string) {
         return;
     }
 
-    // Load data
-    loadDropdownData(type);
+    // Build filters from previous levels in the navigation hierarchy
+    const order = navigationOrder.value;
+    const typeIndex = order.findIndex((orderType: string) => orderType === type);
+    const filters: Record<string, string> = {};
+
+    // Add filters for all previous levels that have been selected
+    for (let i = 0; i < typeIndex; i++) {
+        const filterType = order[i];
+        const filterValue = currentPath.value[filterType];
+        if (filterValue) {
+            filters[filterType] = filterValue;
+        }
+    }
+
+    // Load data with appropriate filters
+    loadDropdownData(type, filters);
 }
 
-function handleNavigate(type: string, value: string) {
+async function handleNavigate(type: string, value: string) {
     const newPath = buildNavigationUrl(currentPath.value, type, value);
-    navigateTo(newPath);
+    await navigateTo(newPath);
     closeAllDropdowns();
 
     // Load filtered data for the next level
-    const typeIndex = navigationOrder.findIndex((orderType) => orderType === type);
-    if (typeIndex !== -1 && typeIndex < navigationOrder.length - 1) {
-        const nextType = navigationOrder[typeIndex + 1];
+    const order = navigationOrder.value;
+    const typeIndex = order.findIndex((orderType: string) => orderType === type);
+    if (typeIndex !== -1 && typeIndex < order.length - 1) {
+        const nextType = order[typeIndex + 1];
 
         // Build filters up to this level
         const filters: Record<string, string> = {};
         for (let i = 0; i <= typeIndex; i++) {
-            const filterType = navigationOrder[i];
+            const filterType = order[i];
             const filterValue = filterType === type ? value : currentPath.value[filterType];
             if (filterValue) {
                 filters[filterType] = filterValue;
@@ -146,23 +173,23 @@ function handleNavigate(type: string, value: string) {
     }
 }
 
-function handleClearSelection(type: string) {
+async function handleClearSelection(type: string) {
     const newPath = clearNavigationFrom(currentPath.value, type);
-    navigateTo(newPath);
+    await navigateTo(newPath);
     closeAllDropdowns();
 
     // Clear dependent dropdowns and reload unfiltered data
     clearDependentDropdowns(type);
 
     // Reload data for the next level with updated filters
-    const typeIndex = navigationOrder.findIndex((orderType) => orderType === type);
-    if (typeIndex !== -1 && typeIndex < navigationOrder.length - 1) {
-        const nextType = navigationOrder[typeIndex + 1];
+    const typeIndex = navigationOrder.value.findIndex((orderType) => orderType === type);
+    if (typeIndex !== -1 && typeIndex < navigationOrder.value.length - 1) {
+        const nextType = navigationOrder.value[typeIndex + 1];
 
         // Build filters up to the previous level (excluding the cleared level)
         const filters: Record<string, string> = {};
         for (let i = 0; i < typeIndex; i++) {
-            const filterType = navigationOrder[i];
+            const filterType = navigationOrder.value[i];
             const filterValue = currentPath.value[filterType];
             if (filterValue) {
                 filters[filterType] = filterValue;
@@ -182,39 +209,50 @@ const handleClickOutside = (event: Event): void => {
 };
 
 // Auto-load first level data on mount
-onMounted(() => {
-    // Load all dropdown data on mount for better UX
-    navigationOrder.forEach((type, index) => {
-        if (index === 0) {
-            // Load first level immediately
-            loadDropdownData(type);
-        } else {
-            // For subsequent levels, load with empty filters to get all options
-            // This gives users a preview of what's available
-            loadDropdownData(type);
-        }
-    });
+onMounted(async () => {
+    try {
+        // Initialize navigation configuration first
+        await initializeNavigation();
 
-    // Add click outside handler
-    document.addEventListener("click", handleClickOutside);
+        // Wait a bit to ensure the configuration is fully loaded
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Add click outside handler
+        document.addEventListener("click", handleClickOutside);
+    } catch (error) {
+        console.error("Failed to initialize navigation:", error);
+    }
 });
 
 onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
 });
 
+// Watch for navigation to become ready and load initial data
+watchEffect(() => {
+    if (isNavigationReady.value && navigationOrder.value.length > 0) {
+        // Load first level data immediately when navigation becomes ready
+        const firstType = navigationOrder.value[0];
+        if (firstType && getItems(firstType).length === 0 && !isLoading(firstType)) {
+            loadDropdownData(firstType);
+        }
+    }
+});
+
 // Watch for changes in navigation path and auto-load dependent data
 watchEffect(() => {
-    navigationOrder.forEach((type, index) => {
+    navigationOrder.value.forEach((type, index) => {
         if (index === 0) return; // Skip first level - already loaded on mount
 
         // Check if all previous levels are selected
-        const previousLevelsSelected = navigationOrder.slice(0, index).every((prevType) => currentPath.value[prevType]);
+        const previousLevelsSelected = navigationOrder.value
+            .slice(0, index)
+            .every((prevType) => currentPath.value[prevType]);
 
         if (previousLevelsSelected && currentPath.value[type]) {
             // Build filters for this level
             const filters: Record<string, string> = {};
-            navigationOrder.slice(0, index).forEach((prevType) => {
+            navigationOrder.value.slice(0, index).forEach((prevType) => {
                 if (currentPath.value[prevType]) {
                     filters[prevType] = currentPath.value[prevType]!;
                 }

@@ -20,7 +20,6 @@ from app.config import get_config
 from app.gclql_query_parser import QueryParser
 from app.logging import get_logger, setup_logging
 from app.models.dataset import DatasetUpdate, PaginatedDatasetSearchResponse
-from app.models.dropdown import DropdownItem
 from app.storage.database import Database
 
 security = HTTPBearer(auto_error=False)
@@ -325,80 +324,6 @@ async def execute_gclql_query(
         raise HTTPException(status_code=400, detail=f"Invalid query: {e}")
 
 
-@app.get("/stages/", response_model=list[DropdownItem])
-async def get_stages(
-    accelerator_name: str | None = Query(
-        None, description="Filter by accelerator name"
-    ),
-    campaign_name: str | None = Query(None, description="Filter by campaign name"),
-    detector_name: str | None = Query(None, description="Filter by detector name"),
-) -> Any:
-    """
-    Get all available stages for the navigation dropdown.
-    Optionally filter by accelerator, campaign, or detector.
-    """
-    return await database.get_stages(
-        accelerator_name=accelerator_name,
-        campaign_name=campaign_name,
-        detector_name=detector_name,
-    )
-
-
-@app.get("/campaigns/", response_model=list[DropdownItem])
-async def get_campaigns(
-    accelerator_name: str | None = Query(
-        None, description="Filter by accelerator name"
-    ),
-    stage_name: str | None = Query(None, description="Filter by stage name"),
-    detector_name: str | None = Query(None, description="Filter by detector name"),
-) -> Any:
-    """
-    Get all available campaigns for the navigation dropdown.
-    Optionally filter by accelerator, stage, or detector.
-    """
-    return await database.get_campaigns(
-        accelerator_name=accelerator_name,
-        stage_name=stage_name,
-        detector_name=detector_name,
-    )
-
-
-@app.get("/detectors/", response_model=list[DropdownItem])
-async def get_detectors(
-    accelerator_name: str | None = Query(
-        None, description="Filter by accelerator name"
-    ),
-    stage_name: str | None = Query(None, description="Filter by stage name"),
-    campaign_name: str | None = Query(None, description="Filter by campaign name"),
-) -> Any:
-    """
-    Get all available detectors for the navigation dropdown.
-    Optionally filter by accelerator, stage, or campaign.
-    """
-    return await database.get_detectors(
-        accelerator_name=accelerator_name,
-        stage_name=stage_name,
-        campaign_name=campaign_name,
-    )
-
-
-@app.get("/accelerators/", response_model=list[DropdownItem])
-async def get_accelerators(
-    stage_name: str | None = Query(None, description="Filter by stage name"),
-    campaign_name: str | None = Query(None, description="Filter by campaign name"),
-    detector_name: str | None = Query(None, description="Filter by detector name"),
-) -> Any:
-    """
-    Get all available accelerators for the navigation dropdown.
-    Optionally filter by stage, campaign, or detector.
-    """
-    return await database.get_accelerators(
-        stage_name=stage_name,
-        campaign_name=campaign_name,
-        detector_name=detector_name,
-    )
-
-
 @app.post("/datasets/", response_model=list[dict[str, Any]])
 async def get_datasets_by_ids(request: DatasetIdsRequest) -> Any:
     """
@@ -514,42 +439,26 @@ async def get_database_schema() -> Any:
                 "datasets"
             )
 
-            # Generate default navigation configuration
-            navigation_config = {}
-            default_icons = {
-                "stage": "i-heroicons-cpu-chip",
-                "accelerator": "i-heroicons-bolt",
-                "campaign": "i-heroicons-calendar-days",
-                "detector": "i-heroicons-beaker",
-                "experiment": "i-heroicons-beaker",
-                "project": "i-heroicons-folder",
-                "category": "i-heroicons-tag",
-                "type": "i-heroicons-squares-2x2",
-                "status": "i-heroicons-signal",
-            }
-
-            colors = ["primary", "success", "warning", "info", "neutral"]
-
-            for i, key in enumerate(navigation_analysis["navigation_order"]):
-                entity_info = next(
-                    e
-                    for e in navigation_analysis["navigation_entities"]
-                    if e["key"] == key
-                )
-                label = key.replace("_", " ").title()
-                icon = default_icons.get(key, "i-heroicons-folder")
-                color = colors[i % len(colors)]
-
-                navigation_config[key] = {
-                    "icon": icon,
-                    "label": label,
-                    "clearLabel": f"Clear {label}",
-                    "badgeColor": color,
-                    "columnName": entity_info["column_name"],
-                }
+            # Fetch navigation configuration from database tables
+            navigation_config = await _get_navigation_config_from_db(
+                conn, navigation_analysis
+            )
 
             # Build the response
             schema_config = {
+                "tables": [navigation_analysis["main_table"]]
+                + list(navigation_analysis["navigation_tables"].keys()),
+                "main_table": navigation_analysis["main_table"],
+                "foreign_keys": [
+                    f"{key}_id"
+                    for key in navigation_analysis["navigation_tables"].keys()
+                ],
+                "navigation_config": {
+                    "order": navigation_config["order"],
+                    "menu": navigation_config[
+                        "config"
+                    ],  # Only return what exists in DB
+                },
                 "mainTableSchema": {
                     "tableName": navigation_analysis["main_table"],
                     "primaryKey": navigation_analysis["main_table_schema"][
@@ -562,8 +471,8 @@ async def get_database_schema() -> Any:
                     ],
                 },
                 "navigationTables": navigation_analysis["navigation_tables"],
-                "navigationOrder": navigation_analysis["navigation_order"],
-                "navigation": navigation_config,
+                "navigationOrder": navigation_config["order"],
+                "navigation": navigation_config["config"],
                 "appTitle": config.get("app.title", "Data Explorer"),
                 "searchPlaceholder": config.get(
                     "app.search_placeholder", "Search datasets..."
@@ -577,6 +486,57 @@ async def get_database_schema() -> Any:
         raise HTTPException(
             status_code=500, detail="Failed to retrieve database schema"
         )
+
+
+async def _get_navigation_config_from_db(
+    conn: Any, navigation_analysis: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    Fetch navigation configuration from database tables.
+    Only retrieves display_order and derives everything else dynamically.
+    """
+    navigation_tables = {
+        entity["key"]: entity["table_name"]
+        for entity in navigation_analysis["navigation_entities"]
+    }
+
+    table_orders = []
+
+    for key, table_name in navigation_tables.items():
+        try:
+            # Get the first record's display_order (assuming all records in a table have the same order)
+            order_query = f"""
+                SELECT display_order
+                FROM {table_name}
+                LIMIT 1
+            """  # Safe because table_name comes from schema discovery
+
+            order_result = await conn.fetchval(order_query)
+            display_order = order_result if order_result is not None else 0
+
+            table_orders.append((display_order, key))
+
+        except Exception as e:
+            logger.warning(f"Could not fetch display_order for table {table_name}: {e}")
+            # Use index as fallback for ordering
+            table_orders.append((len(table_orders) * 10, key))
+
+    # Sort by display_order and return
+    table_orders.sort(key=lambda x: x[0])
+    ordered_keys = [key for _, key in table_orders]
+
+    # Build minimal navigation config - frontend will derive colors, icons, labels
+    navigation_configs = {}
+    for i, key in enumerate(ordered_keys):
+        entity_info = next(
+            e for e in navigation_analysis["navigation_entities"] if e["key"] == key
+        )
+        navigation_configs[key] = {
+            "columnName": entity_info["column_name"],
+            "orderIndex": i,  # Frontend will use this to derive color from app config
+        }
+
+    return {"order": ordered_keys, "config": navigation_configs}
 
 
 @app.get("/api/dropdown/{table_key}")

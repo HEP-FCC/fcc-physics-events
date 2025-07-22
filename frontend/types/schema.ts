@@ -48,10 +48,28 @@ export interface RuntimeSchemaConfig {
 }
 
 /**
+ * Schema information response from backend
+ */
+export interface SchemaInfo {
+    tables: string[];
+    main_table: string;
+    foreign_keys: string[];
+    navigation_config?: {
+        order: string[];
+        menu: Record<
+            string,
+            {
+                columnName: string;
+                orderIndex: number;
+            }
+        >;
+    };
+}
+
+/**
  * UI configuration for navigation items
  */
 export interface NavigationConfig {
-    icon: string;
     label: string;
     clearLabel: string;
     badgeColor: "primary" | "success" | "warning" | "info" | "neutral";
