@@ -4,10 +4,33 @@
  */
 
 /**
+ * Standard HTTP status codes for API responses
+ */
+export enum HttpStatusCode {
+    OK = 200,
+    CREATED = 201,
+    BAD_REQUEST = 400,
+    UNAUTHORIZED = 401,
+    FORBIDDEN = 403,
+    NOT_FOUND = 404,
+    INTERNAL_SERVER_ERROR = 500,
+}
+
+/**
+ * API Error response structure
+ */
+export interface ApiError {
+    message: string;
+    status: HttpStatusCode;
+    details?: Record<string, unknown>;
+    timestamp?: string;
+}
+
+/**
  * Entity from the backend (replaces hardcoded models)
  */
 export interface Entity {
-    id: number;
+    dataset_id: number;
     name: string;
     created_at?: string;
     last_edited_at?: string;
@@ -29,7 +52,8 @@ export interface EntityWithDetails extends Entity {
 export interface ApiResponse<T = unknown> {
     data?: T;
     message?: string;
-    error?: string;
+    error?: ApiError;
+    success: boolean;
 }
 
 /**
@@ -46,6 +70,62 @@ export interface PaginatedApiResponse<T = Entity> {
         hasNext: boolean;
         hasPrev: boolean;
     };
+    success: boolean;
+}
+
+/**
+ * Search API response structure
+ */
+export interface SearchApiResponse<T = Entity> extends PaginatedApiResponse<T> {
+    query?: string;
+    filters?: Record<string, unknown>;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+}
+
+/**
+ * Utility types for API operations
+ */
+export type CreateEntityPayload = Omit<Entity, "dataset_id" | "created_at" | "last_edited_at">;
+export type UpdateEntityPayload = Partial<Omit<Entity, "dataset_id" | "created_at">> & { dataset_id: number };
+
+/**
+ * API endpoint configuration
+ */
+export interface ApiEndpoint {
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    path: string;
+    authenticated?: boolean;
+}
+
+/**
+ * Typed fetch options for better type safety
+ */
+export interface TypedFetchOptions<T = unknown> {
+    method?: string;
+    body?: T;
+    headers?: Record<string, string>;
+    query?: Record<string, string | number | boolean>;
+}
+
+/**
+ * Navigation dropdown option
+ */
+export interface DropdownOption {
+    value: string | number;
+    label: string;
+    count?: number;
+}
+
+/**
+ * Dynamic navigation configuration from backend
+ */
+export interface NavigationConfig {
+    type: "dropdown" | "search" | "toggle";
+    label: string;
+    column: string;
+    options?: DropdownOption[];
+    placeholder?: string;
 }
 
 /**

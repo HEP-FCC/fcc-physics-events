@@ -1,15 +1,20 @@
 /**
- * Schema-driven TypeScript types for database entities
+ * /**
+ * Generic database entity with flexible primary key
+ * For dataset entities, the primary key is 'dataset_id'
+/**
+ * Data-driven TypeScript types for database entities
  *
  * These types are designed to work with any database schema that follows
  * the expected patterns (main table + navigation tables).
  */
 
 /**
- * Basic database entity interface
+ * Generic database entity with flexible primary key
+ * For dataset entities, the primary key is 'dataset_id'
  */
 export interface DatabaseEntity {
-    id: number;
+    dataset_id: number;
     name: string;
     [key: string]: unknown;
 }
@@ -80,7 +85,7 @@ export interface NavigationConfig {
  * Dropdown item for navigation selectors
  */
 export interface DropdownItem {
-    id: number;
+    dataset_id: number;
     name: string;
 }
 

@@ -1,13 +1,12 @@
 import { ref, computed, readonly, watchEffect, type Ref } from "vue";
 import type { DropdownItem } from "~/types/schema";
-import { useApiClient } from "~/composables/useApiClient";
 import { useNavigationConfig, getPreloadedDropdownData } from "~/composables/useNavigationConfig";
 
 /**
  * Dynamic navigation state management with schema-driven configuration
  */
 export function useNavigationState() {
-    const { apiClient } = useApiClient();
+    const { baseUrl } = useTypedApiClient();
     const { getNavigationOrder, getNavigationItem, initializeNavigation, isNavigationReady } = useNavigationConfig();
 
     // Dynamic refs based on navigation order
@@ -176,7 +175,7 @@ export function useNavigationState() {
                         }
                     }
 
-                    const response = await fetch(`${apiClient.baseUrl}${requestUrl}`);
+                    const response = await fetch(`${baseUrl}${requestUrl}`);
 
                     if (response.ok) {
                         const data = await response.json();
@@ -255,7 +254,7 @@ export function useNavigationState() {
                 }
             }
 
-            const response = await fetch(`${apiClient.baseUrl}${requestUrl}`);
+            const response = await fetch(`${baseUrl}${requestUrl}`);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }

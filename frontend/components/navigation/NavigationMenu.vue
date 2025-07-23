@@ -5,7 +5,7 @@
                 <!-- Loading state while navigation config is not ready -->
                 <div v-if="!isNavigationReady" class="flex space-x-4">
                     <div class="animate-pulse">
-                        <div class="h-10 w-32 bg-gray-200 rounded"/>
+                        <div class="h-10 w-32 bg-gray-200 rounded" />
                     </div>
                 </div>
 
@@ -48,7 +48,7 @@
                                 <div v-else class="space-y-1">
                                     <button
                                         v-for="item in dropdowns[type]?.items || []"
-                                        :key="item.id"
+                                        :key="item.dataset_id"
                                         class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
                                         :class="{
                                             'bg-primary-50 text-primary-700': currentPath[type] === item.name,

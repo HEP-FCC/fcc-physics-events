@@ -7,7 +7,6 @@
  */
 
 import { ref, computed, readonly } from "vue";
-import { useApiClient } from "./useApiClient";
 
 interface AppConfig {
     appTitle?: string;
@@ -21,7 +20,10 @@ const isLoaded = ref(false);
 const isLoading = ref(false);
 
 export const useDynamicAppConfig = () => {
-    const { apiClient, apiAvailable } = useApiClient();
+    const { getSchemaConfig, baseUrl } = useTypedApiClient();
+
+    // Check API availability
+    const apiAvailable = computed(() => !!baseUrl);
 
     /**
      * Format table name for display (e.g., "books" -> "Books")
@@ -48,7 +50,7 @@ export const useDynamicAppConfig = () => {
 
         isLoading.value = true;
         try {
-            const schemaResponse = await apiClient.getSchemaConfiguration();
+            const schemaResponse = await getSchemaConfig();
             const { appTitle, searchPlaceholder, main_table } = schemaResponse;
 
             appConfig.value = {

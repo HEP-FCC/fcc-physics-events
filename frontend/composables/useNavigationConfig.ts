@@ -48,7 +48,7 @@ export const clearPreloadedDropdownCache = (): void => {
 };
 
 export const useNavigationConfig = () => {
-    const { apiClient } = useApiClient();
+    const { getSchemaConfig } = useTypedApiClient();
 
     // Use global singleton state
     const navigationConfig = globalNavigationConfig;
@@ -65,7 +65,7 @@ export const useNavigationConfig = () => {
             isLoading.value = true;
             error.value = null;
 
-            const response = (await apiClient.getSchemaConfiguration()) as unknown as SchemaInfo;
+            const response = (await getSchemaConfig()) as unknown as SchemaInfo;
 
             if (response.navigation_config) {
                 navigationConfig.value = {
@@ -160,7 +160,7 @@ export const useNavigationConfig = () => {
      * This actually populates the useNavigationState cache to avoid on-demand loading
      */
     const preloadDropdownData = async (): Promise<void> => {
-        const { apiClient } = useApiClient();
+        const { getDropdownOptions } = useTypedApiClient();
         const order = navigationConfig.value.order;
 
         if (order.length === 0) {
@@ -173,20 +173,13 @@ export const useNavigationConfig = () => {
             // Create concurrent API calls for all navigation types
             const preloadPromises = order.map(async (type: string) => {
                 try {
-                    const response = await fetch(`${apiClient.baseUrl}/api/dropdown/${type}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        const items = data.data || [];
+                    const items = await getDropdownOptions(type);
 
-                        // Store the preloaded data in module cache
-                        preloadedDropdownCache[type] = items;
+                    // Store the preloaded data in module cache
+                    preloadedDropdownCache[type] = items;
 
-                        console.debug(`Preloaded ${type}: ${items.length} items cached`);
-                        return { type, success: true, count: items.length };
-                    } else {
-                        console.warn(`Failed to preload ${type}: ${response.status}`);
-                        return { type, success: false, error: response.status };
-                    }
+                    console.debug(`Preloaded ${type}: ${items.length} items cached`);
+                    return { type, success: true, count: items.length };
                 } catch (error) {
                     console.warn(`Error preloading ${type}:`, error);
                     return { type, success: false, error };

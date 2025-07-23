@@ -432,13 +432,23 @@ class QueryParser:
                     )
                     json_field = f"d.metadata->{path_expression}->>{path_parts[-1]!r}"
 
-                return f"ORDER BY {json_field} {sort_order.upper()}"
+                # Add secondary sort by primary key for deterministic ordering
+                # Get primary key from navigation analysis
+                primary_key_field = (
+                    f"d.{self.navigation_analysis['main_table_schema']['primary_key']}"
+                )
+                return f"ORDER BY {json_field} {sort_order.upper()}, {primary_key_field} {sort_order.upper()}"
 
         # Handle regular fields using the schema mapping
         field_obj = Field((sort_by,))
         try:
             sql_field = field_obj.to_sql(self.schema_mapping)
-            return f"ORDER BY {sql_field} {sort_order.upper()}"
+            # Add secondary sort by primary key to ensure deterministic ordering
+            # This prevents the same entity from appearing on multiple pages when there are ties
+            primary_key_field = (
+                f"d.{self.navigation_analysis['main_table_schema']['primary_key']}"
+            )
+            return f"ORDER BY {sql_field} {sort_order.upper()}, {primary_key_field} {sort_order.upper()}"
         except Exception as e:
             logger.error("Could not find the column to sort by: %s", e)
             raise e

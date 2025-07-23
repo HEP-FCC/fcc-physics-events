@@ -6,7 +6,10 @@ import type { Entity, SearchState, PaginationState, SortState, PaginatedResponse
  * Handles entity search, pagination, sorting, and infinite scroll
  */
 export function useEntitySearch() {
-    const { apiClient, apiAvailable } = useApiClient();
+    const { searchEntities, getSortingFields, baseUrl } = useTypedApiClient();
+
+    // Check API availability
+    const apiAvailable = computed(() => !!baseUrl);
     const route = useRoute();
 
     // Search state
@@ -32,6 +35,9 @@ export function useEntitySearch() {
         searchResults: {},
         lastSearchQuery: "",
     });
+
+    // Loading lock to prevent concurrent requests
+    let isLoadingLock = false;
 
     // Pagination state management
     const pagination = shallowReactive<PaginationState>({
@@ -88,26 +94,15 @@ export function useEntitySearch() {
 
     const currentDisplayRange = readonly(
         computed(() => {
-            if (infiniteScrollEnabled.value) {
-                const totalDisplayed = entities.value.length;
-                const start = totalDisplayed > 0 ? 1 : 0;
-                return { start, end: totalDisplayed, total: pagination.totalEntities };
-            } else {
-                const start = (pagination.currentPage - 1) * pagination.pageSize + 1;
-                const end = Math.min(pagination.currentPage * pagination.pageSize, pagination.totalEntities);
-                return {
-                    start: entities.value.length > 0 ? start : 0,
-                    end,
-                    total: pagination.totalEntities,
-                };
-            }
+            const totalDisplayed = entities.value.length;
+            const start = totalDisplayed > 0 ? 1 : 0;
+            return { start, end: totalDisplayed, total: pagination.totalEntities };
         }),
     );
 
     const canLoadMore = computed(() => {
         return (
             searchState.hasMore &&
-            infiniteScrollEnabled.value &&
             !searchState.isLoading &&
             !searchState.isLoadingMore &&
             !isFilterUpdateInProgress.value
@@ -126,7 +121,7 @@ export function useEntitySearch() {
     });
 
     const shouldShowLoadingIndicatorEntities = computed(() => {
-        return searchState.isLoadingMore && infiniteScrollEnabled.value && canLoadMore.value;
+        return searchState.isLoadingMore && canLoadMore.value;
     });
 
     const shouldShowCompletionMessage = computed(() => {
@@ -172,48 +167,55 @@ export function useEntitySearch() {
             searchState.isLoading = true;
             entities.value = [];
             pagination.loadedPages.clear();
-            if (infiniteScrollEnabled.value) {
-                pagination.currentPage = 1;
-            }
+            pagination.currentPage = 1; // Always start from page 1 for new searches
         } else {
             searchState.isLoadingMore = true;
         }
         searchState.error = null;
 
         try {
-            const pageToLoad = isInitialLoad
-                ? infiniteScrollEnabled.value
-                    ? 1
-                    : pagination.currentPage
-                : pagination.currentPage;
-            const offset = (pageToLoad - 1) * pagination.pageSize;
+            // For infinite scroll: use currentPage directly
+            // For initial load: always start with page 1
+            const pageToLoad = isInitialLoad ? 1 : pagination.currentPage;
             const queryToSend = searchQuery || "*";
 
-            const response: PaginatedResponse = await apiClient.searchEntities(
-                queryToSend,
-                pagination.pageSize,
-                offset,
-                sortState.sortBy,
-                sortState.sortOrder,
-            );
+            const searchParams = {
+                query: queryToSend,
+                page: pageToLoad,
+                pageSize: pagination.pageSize,
+                sortBy: sortState.sortBy,
+                sortOrder: sortState.sortOrder,
+                filters: activeFilters.value,
+            };
+
+            const response: PaginatedResponse = await searchEntities(searchParams);
 
             if (currentRequestController?.signal.aborted) return;
 
             const responseEntities = response.data || response.items || [];
 
-            if (isInitialLoad || !infiniteScrollEnabled.value) {
+            if (isInitialLoad) {
+                // Replace all entities for new search
                 entities.value = responseEntities as Entity[];
                 pagination.loadedPages.clear();
                 pagination.loadedPages.add(pageToLoad);
             } else {
-                // Create a new array to ensure reactivity triggers
+                // Safeguard: Don't add entities if we've already loaded this page
+                if (pagination.loadedPages.has(pageToLoad)) {
+                    console.warn(`Page ${pageToLoad} already loaded, skipping append`);
+                    return;
+                }
+
+                // Append new entities for infinite scroll
                 entities.value = [...entities.value, ...(responseEntities as Entity[])];
                 pagination.loadedPages.add(pageToLoad);
             }
 
             pagination.totalEntities = response.total;
             pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
-            searchState.hasMore = pagination.currentPage < pagination.totalPages;
+
+            // Check if there are more pages available
+            searchState.hasMore = pageToLoad < pagination.totalPages;
         } catch (error) {
             if (currentRequestController?.signal.aborted) return;
             console.error("Search failed:", error);
@@ -253,8 +255,8 @@ export function useEntitySearch() {
 
         try {
             sortState.isLoading = true;
-            const response = await apiClient.getSortingFields();
-            sortState.availableFields = response.fields;
+            const response = await getSortingFields();
+            sortState.availableFields = response.fields || [];
         } catch (error) {
             console.error("Error fetching sorting fields:", error);
         } finally {
@@ -281,16 +283,36 @@ export function useEntitySearch() {
      * Load more data for infinite scroll
      */
     async function loadMoreData(): Promise<void> {
-        // Prevent loading more data if the first page isn't full, which can happen on initial load
-        if (pagination.currentPage === 1 && entities.value.length < pagination.pageSize) {
+        // Check loading lock first
+        if (isLoadingLock) {
             return;
         }
 
+        // Check if we can load more
         if (isFilterUpdateInProgress.value || searchState.isLoadingMore || !canLoadMore.value || !searchState.hasMore) {
             return;
         }
-        pagination.currentPage += 1;
-        await performSearch(false);
+
+        // Calculate next page to load
+        const nextPage = pagination.currentPage + 1;
+
+        // Safeguard: Don't load if we've already loaded this page
+        if (pagination.loadedPages.has(nextPage)) {
+            console.warn(`Page ${nextPage} already loaded, skipping`);
+            return;
+        }
+
+        // Set loading lock
+        isLoadingLock = true;
+
+        try {
+            // Update current page and load
+            pagination.currentPage = nextPage;
+            await performSearch(false);
+        } finally {
+            // Always release the lock
+            isLoadingLock = false;
+        }
     }
 
     /**

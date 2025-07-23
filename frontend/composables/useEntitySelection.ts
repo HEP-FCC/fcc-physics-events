@@ -8,7 +8,14 @@ import { getPrimaryKeyValue, extractEntityIds } from "~/composables/useSchemaUti
  * Works with any entity type (books, products, etc.)
  */
 export function useEntitySelection() {
-    const { apiClient, apiAvailable } = useApiClient();
+    const { downloadEntitiesByIds } = useTypedApiClient();
+
+    // Check API availability
+    const apiAvailable = computed(() => {
+        const config = useRuntimeConfig();
+        return !!(config.public.apiBaseUrl || "http://localhost:8000");
+    });
+
     const { createEntityDownloadFilename, downloadAsJsonFile } = useUtils();
 
     // Entity selection and UI expansion state
@@ -149,7 +156,7 @@ export function useEntitySelection() {
      */
     function isMetadataExpanded(entityId: number): boolean {
         // Force reactivity check
-        selectedEntitiesVersion.value;
+        void selectedEntitiesVersion.value;
         return selectionState.expandedMetadata.has(entityId);
     }
     /**
@@ -163,7 +170,7 @@ export function useEntitySelection() {
 
         selectionState.isDownloading = true;
         try {
-            const entitiesToDownload = await apiClient.downloadEntitiesByIds(selectedEntityIds);
+            const entitiesToDownload = await downloadEntitiesByIds(selectedEntityIds);
 
             if (entitiesToDownload.length > 0) {
                 const filename = createEntityDownloadFilename(entitiesToDownload.length);
@@ -216,6 +223,7 @@ export function useEntitySelection() {
     function cancelEdit(entityId: number): void {
         if (Object.prototype.hasOwnProperty.call(metadataEditState, entityId)) {
             metadataEditState[entityId].isEditing = false;
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete metadataEditState[entityId];
         }
     }
@@ -254,7 +262,8 @@ export function useEntitySelection() {
             const parsedMetadata = JSON.parse(jsonToSave);
 
             // Call the backend API to save metadata with cookie-based authentication
-            await apiClient.updateEntity(entityId, parsedMetadata);
+            const { updateEntity } = useTypedApiClient();
+            await updateEntity(entityId, parsedMetadata);
 
             toast.add({
                 title: "Success",
@@ -267,6 +276,7 @@ export function useEntitySelection() {
             if (entityIndex !== -1) {
                 updateEntity(entityIndex, {
                     ...entities[entityIndex],
+                    dataset_id: entityId,
                     metadata: parsedMetadata,
                 });
             }

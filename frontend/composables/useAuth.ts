@@ -20,7 +20,7 @@ interface AuthState {
  * Handles login, logout, and user session management
  */
 export function useAuth() {
-    const { apiClient } = useApiClient();
+    const { initiateLogin, logoutUser } = useTypedApiClient();
 
     // Use global state to ensure consistency across components
     const authState = useState<AuthState>(
@@ -83,7 +83,7 @@ export function useAuth() {
      */
     function login(): void {
         authState.value.error = null;
-        apiClient.initiateLogin();
+        initiateLogin();
     }
 
     /**
@@ -95,7 +95,7 @@ export function useAuth() {
 
         try {
             // Get logout URL from backend
-            const logoutResponse = await apiClient.logout();
+            const logoutResponse = await logoutUser();
 
             // Clear the auth cookie
             const authCookie = useCookie(APP_CONFIG.auth.cookieName);
