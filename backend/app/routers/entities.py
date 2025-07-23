@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Upl
 from pydantic import BaseModel
 
 from app.gclql_query_parser import QueryParser
-from app.models.dataset import DatasetUpdate
+from app.models.generic import GenericEntityUpdate
 from app.storage.database import Database
 from app.utils import get_logger
 
@@ -186,7 +186,7 @@ async def get_entity_by_id(entity_id: int) -> Any:
 @router.put("/entities/{entity_id}", response_model=dict[str, Any])
 async def update_entity(
     entity_id: int,
-    update_data: DatasetUpdate,
+    update_data: GenericEntityUpdate,
     _request: Request,
     user: dict[str, Any] = Depends(get_and_validate_user_from_session),
 ) -> Any:

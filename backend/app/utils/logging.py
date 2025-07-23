@@ -50,7 +50,7 @@ def setup_logging() -> None:
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f"),
             structlog.processors.StackInfoRenderer(),
-            structlog.dev.ConsoleRenderer(colors=True)
+            structlog.dev.ConsoleRenderer(colors=True),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,

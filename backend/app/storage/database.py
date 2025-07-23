@@ -15,13 +15,7 @@ from asyncpg.pool import Pool
 from pydantic import BaseModel
 
 from app.fcc_dict_parser import DatasetCollection
-from app.models.accelerator import AcceleratorCreate
-from app.models.campaign import CampaignCreate
-from app.models.dataset import (
-    DatasetCreate,
-)
-from app.models.detector import DetectorCreate
-from app.models.stage import StageCreate
+from app.models.generic import GenericEntityCreate
 from app.utils import Config, get_config, get_logger
 
 logger = get_logger()
@@ -323,7 +317,7 @@ class Database:
                                 if accelerator_name and accelerator_name.strip():
                                     accelerator_id = await self._get_or_create_entity(
                                         conn,
-                                        AcceleratorCreate,
+                                        GenericEntityCreate,
                                         "accelerators",
                                         name=accelerator_name.strip(),
                                     )
@@ -331,7 +325,7 @@ class Database:
                                 if stage_name and stage_name.strip():
                                     stage_id = await self._get_or_create_entity(
                                         conn,
-                                        StageCreate,
+                                        GenericEntityCreate,
                                         "stages",
                                         name=stage_name.strip(),
                                     )
@@ -339,7 +333,7 @@ class Database:
                                 if campaign_name and campaign_name.strip():
                                     campaign_id = await self._get_or_create_entity(
                                         conn,
-                                        CampaignCreate,
+                                        GenericEntityCreate,
                                         "campaigns",
                                         name=campaign_name.strip(),
                                     )
@@ -351,7 +345,7 @@ class Database:
                                 ):
                                     detector_id = await self._get_or_create_entity(
                                         conn,
-                                        DetectorCreate,
+                                        GenericEntityCreate,
                                         "detectors",
                                         name=detector_name.strip(),
                                         accelerator_id=accelerator_id,
@@ -375,7 +369,7 @@ class Database:
                         conflict_counter = 1
                         while True:
                             try:
-                                dataset_to_create = DatasetCreate(
+                                dataset_to_create = GenericEntityCreate(
                                     name=final_name,
                                     metadata=metadata_dict,
                                     accelerator_id=accelerator_id,
@@ -383,29 +377,45 @@ class Database:
                                     campaign_id=campaign_id,
                                     detector_id=detector_id,
                                 )
-                                metadata_json = json.dumps(dataset_to_create.metadata)
+
+                                # Build dynamic INSERT query based on the entity fields
+                                entity_dict = dataset_to_create.model_dump(
+                                    exclude_none=False
+                                )
+
+                                # Convert metadata to JSON if it exists
+                                if (
+                                    "metadata" in entity_dict
+                                    and entity_dict["metadata"] is not None
+                                ):
+                                    entity_dict["metadata"] = json.dumps(
+                                        entity_dict["metadata"]
+                                    )
+
+                                # Build column names and placeholders
+                                columns = list(entity_dict.keys())
+                                placeholders = [f"${i+1}" for i in range(len(columns))]
+                                values = list(entity_dict.values())
+
+                                # Build the conflict update clause for all columns except name
+                                update_clauses = []
+                                for col in columns:
+                                    if (
+                                        col != "name"
+                                    ):  # Don't update the conflict column
+                                        update_clauses.append(f"{col} = EXCLUDED.{col}")
+                                update_clauses.append(
+                                    "last_edited_at = (NOW() AT TIME ZONE 'utc')"
+                                )
 
                                 query = f"""
-                                    INSERT INTO {main_table} (name, accelerator_id, stage_id, campaign_id, detector_id, metadata)
-                                    VALUES ($1, $2, $3, $4, $5, $6)
+                                    INSERT INTO {main_table} ({', '.join(columns)})
+                                    VALUES ({', '.join(placeholders)})
                                     ON CONFLICT (name) DO UPDATE
-                                    SET metadata = EXCLUDED.metadata,
-                                        accelerator_id = EXCLUDED.accelerator_id,
-                                        stage_id = EXCLUDED.stage_id,
-                                        campaign_id = EXCLUDED.campaign_id,
-                                        detector_id = EXCLUDED.detector_id,
-                                        last_edited_at = (NOW() AT TIME ZONE 'utc');
-                                    """
+                                    SET {', '.join(update_clauses)}
+                                """
 
-                                await conn.execute(
-                                    query,
-                                    dataset_to_create.name,
-                                    dataset_to_create.accelerator_id,
-                                    dataset_to_create.stage_id,
-                                    dataset_to_create.campaign_id,
-                                    dataset_to_create.detector_id,
-                                    metadata_json,
-                                )
+                                await conn.execute(query, *values)
                                 processed_count += 1
                                 break  # Success, exit the retry loop
                             except Exception as e:
@@ -610,42 +620,43 @@ class Database:
                 # Always update last_edited_at
                 update_fields.append("last_edited_at = (NOW() AT TIME ZONE 'utc')")
 
-                # Handle each potential field update
-                if "name" in update_data and update_data["name"] is not None:
-                    param_count += 1
-                    update_fields.append(f"name = ${param_count}")
-                    values.append(update_data["name"])
+                # Get table columns dynamically to handle any fields
+                table_columns_query = """
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_name = $1 AND table_schema = 'public'
+                    ORDER BY ordinal_position
+                """
+                table_columns = await conn.fetch(table_columns_query, main_table)
+                valid_columns = {row["column_name"] for row in table_columns}
 
-                if "accelerator_id" in update_data:
-                    param_count += 1
-                    update_fields.append(f"accelerator_id = ${param_count}")
-                    values.append(update_data["accelerator_id"])
+                # Handle each field update dynamically
+                for field_name, field_value in update_data.items():
+                    # Skip fields that don't exist in the table
+                    if field_name not in valid_columns:
+                        continue
 
-                if "stage_id" in update_data:
-                    param_count += 1
-                    update_fields.append(f"stage_id = ${param_count}")
-                    values.append(update_data["stage_id"])
+                    # Skip primary key and auto-managed fields
+                    if field_name in [
+                        primary_key_column,
+                        "created_at",
+                        "last_edited_at",
+                    ]:
+                        continue
 
-                if "campaign_id" in update_data:
-                    param_count += 1
-                    update_fields.append(f"campaign_id = ${param_count}")
-                    values.append(update_data["campaign_id"])
+                    # Skip None values for non-nullable fields (except explicit null updates)
+                    if field_value is None and field_name == "name":
+                        continue
 
-                if "detector_id" in update_data:
                     param_count += 1
-                    update_fields.append(f"detector_id = ${param_count}")
-                    values.append(update_data["detector_id"])
 
-                if "metadata" in update_data:
-                    param_count += 1
-                    update_fields.append(f"metadata = ${param_count}")
-                    # Convert metadata dict to JSON string
-                    metadata_json = (
-                        json.dumps(update_data["metadata"])
-                        if update_data["metadata"] is not None
-                        else None
-                    )
-                    values.append(metadata_json)
+                    # Handle metadata field specially (convert dict to JSON)
+                    if field_name == "metadata" and isinstance(field_value, dict):
+                        update_fields.append(f"{field_name} = ${param_count}")
+                        values.append(json.dumps(field_value))
+                    else:
+                        update_fields.append(f"{field_name} = ${param_count}")
+                        values.append(field_value)
 
                 if not update_fields:
                     # Only last_edited_at was updated
