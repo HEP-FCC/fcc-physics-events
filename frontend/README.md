@@ -1,14 +1,14 @@
 # FCC Physics Events Frontend
 
-A Vue.js 3 / Nuxt.js 3 application for browsing and searching FCC physics datasets. This application provides an intuitive interface for physicists to explore datasets with advanced filtering, sorting, and metadata viewing capabilities.
+A Vue.js 3 / Nuxt.js 3 application for browsing and searching FCC physics data. This application provides an intuitive interface for physicists to explore data entities with advanced filtering, sorting, and metadata viewing capabilities.
 
 ## Features
 
-- **Advanced Search**: Query datasets using GCLQL (Graph-based Context-aware Library Query Language)
+- **Advanced Search**: Query data entities using GCLQL (Graph-based Context-aware Library Query Language)
 - **Smart Filtering**: Filter by accelerator, campaign, detector, and stage
 - **Flexible Viewing**: Toggle between infinite scroll and paginated modes
-- **Bulk Operations**: Select multiple datasets for download
-- **Metadata Exploration**: Expandable metadata view for detailed dataset information
+- **Bulk Operations**: Select multiple entities for download
+- **Metadata Exploration**: Expandable metadata view for detailed entity information
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## Technology Stack
@@ -80,18 +80,18 @@ pnpm preview
 
 ```
 ├── components/          # Vue components
-│   ├── DatasetCard.vue             # Individual dataset display
-│   ├── DatasetControls.vue         # Bulk operations and sorting
-│   ├── DatasetList.vue             # Dataset listing container
-│   ├── DatasetSearchInterface.vue  # Main search interface
-│   ├── Metadata.vue                # Dataset metadata display
+│   ├── EntityCard.vue              # Individual entity display
+│   ├── EntityControls.vue          # Bulk operations and sorting
+│   ├── EntityList.vue              # Entity listing container
+│   ├── EntitySearchInterface.vue   # Main search interface
+│   ├── Metadata.vue                # Entity metadata display
 │   ├── NavigationMenu.vue          # Filter navigation
 │   ├── ResultsSummary.vue          # Results count and pagination
 │   └── SearchControls.vue          # Search input and permalink
 ├── composables/         # Reusable business logic
 │   ├── getApiClient.ts             # API communication
-│   ├── useDatasetSearch.ts         # Search functionality
-│   ├── useDatasetSelection.ts      # Selection state management
+│   ├── useEntitySearch.ts         # Search functionality
+│   ├── useEntitySelection.ts       # Selection state management
 │   └── useNavigationConfig.ts     # Filter configuration
 ├── pages/              # Application routes
 ├── types/              # TypeScript type definitions
@@ -116,13 +116,13 @@ This codebase follows Vue.js 3 and Nuxt.js 3 best practices:
 3. Update the navigation component if needed
 
 **Modifying search behavior:**
-1. Main search logic is in `composables/useDatasetSearch.ts`
+1. Main search logic is in `composables/useEntitySearch.ts`
 2. UI controls are in `components/SearchControls.vue`
 
-**Changing dataset display:**
-1. Individual cards: `components/DatasetCard.vue`
-2. Metadata display: `components/Metadata.vue`
-3. List container: `components/DatasetList.vue`
+**Changing entity display:**
+1. Individual cards: `components/EntityCard.vue`
+2. Controls: `components/EntityControls.vue`
+3. List container: `components/EntityList.vue`
 
 ## API Configuration
 

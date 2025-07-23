@@ -1,17 +1,19 @@
 <template>
     <UContainer class="py-4 sm:py-6 lg:py-8">
-        <DatasetSearchInterface :initial-filters="activeFilters" :route-params="routeParams" />
+        <EntitySearchInterface :initial-filters="activeFilters" :route-params="routeParams" />
     </UContainer>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect } from "vue";
+import { computed, ref, watchEffect, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
-import DatasetSearchInterface from "~/components/search/DatasetSearchInterface.vue";
+import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
+import EntitySearchInterface from "~/components/search/EntitySearchInterface.vue";
 
 const route = useRoute();
 const { parseRouteToFilters, parseRouteToPath, getPageTitle } = useDynamicNavigation();
+const appConfigComposable = useDynamicAppConfig();
 
 const routeParams = computed(() => {
     return Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];
@@ -34,30 +36,41 @@ watchEffect(() => {
     }
 });
 
+// Computed properties for page meta
+const pageTitle = computed(() => {
+    const path = currentPath.value;
+    try {
+        return Object.keys(path).some((key) => path[key]) ? getPageTitle(path) : appConfigComposable.appTitle.value;
+    } catch (error) {
+        console.error("Error getting page title:", error);
+        return appConfigComposable.appTitle.value;
+    }
+});
+
+const pageDescription = computed(() => {
+    return appConfigComposable.searchDescription.value(activeFilters.value);
+});
+
+// Load app configuration on mount
+onMounted(async () => {
+    await appConfigComposable.loadAppConfig();
+});
+
 // Set the page title and meta
 useHead({
-    title: () => {
-        const path = currentPath.value;
-        try {
-            return Object.keys(path).some((key) => path[key]) ? getPageTitle(path) : "FCC Physics Datasets Search";
-        } catch (error) {
-            console.error("Error getting page title:", error);
-            return "FCC Physics Datasets Search";
-        }
-    },
+    title: pageTitle,
     meta: [
         {
             name: "description",
-            content: () => {
-                const filters = activeFilters.value;
-                if (Object.keys(filters).length > 0) {
-                    const filterDesc = Object.entries(filters)
-                        .map(([key, value]) => `${key.replace("_", " ")}: ${value}`)
-                        .join(", ");
-                    return `Search FCC physics datasets filtered by ${filterDesc}`;
-                }
-                return "Search and explore FCC physics simulation datasets and data";
-            },
+            content: pageDescription,
+        },
+        {
+            property: "og:title",
+            content: pageTitle,
+        },
+        {
+            property: "og:description",
+            content: pageDescription,
         },
     ],
 });

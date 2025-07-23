@@ -8,13 +8,7 @@ import { useNavigationConfig, getPreloadedDropdownData } from "~/composables/use
  */
 export function useNavigationState() {
     const { apiClient } = useApiClient();
-    const {
-        getNavigationOrder,
-        getNavigationItem,
-        initializeNavigation,
-        isNavigationReady,
-        isLoading: isConfigLoading,
-    } = useNavigationConfig();
+    const { getNavigationOrder, getNavigationItem, initializeNavigation, isNavigationReady } = useNavigationConfig();
 
     // Dynamic refs based on navigation order
     const navigationOrder = computed(() => getNavigationOrder());
@@ -37,7 +31,7 @@ export function useNavigationState() {
     };
 
     // Initialize navigation configuration and refs
-    const initPromise = initializeNavigation().then(() => {
+    initializeNavigation().then(() => {
         initializeRefs();
         proactivelyLoadDropdownData();
     });
@@ -147,7 +141,7 @@ export function useNavigationState() {
                     if (levelToPreload === 0) {
                         const preloadedData = getPreloadedDropdownData(typeToPreload);
                         if (preloadedData && preloadedData.length > 0) {
-                            itemsRef.value = preloadedData;
+                            itemsRef.value = preloadedData as DropdownItem[];
                             return;
                         }
                     }
@@ -227,7 +221,7 @@ export function useNavigationState() {
             // First check if we have preloaded data available
             const preloadedData = getPreloadedDropdownData(type);
             if (preloadedData && preloadedData.length > 0) {
-                itemsRef.value = preloadedData;
+                itemsRef.value = preloadedData as DropdownItem[];
                 return; // Exit early, no need to make API call
             }
 

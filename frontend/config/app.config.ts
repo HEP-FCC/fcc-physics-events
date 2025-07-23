@@ -14,15 +14,15 @@ export const APP_CONFIG = {
      * The main entity table name (source of truth for all data)
      * This table should contain foreign keys to all navigation entities
      */
-    mainTable: "datasets" as const,
+    mainTable: "entities" as const,
 
     /**
      * Application branding and metadata
      */
     branding: {
-        title: "FCC Physics Datasets",
-        description: "Search and explore FCC physics simulation datasets and data",
-        defaultTitle: "FCC Physics Datasets Search",
+        title: "FCC Physics Data",
+        description: "Search and explore FCC physics simulation data and entities",
+        defaultTitle: "FCC Physics Data Search",
     },
 
     /**

@@ -15,7 +15,7 @@
                             to="/"
                             class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 px-3 py-2 text-sm font-medium"
                         >
-                            Datasets
+                            {{ mainTableDisplayName }}
                         </NuxtLink>
                     </nav>
 
@@ -34,10 +34,12 @@
 
 <script setup lang="ts">
 import AuthSection from "~/components/auth/AuthSection.vue";
+import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
 
 // Check authentication status on app initialization
 const { checkAuthStatus } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
+const { mainTableDisplayName } = useDynamicAppConfig();
 
 onMounted(async () => {
     // Initialize navigation configuration globally

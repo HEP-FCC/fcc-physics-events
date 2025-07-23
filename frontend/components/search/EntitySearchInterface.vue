@@ -1,5 +1,5 @@
 <template>
-    <div class="dataset-search-interface space-y-6">
+    <div class="entity-search-interface space-y-6">
         <!-- Navigation -->
         <NavigationMenu :route-params="props.routeParams" />
 
@@ -24,10 +24,10 @@
         </UCard>
 
         <!-- Results -->
-        <div v-else-if="search.datasets.value.length > 0" class="space-y-6">
-            <!-- Dataset Controls & Results Summary -->
-            <DatasetControls
-                :datasets="search.datasets.value as Dataset[]"
+        <div v-else-if="search.entities.value.length > 0" class="space-y-6">
+            <!-- Entity Controls & Results Summary -->
+            <EntityControls
+                :entities="search.entities.value as Entity[]"
                 :all-entities-selected="allEntitiesSelected"
                 :selected-count="selection.selectedCount.value"
                 :is-downloading="selection.selectionState.isDownloading"
@@ -38,18 +38,18 @@
                 :sort-loading="search.sortState.isLoading"
                 :display-range="search.currentDisplayRange.value"
                 :page-size="search.pagination.pageSize"
-                @toggle-select-all="selection.toggleSelectAll(search.datasets.value as Dataset[])"
+                @toggle-select-all="selection.toggleSelectAll(search.entities.value as Entity[])"
                 @download-selected="selection.downloadSelectedEntities"
-                @toggle-all-metadata="selection.toggleAllMetadata(search.datasets.value as Dataset[])"
+                @toggle-all-metadata="selection.toggleAllMetadata(search.entities.value as Entity[])"
                 @update-sort-by="search.updateSortBy"
                 @toggle-sort-order="search.toggleSortOrder"
                 @update-page-size="search.updatePageSize"
                 @handle-page-size-change="search.handlePageSizeChange"
             />
 
-            <!-- Dataset List -->
-            <DatasetList
-                :datasets="search.datasets.value as Dataset[]"
+            <!-- Entity List -->
+            <EntityList
+                :entities="search.entities.value as Entity[]"
                 :pagination="search.pagination"
                 :sort-state="search.sortState"
                 :selection-state="selection.selectionState"
@@ -58,25 +58,25 @@
                 :infinite-scroll-enabled="search.infiniteScrollEnabled.value"
                 :sorting-field-options="search.sortingFieldOptions.value"
                 :current-display-range="search.currentDisplayRange.value"
-                :should-show-loading-indicator="search.shouldShowLoadingIndicatorDatasets.value"
+                :should-show-loading-indicator="search.shouldShowLoadingIndicatorEntities.value"
                 :should-show-completion-message="search.shouldShowCompletionMessage.value"
                 @toggle-entity-selection="selection.toggleEntitySelection"
                 @toggle-metadata="selection.toggleMetadata"
                 @enter-edit-mode="selection.enterEditMode"
                 @cancel-edit="selection.cancelEdit"
                 @save-metadata="
-                    (datasetId: number, editedJson?: string) =>
+                    (entityId: number, editedJson?: string) =>
                         selection.saveMetadataChanges(
-                            datasetId,
-                            search.datasets.value as Dataset[],
-                            search.updateDataset,
+                            entityId,
+                            search.entities.value as Entity[],
+                            search.updateEntity,
                             editedJson,
                         )
                 "
             />
 
             <!-- Loading States -->
-            <div v-if="search.shouldShowLoadingIndicatorDatasets.value" class="flex justify-center py-8">
+            <div v-if="search.shouldShowLoadingIndicatorEntities.value" class="flex justify-center py-8">
                 <div class="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
                     <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
                     <span>Loading more results...</span>
@@ -86,14 +86,14 @@
             <div v-else-if="search.shouldShowCompletionMessage.value" class="flex justify-center py-6">
                 <div class="text-center text-sm text-gray-500 dark:text-gray-400">
                     <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
-                    All {{ search.pagination.totalDatasets }} results loaded
+                    All {{ search.pagination.totalEntities }} {{ mainTableDisplayName.toLowerCase() }} loaded
                 </div>
             </div>
         </div>
 
         <!-- No Results -->
         <UCard v-else class="text-center py-12 text-gray-600 dark:text-gray-400">
-            <p class="text-lg font-medium">No datasets found.</p>
+            <p class="text-lg font-medium">No {{ mainTableDisplayName }} found.</p>
             <p class="text-sm">Try adjusting your search query or filters. 🔎</p>
         </UCard>
     </div>
@@ -102,16 +102,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from "vue";
 import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
-import type { Dataset } from "~/types/dataset";
+import type { Entity } from "~/types/entity";
 import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
 import { extractEntityIds } from "~/composables/useSchemaUtils";
+import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
 import SearchControls from "./SearchControls.vue";
-import DatasetControls from "../entities/DatasetControls.vue";
-import DatasetList from "../entities/DatasetList.vue";
+import EntityControls from "../entities/EntityControls.vue";
+import EntityList from "../entities/EntityList.vue";
 
 /**
- * Dataset Search Interface Component
- * Main interface for searching and managing physics datasets
+ * Entity Search Interface Component
+ * Main interface for searching and managing entities
  */
 
 interface Props {
@@ -128,8 +129,9 @@ const props = withDefaults(defineProps<Props>(), {
 const { parseRouteToPath } = useDynamicNavigation();
 
 // Composables
-const search = useDatasetSearch();
+const search = useEntitySearch();
 const selection = useEntitySelection();
+const { mainTableDisplayName } = useDynamicAppConfig();
 
 // Component state
 const isInitialized = ref(false);
@@ -149,8 +151,8 @@ watchEffect(() => {
 });
 
 // Memoized selection state computations
-const allEntitiesSelected = computed(() => selection.getAllEntitiesSelected(search.datasets.value as Dataset[]));
-const allMetadataExpanded = computed(() => selection.getAllMetadataExpanded(search.datasets.value as Dataset[]));
+const allEntitiesSelected = computed(() => selection.getAllEntitiesSelected(search.entities.value as Entity[]));
+const allMetadataExpanded = computed(() => selection.getAllMetadataExpanded(search.entities.value as Entity[]));
 
 /**
  * Handle click outside dropdown - now handled by NavigationMenu
@@ -206,9 +208,9 @@ watchDebounced(
     { debounce: 250, deep: true, immediate: false, flush: "post" },
 );
 
-// Clear metadata expansions when datasets change (only when dataset IDs change)
+// Clear metadata expansions when entities change (only when entity IDs change)
 watch(
-    () => extractEntityIds(search.datasets.value),
+    () => extractEntityIds(search.entities.value),
     () => selection.clearMetadataExpansions(),
     { flush: "post" },
 );

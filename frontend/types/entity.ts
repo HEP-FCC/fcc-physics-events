@@ -1,9 +1,13 @@
 /**
- * Generic entity types for any data structure
- * These types work with any main entity (datasets, books, products, etc.)
+ * Entity types for any data structure
+ * These types work with any main entity (books, products, etc.)
+ * Updated to work with the new backend architecture
  */
 
-import type { DynamicEntity } from "~/composables/useEntityCompat";
+import type { Entity } from "~/types/api";
+
+// Re-export the entity types for backward compatibility
+export type { Entity } from "~/types/api";
 
 /**
  * Sort order for entity queries
@@ -13,7 +17,7 @@ export type SortOrder = "asc" | "desc";
 /**
  * API response structure for paginated entity queries
  */
-export interface PaginatedResponse<T = DynamicEntity> {
+export interface PaginatedResponse<T = Entity> {
     data?: T[];
     items?: T[];
     total: number;
@@ -37,8 +41,6 @@ export interface PaginationState {
     totalEntities: number;
     hasNext: boolean;
     hasPrev: boolean;
-    // Additional properties used in useDatasetSearch
-    totalDatasets: number;
     loadedPages: Set<number>;
 }
 
@@ -48,7 +50,6 @@ export interface PaginationState {
 export interface SortState {
     field: string;
     order: SortOrder;
-    // Additional properties used in useDatasetSearch
     sortBy: string;
     sortOrder: SortOrder;
     availableFields: string[];
@@ -60,16 +61,19 @@ export interface SortState {
  */
 export interface SearchState {
     query: string;
-    filters: Record<string, any>;
+    placeholder: string;
+    filters: Record<string, unknown>;
     isLoading: boolean;
-    // Additional properties used in useDatasetSearch
     isLoadingMore: boolean;
-    hasMore: boolean;
     error: string | null;
+    hasMore: boolean;
+    isSearching: boolean;
+    searchResults: Record<string, unknown>;
+    lastSearchQuery: string;
 }
 
 /**
- * Sort state for entity queries
+ * Sort state for entity ordering
  */
 export interface SortState {
     field: string;
@@ -81,23 +85,14 @@ export interface SortState {
 }
 
 /**
- * Search state for entity filtering
- */
-export interface SearchState {
-    query: string;
-    filters: Record<string, any>;
-    isLoading: boolean;
-    isLoadingMore: boolean;
-    hasMore: boolean;
-    error: string | null;
-}
-
-/**
- * Entity selection and UI expansion state
+ * Selection state for entity management
  */
 export interface SelectionState {
+    selectedIds: Set<number>;
     selectedEntities: Set<number>;
     expandedMetadata: Set<number>;
+    selectAll: boolean;
+    isIndeterminate: boolean;
     isDownloading: boolean;
 }
 
@@ -106,7 +101,7 @@ export interface SelectionState {
  */
 export interface MetadataEditState {
     isEditing: boolean;
-    json: string;
-    editedJson: string;
-    originalMetadata: Record<string, unknown>;
+    editingEntityId: number | null;
+    editingData: Record<string, unknown>;
+    hasChanges: boolean;
 }

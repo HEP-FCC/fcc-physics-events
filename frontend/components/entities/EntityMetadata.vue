@@ -6,7 +6,7 @@
                 <div>
                     <h4 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Edit Metadata</h4>
                     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        Modify the JSON metadata for this dataset
+                        Modify the JSON metadata for this {{ mainTableDisplayName.toLowerCase().slice(0, -1) }}
                     </p>
                 </div>
                 <div class="flex gap-2">
@@ -228,16 +228,18 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import type { MetadataEditState } from "~/types/dataset";
+import type { MetadataEditState } from "~/types/api";
+import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
 
 /**
- * Dataset Metadata Component
- * Handles metadata display and editing functionality
+ * Entity Metadata Component
+ * Displays and allows editing of entity metadata information
+ * - Supports read-only view with syntax highlighting
+ * - Provides edit mode with validation
+ * - Works with any entity type dynamically
  */
-
 interface Props {
     entityId?: number;
-    datasetId?: number; // For backward compatibility
     metadata: Record<string, unknown>;
     editState?: MetadataEditState;
 }
@@ -250,12 +252,13 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// Computed property to handle both entityId and datasetId (backward compatibility)
-const actualEntityId = computed(() => props.entityId ?? props.datasetId ?? 0);
+// Use the entityId directly
+const actualEntityId = computed(() => props.entityId ?? 0);
 
 // Composables
 const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField } = useUtils();
 const { isAuthenticated } = useAuth();
+const { mainTableDisplayName } = useDynamicAppConfig();
 
 // Local reactive state for editing
 const localEditJson = ref(props.editState?.json || "");

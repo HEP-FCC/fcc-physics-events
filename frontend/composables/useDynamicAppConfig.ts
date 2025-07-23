@@ -1,0 +1,117 @@
+/**
+ * Dynamic App Configuration Composable
+ *
+ * Fetches and provides dynamic application configuration from the backend
+ * /api/schema endpoint, allowing the frontend to adapt to different schemas
+ * and configurations without hardcoding entity names or app titles.
+ */
+
+import { ref, computed, readonly } from "vue";
+import { useApiClient } from "./useApiClient";
+
+interface AppConfig {
+    appTitle?: string;
+    searchPlaceholder?: string;
+    mainTable?: string;
+    mainTableDisplayName?: string;
+}
+
+const appConfig = ref<AppConfig>({});
+const isLoaded = ref(false);
+const isLoading = ref(false);
+
+export const useDynamicAppConfig = () => {
+    const { apiClient, apiAvailable } = useApiClient();
+
+    /**
+     * Format table name for display (e.g., "books" -> "Books")
+     */
+    const formatTableNameForDisplay = (tableName: string): string => {
+        if (!tableName) return "Items";
+
+        // Capitalize first letter and ensure it's plural
+        let displayName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
+        if (!displayName.endsWith("s")) {
+            displayName += "s";
+        }
+
+        return displayName;
+    };
+
+    /**
+     * Load app configuration from backend
+     */
+    const loadAppConfig = async (): Promise<void> => {
+        if (isLoading.value || isLoaded.value || !apiAvailable.value) {
+            return;
+        }
+
+        isLoading.value = true;
+        try {
+            const schemaResponse = await apiClient.getSchemaConfiguration();
+            const { appTitle, searchPlaceholder, main_table } = schemaResponse;
+
+            appConfig.value = {
+                appTitle: (appTitle as string) || "Data Explorer",
+                searchPlaceholder: (searchPlaceholder as string) || "Search...",
+                mainTable: (main_table as string) || "entities",
+                mainTableDisplayName: formatTableNameForDisplay((main_table as string) || "entities"),
+            };
+
+            isLoaded.value = true;
+        } catch (error) {
+            console.error("Failed to load app configuration:", error);
+            // Fallback to defaults
+            appConfig.value = {
+                appTitle: "Data Explorer",
+                searchPlaceholder: "Search...",
+                mainTable: "entities",
+                mainTableDisplayName: "Entities",
+            };
+            isLoaded.value = true;
+        } finally {
+            isLoading.value = false;
+        }
+    };
+
+    /**
+     * Computed properties for easy access
+     */
+    const appTitle = computed(() => appConfig.value.appTitle || "Data Explorer");
+    const searchPlaceholder = computed(() => appConfig.value.searchPlaceholder || "Search...");
+    const mainTable = computed(() => appConfig.value.mainTable || "entities");
+    const mainTableDisplayName = computed(() => appConfig.value.mainTableDisplayName || "Entities");
+
+    const defaultDescription = computed(() => `Explore and search through ${mainTableDisplayName.value.toLowerCase()}`);
+
+    const searchDescription = computed(() => (filters?: Record<string, string>) => {
+        if (filters && Object.keys(filters).length > 0) {
+            const filterDesc = Object.entries(filters)
+                .map(([key, value]) => `${key.replace("_", " ")}: ${value}`)
+                .join(", ");
+            return `Browse ${mainTableDisplayName.value.toLowerCase()} filtered by ${filterDesc}`;
+        }
+        return defaultDescription.value;
+    });
+
+    return {
+        // State
+        appConfig: readonly(appConfig),
+        isLoaded: readonly(isLoaded),
+        isLoading: readonly(isLoading),
+
+        // Actions
+        loadAppConfig,
+
+        // Computed getters
+        appTitle,
+        searchPlaceholder,
+        mainTable,
+        mainTableDisplayName,
+        defaultDescription,
+        searchDescription,
+
+        // Utilities
+        formatTableNameForDisplay,
+    };
+};

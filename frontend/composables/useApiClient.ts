@@ -1,9 +1,9 @@
-import type { Dataset, PaginatedResponse } from "~/types/dataset";
+import type { Entity, PaginatedResponse } from "~/types/entity";
 import type { DropdownItem } from "~/types/schema";
 import { retryWithBackoff, type RetryOptions } from "~/composables/useRetry";
 
 /**
- * Composable for dataset API client
+ * Composable for entity API client
  * Provides centralized API communication with error handling
  */
 
@@ -125,9 +125,9 @@ class ApiClient {
     }
 
     /**
-     * Search datasets with pagination and sorting
+     * Search entities with pagination and sorting
      */
-    async searchDatasets(
+    async searchEntities(
         query: string,
         limit: number,
         offset: number,
@@ -152,7 +152,7 @@ class ApiClient {
                     Expires: "0",
                 },
             },
-            "Failed to search datasets",
+            "Failed to search entities",
         );
     }
 
@@ -197,8 +197,8 @@ class ApiClient {
      * Download entities by their IDs with aggressive retry policy
      * Downloads are critical operations that may need more retry attempts
      */
-    async downloadDatasetsByIds(entityIds: number[]): Promise<Dataset[]> {
-        return this.makeRequest<Dataset[]>(
+    async downloadEntitiesByIds(entityIds: number[]): Promise<Entity[]> {
+        return this.makeRequest<Entity[]>(
             `${this.baseUrl}/entities/`,
             {
                 method: "POST",
@@ -222,17 +222,17 @@ class ApiClient {
     }
 
     /**
-     * Update dataset metadata with authentication
+     * Update entity metadata with authentication
      */
-    async updateDataset(datasetId: number, metadata: Record<string, unknown>): Promise<Dataset> {
-        const requestUrl = `${this.baseUrl}/datasets/${datasetId}`;
-        return this.makeRequest<Dataset>(
+    async updateEntity(entityId: number, metadata: Record<string, unknown>): Promise<Entity> {
+        const requestUrl = `${this.baseUrl}/entities/${entityId}`;
+        return this.makeRequest<Entity>(
             requestUrl,
             {
                 method: "PUT",
                 body: JSON.stringify({ metadata }),
             },
-            "Failed to update dataset",
+            "Failed to update entity",
             undefined, // default retry options
             true, // include credentials
         );

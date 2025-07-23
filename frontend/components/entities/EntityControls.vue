@@ -2,13 +2,13 @@
     <div
         class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
     >
-        <!-- Dataset Controls -->
+        <!-- Entity Controls -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
             <!-- Selection controls -->
             <div class="flex items-center gap-2">
                 <UCheckbox
                     :model-value="allEntitiesSelected"
-                    :disabled="datasets.length === 0"
+                    :disabled="entities.length === 0"
                     @change="$emit('toggleSelectAll')"
                 />
                 <label class="text-sm font-medium cursor-pointer" @click="$emit('toggleSelectAll')">Select All</label>
@@ -107,10 +107,10 @@
 </template>
 
 <script setup lang="ts">
-import type { Dataset } from "~/types/dataset";
+import type { Entity } from "~/types/entity";
 
 interface Props {
-    datasets: Dataset[];
+    entities: Entity[];
     allEntitiesSelected: boolean;
     selectedCount: number;
     isDownloading: boolean;

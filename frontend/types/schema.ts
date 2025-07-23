@@ -117,18 +117,16 @@ export interface SearchResponse<T = unknown> {
 }
 
 /**
- * Dataset entity (can be extended for other main entities)
+ * Generic main entity interface for schema-agnostic data handling
+ * Compatible with any database table that follows the expected patterns
  */
-export interface Dataset extends DatabaseEntity {
-    dataset_id: number;
-    name: string;
-    description?: string;
+export interface MainEntity extends DatabaseEntity {
     created_at?: string;
     updated_at?: string;
     last_edited_at?: string;
     metadata?: Record<string, unknown>;
-    // Dynamic navigation entity names (populated by joins based on schema)
-    // These will be dynamically added as {entity_type}_name fields
+    // Dynamic relationship fields will be populated based on schema discovery
+    // These will be dynamically added as {entity_type}_id and {entity_type}_name fields
     [key: string]: unknown;
 }
 

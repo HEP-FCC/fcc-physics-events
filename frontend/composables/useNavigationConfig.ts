@@ -30,13 +30,13 @@ const globalIsLoading = ref(false);
 const globalError = ref<string | null>(null);
 
 // Global cache for preloaded dropdown data
-let preloadedDropdownCache: Record<string, any[]> = {};
+let preloadedDropdownCache: Record<string, unknown[]> = {};
 
 /**
  * Get preloaded dropdown data for a specific type
  * This is used by useNavigationState to check for cached data
  */
-export const getPreloadedDropdownData = (type: string): any[] | null => {
+export const getPreloadedDropdownData = (type: string): unknown[] | null => {
     return preloadedDropdownCache[type] || null;
 };
 

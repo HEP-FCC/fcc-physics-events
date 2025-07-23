@@ -5,12 +5,12 @@
                 <!-- Loading state while navigation config is not ready -->
                 <div v-if="!isNavigationReady" class="flex space-x-4">
                     <div class="animate-pulse">
-                        <div class="h-10 w-32 bg-gray-200 rounded"></div>
+                        <div class="h-10 w-32 bg-gray-200 rounded"/>
                     </div>
                 </div>
 
                 <!-- Dynamic Navigation Dropdowns -->
-                <template v-else v-for="(type, index) in navigationOrder" :key="type">
+                <template v-for="(type, index) in navigationOrder" v-else :key="type">
                     <div
                         v-if="(index === 0 || currentPath[navigationOrder[index - 1]]) && dropdowns[type]"
                         class="relative dropdown-container"

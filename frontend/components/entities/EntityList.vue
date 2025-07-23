@@ -1,39 +1,39 @@
 <template>
     <div>
-        <!-- Dataset List -->
+        <!-- Entity List -->
         <div class="space-y-2">
-            <!-- Dataset cards -->
+            <!-- Entity cards -->
             <UCard
-                v-for="(dataset, index) in datasets"
-                :key="getEntityId(dataset)"
-                :data-dataset-card="index"
+                v-for="(entity, index) in entities"
+                :key="getEntityId(entity)"
+                :data-entity-card="index"
                 class="overflow-hidden select-text cursor-pointer"
-                @click="handleRowClick($event, getEntityId(dataset))"
+                @click="handleRowClick($event, getEntityId(entity))"
             >
                 <div class="px-2 py-1.5">
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex-1 min-w-0">
-                            <!-- Row 1: Dataset name (full width) -->
+                            <!-- Row 1: Entity name (full width) -->
                             <div class="flex items-center gap-2 mb-0.5">
                                 <UCheckbox
-                                    :model-value="isEntitySelected(getEntityId(dataset))"
+                                    :model-value="isEntitySelected(getEntityId(entity))"
                                     class="flex-shrink-0"
                                     @click.stop
-                                    @change="toggleEntitySelection(getEntityId(dataset))"
+                                    @change="toggleEntitySelection(getEntityId(entity))"
                                 />
                                 <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
-                                    {{ dataset.name }}
+                                    {{ entity.name }}
                                 </h3>
                                 <UBadge color="neutral" variant="soft" size="xs" class="flex-shrink-0">
-                                    ID: {{ getEntityId(dataset) }}
+                                    ID: {{ getEntityId(entity) }}
                                 </UBadge>
                             </div>
 
                             <!-- Row 2: Badges and timestamps in one compact row -->
                             <div class="flex items-center justify-between gap-4 ml-6">
-                                <!-- Left side: Dataset badges -->
+                                <!-- Left side: Entity badges -->
                                 <div class="flex flex-wrap gap-1.5 flex-1">
-                                    <template v-for="badge in getDatasetBadges(dataset)" :key="badge.key">
+                                    <template v-for="badge in getEntityBadges(entity)" :key="badge.key">
                                         <UBadge
                                             v-if="badge.value"
                                             :color="badge.color"
@@ -48,20 +48,21 @@
                                 </div>
 
                                 <!-- Right side: Timestamps -->
-                                <div class="flex gap-4 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                    <span v-if="dataset.created_at"
-                                        >Created: {{ formatTimestamp(dataset.created_at) }}</span
-                                    >
+                                <div
+                                    class="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400 flex-shrink-0"
+                                >
+                                    <span v-if="entity.created_at">
+                                        Created: {{ formatTimestamp(entity.created_at) }}
+                                    </span>
                                     <span
-                                        v-if="wasDatasetEdited(dataset)"
-                                        class="text-amber-600 dark:text-amber-400 flex items-center gap-1 cursor-help"
+                                        v-if="wasEntityEdited(entity)"
+                                        class="text-orange-600 dark:text-orange-400"
                                         :title="
-                                            dataset.last_edited_at
-                                                ? `Last edited: ${formatTimestamp(dataset.last_edited_at)}`
-                                                : 'Last edited date unknown'
+                                            entity.last_edited_at
+                                                ? `Last edited: ${formatTimestamp(entity.last_edited_at)}`
+                                                : ''
                                         "
                                     >
-                                        <span class="text-[10px]">✎</span>
                                         Edited
                                     </span>
                                 </div>
@@ -70,7 +71,7 @@
 
                         <UButton
                             :icon="
-                                isMetadataExpanded(getEntityId(dataset))
+                                isMetadataExpanded(getEntityId(entity))
                                     ? 'i-heroicons-chevron-up'
                                     : 'i-heroicons-chevron-down'
                             "
@@ -78,21 +79,21 @@
                             variant="ghost"
                             size="xs"
                             class="flex-shrink-0"
-                            @click.stop="toggleMetadata(getEntityId(dataset))"
+                            @click.stop="toggleMetadata(getEntityId(entity))"
                         />
                     </div>
                 </div>
 
                 <!-- Metadata component (inline) -->
                 <div
-                    v-if="isMetadataExpanded(getEntityId(dataset))"
+                    v-if="isMetadataExpanded(getEntityId(entity))"
                     class="border-t border-gray-200 bg-gray-50 cursor-default"
                     @click.stop
                 >
-                    <DatasetMetadata
-                        :entity-id="getEntityId(dataset)"
-                        :metadata="dataset.metadata || {}"
-                        :edit-state="metadataEditState[getEntityId(dataset)]"
+                    <EntityMetadata
+                        :entity-id="getEntityId(entity)"
+                        :metadata="entity.metadata || {}"
+                        :edit-state="metadataEditState[getEntityId(entity)]"
                         @enter-edit="enterEditMode"
                         @cancel-edit="cancelEdit"
                         @save-metadata="saveMetadata"
@@ -104,26 +105,20 @@
 </template>
 
 <script setup lang="ts">
-import type {
-    Dataset,
-    PaginationState,
-    SortState,
-    SelectionState,
-    SearchState,
-    MetadataEditState,
-} from "~/types/dataset";
-import { getPrimaryKeyField, getPrimaryKeyValue, getEntityType } from "~/composables/useSchemaUtils";
-import DatasetMetadata from "./DatasetMetadata.vue";
+import type { Entity, PaginationState, SortState, SelectionState, SearchState } from "~/types/entity";
+import type { MetadataEditState } from "~/types/api";
+import { getPrimaryKeyValue } from "~/composables/useSchemaUtils";
+import EntityMetadata from "./EntityMetadata.vue";
 
 // Import schema utilities for dynamic entity handling
 
 /**
- * Dataset List Component
- * Handles dataset display, selection, metadata expansion, and infinite scroll
+ * Entity List Component
+ * Handles entity display, selection, metadata expansion, and infinite scroll
  */
 
 interface Props {
-    datasets: Dataset[];
+    entities: Entity[];
     pagination: PaginationState;
     sortState: SortState;
     selectionState: SelectionState;
@@ -147,20 +142,17 @@ const emit = defineEmits<Emits>();
 
 // Composables
 const { formatTimestamp, getStatusFields, formatFieldName } = useUtils();
-const { getNavigationItem, navigationConfig } = useNavigationConfig();
-
-// Detect the primary key field dynamically
-const primaryKeyField = computed(() => getPrimaryKeyField(props.datasets));
+const { getNavigationItem } = useNavigationConfig();
 
 // Helper function to get entity ID
-function getEntityId(entity: any): number {
+function getEntityId(entity: Entity): number {
     return getPrimaryKeyValue(entity) || 0;
 }
 
-// Create a reactive function to get badge items for a dataset
-function getDatasetBadges(dataset: Dataset) {
+// Create a reactive function to get badge items for an entity
+function getEntityBadges(entity: Entity) {
     // Generate navigation badges for any field ending with '_name' that has a value
-    const navigationBadges = Object.entries(dataset)
+    const navigationBadges = Object.entries(entity)
         .filter(([key, value]) => {
             return key.endsWith("_name") && value && typeof value === "string" && value.trim() !== "";
         })
@@ -188,7 +180,7 @@ function getDatasetBadges(dataset: Dataset) {
         });
 
     // Add status badges from metadata
-    const statusBadges = getStatusFields(dataset.metadata || {}).map((statusField) => ({
+    const statusBadges = getStatusFields(entity.metadata || {}).map((statusField) => ({
         key: statusField.key ? `status_${String(statusField.key)}` : "status_unknown", // Ensure key is always a valid string
         label: String(statusField.label || "Unknown"),
         value: String(statusField.value || ""),
@@ -198,16 +190,16 @@ function getDatasetBadges(dataset: Dataset) {
     return [...navigationBadges, ...statusBadges];
 }
 
-// Helper function to check if dataset was actually edited
-function wasDatasetEdited(dataset: Dataset): boolean {
-    if (!dataset.last_edited_at || !dataset.created_at) return false;
+// Helper function to check if entity was actually edited
+function wasEntityEdited(entity: Entity): boolean {
+    if (!entity.last_edited_at || !entity.created_at) return false;
 
     // Ensure we have valid date strings
-    if (typeof dataset.last_edited_at !== "string" || typeof dataset.created_at !== "string") return false;
+    if (typeof entity.last_edited_at !== "string" || typeof entity.created_at !== "string") return false;
 
     // Parse dates and compare timestamps
-    const created = new Date(dataset.created_at).getTime();
-    const edited = new Date(dataset.last_edited_at).getTime();
+    const created = new Date(entity.created_at).getTime();
+    const edited = new Date(entity.last_edited_at).getTime();
 
     // Consider edited if there's more than 1 second difference (to account for minor timing differences)
     return Math.abs(edited - created) > 1000;
@@ -238,8 +230,8 @@ function isEntitySelected(entityId: number): boolean {
     return props.selectionState.selectedEntities.has(entityId);
 }
 
-function isMetadataExpanded(datasetId: number): boolean {
-    return props.selectionState.expandedMetadata.has(datasetId);
+function isMetadataExpanded(entityId: number): boolean {
+    return props.selectionState.expandedMetadata.has(entityId);
 }
 
 function handleRowClick(event: MouseEvent, entityId: number): void {

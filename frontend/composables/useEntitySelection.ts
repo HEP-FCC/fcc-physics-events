@@ -1,20 +1,23 @@
 import { ref, reactive, shallowReactive, computed } from "vue";
-import type { Dataset, SelectionState, MetadataEditState } from "~/types/dataset";
-import { getPrimaryKeyField, getPrimaryKeyValue, extractEntityIds } from "~/composables/useSchemaUtils";
+import type { Entity, SelectionState, MetadataEditState } from "~/types/api";
+import { getPrimaryKeyValue, extractEntityIds } from "~/composables/useSchemaUtils";
 
 /**
  * Generic entity selection and metadata management composable
  * Handles entity selection, metadata expansion, and download functionality
- * Works with any entity type (datasets, books, etc.)
+ * Works with any entity type (books, products, etc.)
  */
 export function useEntitySelection() {
     const { apiClient, apiAvailable } = useApiClient();
-    const { createDatasetDownloadFilename, downloadAsJsonFile } = useUtils();
+    const { createEntityDownloadFilename, downloadAsJsonFile } = useUtils();
 
     // Entity selection and UI expansion state
     const selectionState = reactive<SelectionState>({
+        selectedIds: new Set<number>(),
         selectedEntities: new Set<number>(),
         expandedMetadata: new Set<number>(),
+        selectAll: false,
+        isIndeterminate: false,
         isDownloading: false,
     });
 
@@ -41,17 +44,16 @@ export function useEntitySelection() {
         return Array.from(selectionState.selectedEntities);
     });
 
-    function getAllEntitiesSelected(entities: Dataset[]) {
-        // Access the reactive version to trigger re-computation
-        void selectedEntitiesVersion.value;
+    function getAllEntitiesSelected(entities: Entity[]) {
+        if (entities.length === 0) return false;
+
         const currentEntityIds = extractEntityIds(entities);
         return (
             currentEntityIds.length > 0 &&
             currentEntityIds.every((id: number) => selectionState.selectedEntities.has(id))
         );
     }
-
-    function getAllMetadataExpanded(entities: any[]) {
+    function getAllMetadataExpanded(entities: Entity[]) {
         // Access the reactive version to trigger re-computation
         void expandedMetadataVersion.value;
         const currentEntityIds = extractEntityIds(entities);
@@ -64,7 +66,7 @@ export function useEntitySelection() {
     /**
      * Toggle individual entity selection
      */
-    function toggleEntitySelection(entityIdOrData: number | any): void {
+    function toggleEntitySelection(entityIdOrData: number | Entity): void {
         const entityId = typeof entityIdOrData === "number" ? entityIdOrData : getPrimaryKeyValue(entityIdOrData);
 
         if (entityId === null) return;
@@ -80,7 +82,7 @@ export function useEntitySelection() {
     /**
      * Toggle select all entities on current page
      */
-    function toggleSelectAll(entities: any[]): void {
+    function toggleSelectAll(entities: Entity[]): void {
         const currentEntityIds = extractEntityIds(entities);
         const allSelected = currentEntityIds.every((id: number) => selectionState.selectedEntities.has(id));
 
@@ -95,7 +97,7 @@ export function useEntitySelection() {
     /**
      * Toggle metadata expansion for a specific entity
      */
-    function toggleMetadata(entityIdOrData: number | any): void {
+    function toggleMetadata(entityIdOrData: number | Entity): void {
         const entityId = typeof entityIdOrData === "number" ? entityIdOrData : getPrimaryKeyValue(entityIdOrData);
 
         if (entityId === null) return;
@@ -111,7 +113,7 @@ export function useEntitySelection() {
     /**
      * Toggle all metadata expansions
      */
-    function toggleAllMetadata(entities: any[]): void {
+    function toggleAllMetadata(entities: Entity[]): void {
         const currentEntityIds = extractEntityIds(entities);
         const allExpanded =
             currentEntityIds.length > 0 &&
@@ -143,14 +145,13 @@ export function useEntitySelection() {
     }
 
     /**
-     * Check if metadata is expanded for dataset
+     * Check if metadata is expanded for entity
      */
-    function isMetadataExpanded(datasetId: number): boolean {
-        // Access the reactive version to trigger re-computation
-        void expandedMetadataVersion.value;
-        return selectionState.expandedMetadata.has(datasetId);
+    function isMetadataExpanded(entityId: number): boolean {
+        // Force reactivity check
+        selectedEntitiesVersion.value;
+        return selectionState.expandedMetadata.has(entityId);
     }
-
     /**
      * Download selected entities as JSON file
      */
@@ -162,10 +163,10 @@ export function useEntitySelection() {
 
         selectionState.isDownloading = true;
         try {
-            const entitiesToDownload = await apiClient.downloadDatasetsByIds(selectedEntityIds);
+            const entitiesToDownload = await apiClient.downloadEntitiesByIds(selectedEntityIds);
 
             if (entitiesToDownload.length > 0) {
-                const filename = createDatasetDownloadFilename(entitiesToDownload.length);
+                const filename = createEntityDownloadFilename(entitiesToDownload.length);
                 downloadAsJsonFile(entitiesToDownload, filename);
             }
         } catch (error) {
@@ -178,7 +179,7 @@ export function useEntitySelection() {
     /**
      * Handle row click for metadata toggle
      */
-    function handleRowClick(event: MouseEvent, datasetId: number): void {
+    function handleRowClick(event: MouseEvent, entityId: number): void {
         // Don't trigger row click if text is being selected
         const selection = window.getSelection();
         if (selection && selection.toString().length > 0) {
@@ -191,15 +192,18 @@ export function useEntitySelection() {
             return;
         }
 
-        toggleMetadata(datasetId);
+        toggleMetadata(entityId);
     }
 
     /**
-     * Enter edit mode for dataset metadata
+     * Enter edit mode for entity metadata
      */
-    function enterEditMode(datasetId: number, metadata: Record<string, unknown>): void {
-        metadataEditState[datasetId] = {
+    function enterEditMode(entityId: number, metadata: Record<string, unknown>): void {
+        metadataEditState[entityId] = {
             isEditing: true,
+            editingEntityId: entityId,
+            editingData: {},
+            hasChanges: false,
             json: JSON.stringify(metadata, null, 2),
             editedJson: JSON.stringify(metadata, null, 2),
             originalMetadata: metadata,
@@ -209,9 +213,10 @@ export function useEntitySelection() {
     /**
      * Cancel metadata editing
      */
-    function cancelEdit(datasetId: number): void {
-        if (Object.prototype.hasOwnProperty.call(metadataEditState, datasetId)) {
-            delete metadataEditState[datasetId];
+    function cancelEdit(entityId: number): void {
+        if (Object.prototype.hasOwnProperty.call(metadataEditState, entityId)) {
+            metadataEditState[entityId].isEditing = false;
+            delete metadataEditState[entityId];
         }
     }
 
@@ -220,8 +225,8 @@ export function useEntitySelection() {
      */
     async function saveMetadataChanges(
         entityId: number,
-        entities: any[],
-        updateDataset: (index: number, entity: any) => void,
+        entities: Entity[],
+        updateEntity: (index: number, entity: Entity) => void,
         editedJson?: string,
     ): Promise<void> {
         const editState = metadataEditState[entityId];
@@ -234,7 +239,7 @@ export function useEntitySelection() {
         if (!isAuthenticated.value) {
             toast.add({
                 title: "Authentication Required",
-                description: "Please login to save dataset metadata.",
+                description: "Please login to save entity metadata.",
                 color: "warning",
             });
 
@@ -249,18 +254,18 @@ export function useEntitySelection() {
             const parsedMetadata = JSON.parse(jsonToSave);
 
             // Call the backend API to save metadata with cookie-based authentication
-            await apiClient.updateDataset(entityId, parsedMetadata);
+            await apiClient.updateEntity(entityId, parsedMetadata);
 
             toast.add({
                 title: "Success",
-                description: "Dataset metadata updated successfully.",
+                description: "Entity metadata updated successfully.",
                 color: "success",
             });
 
             // Update the entity in the local state
-            const entityIndex = entities.findIndex((entity: any) => getPrimaryKeyValue(entity) === entityId);
+            const entityIndex = entities.findIndex((entity: Entity) => getPrimaryKeyValue(entity) === entityId);
             if (entityIndex !== -1) {
-                updateDataset(entityIndex, {
+                updateEntity(entityIndex, {
                     ...entities[entityIndex],
                     metadata: parsedMetadata,
                 });
@@ -301,8 +306,8 @@ export function useEntitySelection() {
     /**
      * Calculate textarea rows for metadata editing
      */
-    function getTextareaRows(datasetId: number): number {
-        const editState = metadataEditState[datasetId];
+    function getTextareaRows(entityId: number): number {
+        const editState = metadataEditState[entityId];
         if (!editState) return 10;
         const lineCount = editState.editedJson.split("\n").length;
         return Math.max(10, Math.min(lineCount + 1, 25));

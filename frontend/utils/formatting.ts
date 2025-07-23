@@ -1,5 +1,3 @@
-import type { Dataset } from "~/types/dataset";
-
 /**
  * Pure utility functions for data formatting and UI helpers
  * These are stateless functions that don't depend on Vue reactivity
@@ -20,18 +18,19 @@ export function formatFieldLabel(field: string): string {
 }
 
 /**
- * Generate filename for dataset downloads with timestamp
+ * Generate filename for entity downloads with timestamp
  */
-export const createDatasetDownloadFilename = (datasetCount: number): string => {
+export const createEntityDownloadFilename = (entityCount: number): string => {
     const now = new Date();
     const timestamp = now
         .toISOString()
         .slice(0, 19)
         .replace(/[-T:]/g, (match) => (match === "T" ? "_" : "-"));
 
-    const multipleDatasets = datasetCount > 1 ? "datasets" : "dataset";
-    return `fcc_physics_datasets-${datasetCount}-${multipleDatasets}-${timestamp}.json`;
+    const multipleEntities = entityCount > 1 ? "entities" : "entity";
+    return `fcc_physics_entities-${entityCount}-${multipleEntities}-${timestamp}.json`;
 };
+
 
 /**
  * Download data as JSON file to user's computer

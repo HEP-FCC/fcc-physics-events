@@ -1,11 +1,11 @@
 import { ref, shallowRef, shallowReactive, computed, readonly } from "vue";
-import type { Dataset, SearchState, PaginationState, SortState, PaginatedResponse } from "~/types/dataset";
+import type { Entity, SearchState, PaginationState, SortState, PaginatedResponse } from "~/types/entity";
 
 /**
- * Search functionality composable
- * Handles dataset search, pagination, sorting, and infinite scroll
+ * Entity Search Composable
+ * Handles entity search, pagination, sorting, and infinite scroll
  */
-export function useDatasetSearch() {
+export function useEntitySearch() {
     const { apiClient, apiAvailable } = useApiClient();
     const route = useRoute();
 
@@ -16,17 +16,21 @@ export function useDatasetSearch() {
     const isFilterUpdateInProgress = ref(false);
     let currentRequestController: AbortController | null = null;
 
-    // Dataset storage - using shallowRef for large arrays that don't need deep reactivity
-    const datasets = shallowRef<Dataset[]>([]);
+    // Entity storage - using shallowRef for large arrays that don't need deep reactivity
+    const entities = shallowRef<Entity[]>([]);
 
     // Search operation state - using shallowReactive for better performance
     const searchState = shallowReactive<SearchState>({
         query: "",
+        placeholder: "",
         filters: {},
         isLoading: false,
         isLoadingMore: false,
         error: null,
         hasMore: true,
+        isSearching: false,
+        searchResults: {},
+        lastSearchQuery: "",
     });
 
     // Pagination state management
@@ -37,7 +41,6 @@ export function useDatasetSearch() {
         totalEntities: 0,
         hasNext: false,
         hasPrev: false,
-        totalDatasets: 0,
         loadedPages: new Set<number>(),
     });
 
@@ -86,16 +89,16 @@ export function useDatasetSearch() {
     const currentDisplayRange = readonly(
         computed(() => {
             if (infiniteScrollEnabled.value) {
-                const totalDisplayed = datasets.value.length;
+                const totalDisplayed = entities.value.length;
                 const start = totalDisplayed > 0 ? 1 : 0;
-                return { start, end: totalDisplayed, total: pagination.totalDatasets };
+                return { start, end: totalDisplayed, total: pagination.totalEntities };
             } else {
                 const start = (pagination.currentPage - 1) * pagination.pageSize + 1;
-                const end = Math.min(pagination.currentPage * pagination.pageSize, pagination.totalDatasets);
+                const end = Math.min(pagination.currentPage * pagination.pageSize, pagination.totalEntities);
                 return {
-                    start: datasets.value.length > 0 ? start : 0,
+                    start: entities.value.length > 0 ? start : 0,
                     end,
-                    total: pagination.totalDatasets,
+                    total: pagination.totalEntities,
                 };
             }
         }),
@@ -119,15 +122,15 @@ export function useDatasetSearch() {
     });
 
     const showLoadingSkeleton = computed(() => {
-        return (searchState.isLoading && datasets.value.length === 0) || isFilterUpdateInProgress.value;
+        return (searchState.isLoading && entities.value.length === 0) || isFilterUpdateInProgress.value;
     });
 
-    const shouldShowLoadingIndicatorDatasets = computed(() => {
+    const shouldShowLoadingIndicatorEntities = computed(() => {
         return searchState.isLoadingMore && infiniteScrollEnabled.value && canLoadMore.value;
     });
 
     const shouldShowCompletionMessage = computed(() => {
-        return !searchState.hasMore && datasets.value.length > 0 && pagination.totalDatasets > 0;
+        return !searchState.hasMore && entities.value.length > 0 && pagination.totalEntities > 0;
     });
 
     // Utility function
@@ -167,7 +170,7 @@ export function useDatasetSearch() {
 
         if (isInitialLoad) {
             searchState.isLoading = true;
-            datasets.value = [];
+            entities.value = [];
             pagination.loadedPages.clear();
             if (infiniteScrollEnabled.value) {
                 pagination.currentPage = 1;
@@ -186,7 +189,7 @@ export function useDatasetSearch() {
             const offset = (pageToLoad - 1) * pagination.pageSize;
             const queryToSend = searchQuery || "*";
 
-            const response: PaginatedResponse = await apiClient.searchDatasets(
+            const response: PaginatedResponse = await apiClient.searchEntities(
                 queryToSend,
                 pagination.pageSize,
                 offset,
@@ -196,28 +199,28 @@ export function useDatasetSearch() {
 
             if (currentRequestController?.signal.aborted) return;
 
-            const responseDatasets = response.data || response.items || [];
+            const responseEntities = response.data || response.items || [];
 
             if (isInitialLoad || !infiniteScrollEnabled.value) {
-                datasets.value = responseDatasets as Dataset[];
+                entities.value = responseEntities as Entity[];
                 pagination.loadedPages.clear();
                 pagination.loadedPages.add(pageToLoad);
             } else {
                 // Create a new array to ensure reactivity triggers
-                datasets.value = [...datasets.value, ...(responseDatasets as Dataset[])];
+                entities.value = [...entities.value, ...(responseEntities as Entity[])];
                 pagination.loadedPages.add(pageToLoad);
             }
 
-            pagination.totalDatasets = response.total;
+            pagination.totalEntities = response.total;
             pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
             searchState.hasMore = pagination.currentPage < pagination.totalPages;
         } catch (error) {
             if (currentRequestController?.signal.aborted) return;
             console.error("Search failed:", error);
-            searchState.error = error instanceof Error ? error.message : "Failed to fetch datasets.";
+            searchState.error = error instanceof Error ? error.message : "Failed to fetch entities.";
             if (isInitialLoad) {
-                datasets.value = [];
-                pagination.totalDatasets = 0;
+                entities.value = [];
+                pagination.totalEntities = 0;
                 pagination.totalPages = 0;
             }
             searchState.hasMore = false;
@@ -279,7 +282,7 @@ export function useDatasetSearch() {
      */
     async function loadMoreData(): Promise<void> {
         // Prevent loading more data if the first page isn't full, which can happen on initial load
-        if (pagination.currentPage === 1 && datasets.value.length < pagination.pageSize) {
+        if (pagination.currentPage === 1 && entities.value.length < pagination.pageSize) {
             return;
         }
 
@@ -368,9 +371,9 @@ export function useDatasetSearch() {
         searchState.error = null;
     };
 
-    const updateDataset = (index: number, dataset: Dataset): void => {
-        if (index >= 0 && index < datasets.value.length) {
-            datasets.value[index] = { ...dataset };
+    const updateEntity = (index: number, entity: Entity): void => {
+        if (index >= 0 && index < entities.value.length) {
+            entities.value[index] = { ...entity };
         }
     };
 
@@ -389,7 +392,7 @@ export function useDatasetSearch() {
         infiniteScrollEnabled,
         activeFilters,
         isFilterUpdateInProgress,
-        datasets,
+        entities,
         searchState,
         pagination,
         sortState,
@@ -405,7 +408,7 @@ export function useDatasetSearch() {
         canLoadMore,
         sortingFieldOptions,
         showLoadingSkeleton,
-        shouldShowLoadingIndicatorDatasets,
+        shouldShowLoadingIndicatorEntities,
         shouldShowCompletionMessage,
 
         // Methods
@@ -423,7 +426,7 @@ export function useDatasetSearch() {
         updatePageSize,
         updateSortBy,
         clearError,
-        updateDataset,
+        updateEntity,
         cleanup,
     };
 }
