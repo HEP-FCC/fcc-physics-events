@@ -48,7 +48,7 @@ export const clearPreloadedDropdownCache = (): void => {
 };
 
 export const useNavigationConfig = () => {
-    const { getSchemaConfig } = useTypedApiClient();
+    const { getSchemaConfig } = useApiClient();
 
     // Use global singleton state
     const navigationConfig = globalNavigationConfig;
@@ -160,7 +160,7 @@ export const useNavigationConfig = () => {
      * This actually populates the useNavigationState cache to avoid on-demand loading
      */
     const preloadDropdownData = async (): Promise<void> => {
-        const { getDropdownOptions } = useTypedApiClient();
+        const { getDropdownOptions } = useApiClient();
         const order = navigationConfig.value.order;
 
         if (order.length === 0) {

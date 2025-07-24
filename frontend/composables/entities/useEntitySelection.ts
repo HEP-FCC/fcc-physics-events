@@ -8,7 +8,7 @@ import type { Entity, SelectionState, MetadataEditState } from "~/types/api";
  * Works with any entity type (books, products, etc.)
  */
 export function useEntitySelection() {
-    const { downloadEntitiesByIds } = useTypedApiClient();
+    const { downloadEntitiesByIds } = useApiClient();
 
     // Check API availability
     const apiAvailable = computed(() => {
@@ -262,7 +262,7 @@ export function useEntitySelection() {
             const parsedMetadata = JSON.parse(jsonToSave);
 
             // Call the backend API to save metadata with cookie-based authentication
-            const { updateEntity } = useTypedApiClient();
+            const { updateEntity } = useApiClient();
             await updateEntity(entityId, parsedMetadata);
 
             toast.add({

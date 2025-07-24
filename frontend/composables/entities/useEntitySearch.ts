@@ -6,7 +6,7 @@ import type { Entity, SearchState, PaginationState, SortState, PaginatedResponse
  * Handles entity search, pagination, sorting, and infinite scroll
  */
 export function useEntitySearch() {
-    const { searchEntities, getSortingFields, baseUrl } = useTypedApiClient();
+    const { searchEntities, getSortingFields, baseUrl } = useApiClient();
 
     // Check API availability
     const apiAvailable = computed(() => !!baseUrl);

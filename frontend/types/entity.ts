@@ -96,12 +96,5 @@ export interface SelectionState {
     isDownloading: boolean;
 }
 
-/**
- * Metadata editing state for a single entity
- */
-export interface MetadataEditState {
-    isEditing: boolean;
-    editingEntityId: number | null;
-    editingData: Record<string, unknown>;
-    hasChanges: boolean;
-}
+// Re-export MetadataEditState from api types for convenience
+export type { MetadataEditState } from "~/types/api";

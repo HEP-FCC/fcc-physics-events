@@ -105,9 +105,8 @@
 </template>
 
 <script setup lang="ts">
-// Auto-imported types: Entity, PaginationState, SortState, SelectionState, SearchState
-// Auto-imported types: MetadataEditState
-// Auto-imported: getPrimaryKeyValue
+import type { Entity, PaginationState, SortState, SearchState } from "~/types/entity";
+import type { SelectionState, MetadataEditState } from "~/types/api";
 import EntityMetadata from "./EntityMetadata.vue";
 
 // Import schema utilities for dynamic entity handling
@@ -141,7 +140,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
 // Composables
-const { formatTimestamp, getStatusFields, formatFieldName } = useUtils();
+const { formatTimestamp, getStatusFields, formatFieldName, getPrimaryKeyValue } = useUtils();
 const { getNavigationItem } = useNavigationConfig();
 
 // Helper function to get entity ID

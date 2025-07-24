@@ -6,7 +6,7 @@ import type { DropdownItem } from "~/types/schema";
  * Dynamic navigation state management with schema-driven configuration
  */
 export function useNavigationState() {
-    const { baseUrl } = useTypedApiClient();
+    const { baseUrl } = useApiClient();
     const { getNavigationOrder, getNavigationItem, initializeNavigation, isNavigationReady } = useNavigationConfig();
 
     // Dynamic refs based on navigation order

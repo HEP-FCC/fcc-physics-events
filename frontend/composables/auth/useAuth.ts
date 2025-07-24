@@ -20,7 +20,7 @@ interface AuthState {
  * Handles login, logout, and user session management
  */
 export function useAuth() {
-    const { initiateLogin, logoutUser } = useTypedApiClient();
+    const { initiateLogin, logoutUser } = useApiClient();
 
     // Use global state to ensure consistency across components
     const authState = useState<AuthState>(
