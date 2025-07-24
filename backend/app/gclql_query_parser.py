@@ -53,8 +53,21 @@ class Field:
         sql_column = schema_mapping.get(base_field)
 
         if not sql_column:
-            # Try to search the dataset columns
-            sql_column = f"d.{base_field}"
+            # Check if this might be a foreign key field (entity reference)
+            # Common entity fields that map to foreign keys in the dataset table
+            entity_fields = {
+                "accelerator",
+                "stage",
+                "campaign",
+                "detector",
+                "software_stack",
+            }
+            if base_field in entity_fields:
+                # Map to the foreign key column in the dataset table
+                sql_column = f"d.{base_field}_id"
+            else:
+                # Try to search the dataset columns directly
+                sql_column = f"d.{base_field}"
 
         # Hardcoded "metadata" field name required in the db schema
         if base_field == "metadata" and len(self.parts) > 1:
@@ -160,7 +173,9 @@ class SqlTranslator:
         self.param_index = 0
 
     def reset(
-        self, schema_mapping: dict[str, str], global_search_fields: list[str] = None
+        self,
+        schema_mapping: dict[str, str],
+        global_search_fields: list[str] | None = None,
     ) -> None:
         self.schema_mapping = schema_mapping
         if global_search_fields is not None:
@@ -248,16 +263,45 @@ class SqlTranslator:
         if str(node.value).strip() in ("*", ""):
             return "TRUE"
 
+        search_value = str(node.value).strip()
+        print(f"DEBUG: Global search for: '{search_value}'")
+        logger.info(f"Global search for: '{search_value}'")
+
+        # Use one parameter for all field searches to avoid duplication
+        self.param_index += 1
+        placeholder = f"${self.param_index}"
+        self.params.append(search_value)
+
+        # Check if this is likely a quoted string vs unquoted identifier
+        # Quoted strings should use exact substring search (ILIKE)
+        # Unquoted identifiers should use fuzzy similarity search
+        # We can detect this by checking if the search contains spaces or special chars
+        # Single words without quotes are parsed as identifiers and should use fuzzy search
+        contains_spaces_or_special = " " in search_value or any(
+            c in search_value for c in ["-", ".", "_"]
+        )
+
+        print(f"DEBUG: Contains spaces or special chars: {contains_spaces_or_special}")
+
         clauses = []
         for field_name in self.global_search_fields:
-            self.param_index += 1
-            placeholder = f"${self.param_index}"
-            clauses.append(f"{field_name} ILIKE {placeholder}")
-            self.params.append(f"%{node.value}%")
+            if contains_spaces_or_special:
+                # Multi-word phrases (likely from quoted strings) - use exact substring search
+                clauses.append(f"{field_name} ILIKE '%' || {placeholder} || '%'")
+            else:
+                # Single words (likely unquoted identifiers) - use similarity for fuzzy matching
+                # similarity() is better than strict_word_similarity() for single word typos
+                # Use lower threshold (0.6) for better fuzzy matching of single words
+                clauses.append(f"similarity({placeholder}, {field_name}) > 0.6")
 
         if not clauses:
             raise ValueError("Global search used, but no fields configured for it.")
-        return "(" + " OR ".join(clauses) + ")"
+
+        result = "(" + " OR ".join(clauses) + ")"
+        print(f"DEBUG: Global search generated clause: {result}")
+        logger.info(f"Global search generated clause: {result}")
+        logger.info(f"Global search parameter: '{search_value}'")
+        return result
 
 
 class QueryParser:
@@ -363,6 +407,176 @@ class QueryParser:
 
         return global_search_fields
 
+    def _build_fuzzy_search_clause(self, query_string: str) -> tuple[str, list[Any]]:
+        """
+        Build a fuzzy search clause using PostgreSQL's trigram similarity.
+        Uses the similarity() function with a 60% similarity threshold (0.6).
+
+        This method treats the entire query as a single search term for fuzzy matching.
+        """
+        # Clean up the query string - remove quotes and operators, keep the actual search content
+        import re
+
+        # Extract quoted strings first (these are likely the actual search terms)
+        quoted_strings = re.findall(r'["\']([^"\']+)["\']', query_string)
+
+        if quoted_strings:
+            # If we have quoted strings, use the first one as the search term
+            # (assumes the failing part is what we want to search for)
+            search_term = quoted_strings[0].strip()
+        else:
+            # If no quoted strings, clean up the query by removing operators
+            # Remove common operators and field assignments
+            cleaned = re.sub(
+                r"\b(AND|OR|NOT)\b", " ", query_string, flags=re.IGNORECASE
+            )
+            cleaned = re.sub(
+                r'\w+\s*=\s*["\'][^"\']*["\']', " ", cleaned
+            )  # Remove field=value pairs
+            cleaned = re.sub(r"\s+", " ", cleaned).strip()  # Normalize whitespace
+            search_term = cleaned
+
+        # If we end up with empty search term, use the original query
+        if not search_term:
+            search_term = query_string.strip()
+
+        print(f"DEBUG: Fuzzy search extracted term: '{search_term}'")
+        logger.info(f"Fuzzy search for term: '{search_term}'")
+        logger.info(f"Original query string: '{query_string}'")
+        logger.info(f"Quoted strings found: {quoted_strings}")
+        logger.info(f"Final search term: '{search_term}'")
+
+        # Build fuzzy search conditions for the single search term
+        # Use similarity() for fuzzy substring matching instead of strict word boundaries
+        # This is better for phrases that might appear as substrings in the text
+        conditions = []
+        params = []
+        param_index = 0
+
+        # Use one parameter for all field searches to avoid duplication
+        param_index += 1
+        placeholder = f"${param_index}"
+        params.append(search_term)
+
+        # Search in all fields using similarity with 0.6 threshold (more lenient than 0.6)
+        for field_name in [
+            "d.name",
+            "jsonb_values_to_text(d.metadata)",
+        ] + [
+            f"{self.entity_aliases[entity_key]}.{table_info['name_column']}"
+            for entity_key, table_info in self.navigation_analysis[
+                "navigation_tables"
+            ].items()
+        ]:
+            # For metadata, use word_similarity which is better for finding phrases within larger text
+            if field_name == "jsonb_values_to_text(d.metadata)":
+                # Use word_similarity for better phrase matching within metadata text
+                # This finds "forxed to tau" similar to "forced to tau" even as substring
+                conditions.append(f"word_similarity({placeholder}, {field_name}) > 0.6")
+            else:
+                # Use similarity() for other fields (shorter text)
+                conditions.append(f"similarity({placeholder}, {field_name}) > 0.6")
+
+        # Combine all conditions with OR (any field can match)
+        if conditions:
+            where_clause = f"({' OR '.join(conditions)})"
+        else:
+            where_clause = "TRUE"
+
+        logger.info(f"Generated fuzzy search WHERE clause: {where_clause}")
+        logger.info(f"Fuzzy search parameters: {params}")
+
+        return where_clause, params
+
+    def _build_hybrid_search_clause(self, query_string: str) -> tuple[str, list[Any]]:
+        """
+        Build a hybrid search clause that combines exact matches for valid parts
+        with fuzzy search for the parts that failed to parse.
+
+        This approach first applies exact filters, then fuzzy search within those results.
+        """
+        import re
+
+        print(f"DEBUG: Building hybrid search for: '{query_string}'")
+
+        # Split the query into parts separated by AND
+        parts = re.split(r"\s+AND\s+", query_string, flags=re.IGNORECASE)
+
+        valid_clauses = []
+        fuzzy_search_terms = []
+        all_params = []
+
+        global_search_fields = self._build_dynamic_global_search_fields()
+        self.translator.reset(self.schema_mapping, global_search_fields)
+
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+
+            try:
+                # Try to parse this individual part
+                print(f"DEBUG: Trying to parse part: '{part}'")
+                ast = cast(AstNode, self.transformer.transform(self.parser.parse(part)))
+
+                # If successful, translate to SQL
+                clause = self.translator.translate(ast)
+                valid_clauses.append(clause)
+                print(f"DEBUG: Successfully parsed part: '{part}' -> {clause}")
+
+            except exceptions.LarkError:
+                # If this part fails, add it to fuzzy search terms
+                print(f"DEBUG: Failed to parse part: '{part}', adding to fuzzy search")
+                fuzzy_search_terms.append(part)
+
+        # Collect parameters from valid clauses
+        all_params.extend(self.translator.params)
+        param_index = len(all_params)
+
+        # Build fuzzy search clause for failed parts
+        if fuzzy_search_terms:
+            # Combine all fuzzy search terms into one search phrase
+            fuzzy_phrase = " ".join(fuzzy_search_terms).strip()
+            print(f"DEBUG: Fuzzy search phrase: '{fuzzy_phrase}'")
+
+            # Build fuzzy search conditions using similarity for fuzzy substring matching
+            # This is better for phrases that might appear as substrings
+            fuzzy_conditions = []
+            param_index += 1
+            placeholder = f"${param_index}"
+            all_params.append(fuzzy_phrase)
+
+            for field_name in global_search_fields:
+                # For metadata, use word_similarity which is better for finding phrases within larger text
+                if field_name == "jsonb_values_to_text(d.metadata)":
+                    # Use word_similarity for better phrase matching within metadata text
+                    # This finds "forxed to tau" similar to "forced to tau" even as substring
+                    fuzzy_conditions.append(
+                        f"word_similarity({placeholder}, {field_name}) > 0.6"
+                    )
+                else:
+                    # Use similarity() for other fields (shorter text)
+                    fuzzy_conditions.append(
+                        f"similarity({placeholder}, {field_name}) > 0.6"
+                    )
+
+            if fuzzy_conditions:
+                fuzzy_clause = f"({' OR '.join(fuzzy_conditions)})"
+                valid_clauses.append(fuzzy_clause)
+                print(f"DEBUG: Added fuzzy clause: {fuzzy_clause}")
+                print(f"DEBUG: Fuzzy phrase parameter: '{fuzzy_phrase}'")
+
+        # Combine all clauses with AND
+        if valid_clauses:
+            where_clause = f"({' AND '.join(valid_clauses)})"
+        else:
+            where_clause = "TRUE"
+
+        print(f"DEBUG: Final hybrid WHERE clause: {where_clause}")
+        print(f"DEBUG: Final hybrid parameters: {all_params}")
+
+        return where_clause, all_params
+
     def parse_query(
         self,
         query_string: str,
@@ -383,15 +597,50 @@ class QueryParser:
             return count_query, select_query, []
 
         try:
+            # Try to parse the query with the grammar
+            print(f"DEBUG: Attempting to parse query: '{query_string}'")
+            logger.info(f"Attempting to parse query: '{query_string}'")
             ast = cast(
                 AstNode, self.transformer.transform(self.parser.parse(query_string))
             )
-        except exceptions.LarkError as e:
-            raise ValueError(f"Invalid query syntax: {e}") from e
+            print(f"DEBUG: Query parsed successfully. AST type: {type(ast)}")
+            logger.info(f"Query parsed successfully. AST type: {type(ast)}")
 
-        global_search_fields = self._build_dynamic_global_search_fields()
-        self.translator.reset(self.schema_mapping, global_search_fields)
-        where_clause = self.translator.translate(ast)
+            # If parsing succeeds, use the normal translation
+            global_search_fields = self._build_dynamic_global_search_fields()
+            self.translator.reset(self.schema_mapping, global_search_fields)
+            where_clause = self.translator.translate(ast)
+            print(f"DEBUG: Generated WHERE clause: {where_clause}")
+            print(f"DEBUG: Generated parameters: {self.translator.params}")
+            logger.info(f"Generated WHERE clause: {where_clause}")
+            logger.info(f"Generated parameters: {self.translator.params}")
+
+        except exceptions.LarkError as e:
+            # If parsing fails, try to parse valid parts and apply fuzzy search to the rest
+            print(f"DEBUG: Query parsing failed with error: {e}")
+            logger.info(f"Query parsing failed, using hybrid approach: {e}")
+
+            try:
+                where_clause, params = self._build_hybrid_search_clause(query_string)
+                print("DEBUG: Hybrid search completed successfully")
+            except Exception as hybrid_error:
+                print(f"DEBUG: Hybrid search failed with error: {hybrid_error}")
+                logger.error(f"Hybrid search failed: {hybrid_error}")
+                # Fallback to fuzzy search only
+                where_clause, params = self._build_fuzzy_search_clause(query_string)
+
+            select_fields = self._build_dynamic_select_fields()
+            select_query = f"""
+                SELECT {select_fields}
+                {self.from_and_joins}
+                WHERE {where_clause}
+                {self._build_order_by_clause(sort_by, sort_order)}
+            """
+            count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
+            print(f"DEBUG: Hybrid search final query: {select_query}")
+            print(f"DEBUG: Hybrid search final params: {params}")
+            return count_query, select_query, params
+
         select_fields = self._build_dynamic_select_fields()
         select_query = f"""
             SELECT {select_fields}

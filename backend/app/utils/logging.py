@@ -14,7 +14,8 @@ import structlog
 from app.utils.config import get_config
 
 config = get_config()
-LOG_LEVEL = config.get("general.log_level", "INFO").upper()
+# LOG_LEVEL = config.get("general.log_level", "INFO").upper()
+LOG_LEVEL = "DEBUG"
 
 # Flag to track if logging has been configured
 _logging_configured = False
@@ -47,8 +48,8 @@ def setup_logging() -> None:
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
-            structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S.%f"),
+            structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.StackInfoRenderer(),
             structlog.dev.ConsoleRenderer(colors=True),
         ],
@@ -59,13 +60,13 @@ def setup_logging() -> None:
     )
 
     # Add handler to root logger
-    handler = logging.StreamHandler()
-    handler.setLevel(LOG_LEVEL)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
+    # handler = logging.StreamHandler()
+    # handler.setLevel(LOG_LEVEL)
+    # formatter = logging.Formatter(
+    #     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    # )
+    # handler.setFormatter(formatter)
+    # root_logger.addHandler(handler)
 
     _logging_configured = True
 

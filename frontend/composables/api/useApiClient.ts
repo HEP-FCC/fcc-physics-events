@@ -20,19 +20,35 @@ export function useApiClient() {
     const config = useRuntimeConfig();
     const baseUrl = config.public.apiBaseUrl || "http://localhost:8000";
 
+    console.log("DEBUG: baseUrl configured as:", baseUrl);
+
     /**
      * Generic typed fetch wrapper - handles direct backend responses
      */
     const typedFetch = async <T>(endpoint: string, options: TypedFetchOptions = {}): Promise<T> => {
         try {
-            const response = await $fetch<T>(`${baseUrl}${endpoint}`, {
+            let fullUrl = `${baseUrl}${endpoint}`;
+
+            // Manually construct query string to avoid any $fetch issues
+            if (options.query && Object.keys(options.query).length > 0) {
+                const queryParams = new URLSearchParams();
+                for (const [key, value] of Object.entries(options.query)) {
+                    if (value !== undefined && value !== null) {
+                        queryParams.append(key, String(value));
+                    }
+                }
+                fullUrl += `?${queryParams.toString()}`;
+            }
+
+            console.log("DEBUG: Making request to:", fullUrl);
+
+            const response = await $fetch<T>(fullUrl, {
                 method: (options.method || "GET") as "GET" | "POST" | "PUT" | "DELETE",
                 body: options.body as Record<string, unknown> | undefined,
                 headers: {
                     "Content-Type": "application/json",
                     ...options.headers,
                 },
-                query: options.query,
                 credentials: "include",
             });
 
@@ -67,6 +83,8 @@ export function useApiClient() {
             method: "GET",
             query: queryParams,
         });
+
+        console.info("DEBUG:", backendResponse);
 
         // Transform backend response to match frontend interface
         const currentPage = options.page || 1;

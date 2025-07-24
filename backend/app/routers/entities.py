@@ -118,6 +118,9 @@ async def execute_gclql_query(
     Executes a GCLQL-style query against the database with pagination and sorting.
     Supports sorting by any entity field or metadata JSON field (e.g., 'metadata.key').
     """
+    logger.info(
+        f"*** /query/ endpoint called with q={q}, limit={limit}, offset={offset}"
+    )
     try:
         # Validate sort_order parameter
         if sort_order.lower() not in ["asc", "desc"]:

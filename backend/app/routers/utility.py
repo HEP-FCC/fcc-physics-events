@@ -15,6 +15,7 @@ router = APIRouter(tags=["utility"])
 @router.get("/")
 async def read_root() -> dict[str, str]:
     """Root endpoint that returns basic application information."""
+    logger.info("*** ROOT ENDPOINT CALLED ***")
     config = get_config()
     return {
         "message": "FCC Physics Events API",
