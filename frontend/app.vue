@@ -26,14 +26,18 @@
         </header>
 
         <!-- Main Content -->
-        <main>
+        <main class="pb-10">
             <NuxtPage />
         </main>
+
+        <!-- Footer -->
+        <AppFooter />
     </UApp>
 </template>
 
 <script setup lang="ts">
 import AuthSection from "~/components/auth/AuthSection.vue";
+import AppFooter from "~/components/AppFooter.vue";
 
 // Auto-imported: useAuth, useDynamicNavigation, useAppConfiguration
 
