@@ -6,7 +6,7 @@ A Vue.js 3 / Nuxt.js 3 application for browsing and searching FCC physics data. 
 
 - **Advanced Search**: Query data entities using GCLQL (Graph-based Context-aware Library Query Language)
 - **Smart Filtering**: Filter by accelerator, campaign, detector, and stage
-- **Flexible Viewing**: Toggle between infinite scroll and paginated modes
+- **Flexible Viewing**: Infinite scroll for seamless data loading
 - **Bulk Operations**: Select multiple entities for download
 - **Metadata Exploration**: Expandable metadata view for detailed entity information
 - **Responsive Design**: Works on desktop and mobile devices
@@ -86,7 +86,7 @@ pnpm preview
 │   ├── EntitySearchInterface.vue   # Main search interface
 │   ├── Metadata.vue                # Entity metadata display
 │   ├── NavigationMenu.vue          # Filter navigation
-│   ├── ResultsSummary.vue          # Results count and pagination
+│   ├── ResultsSummary.vue          # Results count and infinite scroll controls
 │   └── SearchControls.vue          # Search input and permalink
 ├── composables/         # Reusable business logic
 │   ├── getApiClient.ts             # API communication

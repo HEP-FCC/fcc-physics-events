@@ -87,21 +87,9 @@ export function useApiClient() {
         console.info("DEBUG:", backendResponse);
 
         // Transform backend response to match frontend interface
-        const currentPage = options.page || 1;
-        const pageSize = options.pageSize || 20;
-        const totalPages = Math.ceil(backendResponse.total / pageSize);
-
         const result: SearchApiResponse<Entity> = {
             data: backendResponse.items,
             total: backendResponse.total,
-            pagination: {
-                currentPage,
-                totalPages,
-                pageSize,
-                total: backendResponse.total,
-                hasNext: currentPage < totalPages,
-                hasPrev: currentPage > 1,
-            },
             success: true,
             query: options.query,
             filters: options.filters,

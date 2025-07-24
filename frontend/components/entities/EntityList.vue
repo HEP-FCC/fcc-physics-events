@@ -105,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Entity, PaginationState, SortState, SearchState } from "~/types/entity";
+import type { Entity, ScrollState, SortState, SearchState } from "~/types/entity";
 import type { SelectionState, MetadataEditState } from "~/types/api";
 import EntityMetadata from "./EntityMetadata.vue";
 
@@ -118,7 +118,7 @@ import EntityMetadata from "./EntityMetadata.vue";
 
 interface Props {
     entities: Entity[];
-    pagination: PaginationState;
+    scrollState: ScrollState;
     sortState: SortState;
     selectionState: SelectionState;
     searchState: SearchState;
@@ -128,6 +128,7 @@ interface Props {
     currentDisplayRange: { start: number; end: number; total: number };
     shouldShowLoadingIndicator: boolean;
     shouldShowCompletionMessage: boolean;
+    activeFilters?: Record<string, string>;
 }
 
 interface Emits {
@@ -175,10 +176,17 @@ function getEntityBadges(entity: Entity) {
                 label: String(config?.label || formatFieldName(navType || "unknown")),
                 value: String(value || ""),
                 color: config?.badgeColor || "neutral",
+                filterKey: key, // Store the original key for filter comparison
             };
+        })
+        .filter((badge) => {
+            // Filter out badges that match currently active filters
+            // activeFilters format: { "type_name": "value" }
+            const activeFilterValue = props.activeFilters?.[badge.filterKey];
+            return !activeFilterValue || activeFilterValue !== badge.value;
         });
 
-    // Add status badges from metadata
+    // Add status badges from metadata (these are always shown as they're not navigation filters)
     const statusBadges = getStatusFields(entity.metadata || {}).map((statusField) => ({
         key: statusField.key ? `status_${String(statusField.key)}` : "status_unknown", // Ensure key is always a valid string
         label: String(statusField.label || "Unknown"),

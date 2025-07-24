@@ -1,5 +1,5 @@
 // Auto-imported: ref, shallowRef, shallowReactive, computed, readonly
-import type { Entity, SearchState, PaginationState, SortState, PaginatedResponse } from "~/types/entity";
+import type { Entity, SearchState, ScrollState, SortState, PaginatedResponse } from "~/types/entity";
 
 /**
  * Entity Search Composable
@@ -39,14 +39,11 @@ export function useEntitySearch() {
     // Loading lock to prevent concurrent requests
     let isLoadingLock = false;
 
-    // Pagination state management
-    const pagination = shallowReactive<PaginationState>({
+    // Infinite scroll state management
+    const scrollState = shallowReactive<ScrollState>({
         currentPage: 1,
         pageSize: 20,
-        totalPages: 0,
         totalEntities: 0,
-        hasNext: false,
-        hasPrev: false,
         loadedPages: new Set<number>(),
     });
 
@@ -81,9 +78,7 @@ export function useEntitySearch() {
     });
 
     const searchPlaceholderText = computed(() => {
-        return urlFilterQuery.value
-            ? "Add additional search terms..."
-            : 'e.g., entity_name="value" AND metadata.status="done"';
+        return urlFilterQuery.value ? "Add additional search terms..." : 'e.g., entity_name="value" AND status="done"';
     });
 
     const showFilterNote = computed(() => !!urlFilterQuery.value);
@@ -96,7 +91,7 @@ export function useEntitySearch() {
         computed(() => {
             const totalDisplayed = entities.value.length;
             const start = totalDisplayed > 0 ? 1 : 0;
-            return { start, end: totalDisplayed, total: pagination.totalEntities };
+            return { start, end: totalDisplayed, total: scrollState.totalEntities };
         }),
     );
 
@@ -125,7 +120,7 @@ export function useEntitySearch() {
     });
 
     const shouldShowCompletionMessage = computed(() => {
-        return !searchState.hasMore && entities.value.length > 0 && pagination.totalEntities > 0;
+        return !searchState.hasMore && entities.value.length > 0 && scrollState.totalEntities > 0;
     });
 
     // Utility function
@@ -166,8 +161,8 @@ export function useEntitySearch() {
         if (isInitialLoad) {
             searchState.isLoading = true;
             entities.value = [];
-            pagination.loadedPages.clear();
-            pagination.currentPage = 1; // Always start from page 1 for new searches
+            scrollState.loadedPages.clear();
+            scrollState.currentPage = 1; // Always start from page 1 for new searches
         } else {
             searchState.isLoadingMore = true;
         }
@@ -176,13 +171,13 @@ export function useEntitySearch() {
         try {
             // For infinite scroll: use currentPage directly
             // For initial load: always start with page 1
-            const pageToLoad = isInitialLoad ? 1 : pagination.currentPage;
+            const pageToLoad = isInitialLoad ? 1 : scrollState.currentPage;
             const queryToSend = searchQuery || "*";
 
             const searchParams = {
                 query: queryToSend,
                 page: pageToLoad,
-                pageSize: pagination.pageSize,
+                pageSize: scrollState.pageSize,
                 sortBy: sortState.sortBy,
                 sortOrder: sortState.sortOrder,
                 filters: activeFilters.value,
@@ -197,33 +192,32 @@ export function useEntitySearch() {
             if (isInitialLoad) {
                 // Replace all entities for new search
                 entities.value = responseEntities as Entity[];
-                pagination.loadedPages.clear();
-                pagination.loadedPages.add(pageToLoad);
+                scrollState.loadedPages.clear();
+                scrollState.loadedPages.add(pageToLoad);
             } else {
                 // Safeguard: Don't add entities if we've already loaded this page
-                if (pagination.loadedPages.has(pageToLoad)) {
+                if (scrollState.loadedPages.has(pageToLoad)) {
                     console.warn(`Page ${pageToLoad} already loaded, skipping append`);
                     return;
                 }
 
                 // Append new entities for infinite scroll
                 entities.value = [...entities.value, ...(responseEntities as Entity[])];
-                pagination.loadedPages.add(pageToLoad);
+                scrollState.loadedPages.add(pageToLoad);
             }
 
-            pagination.totalEntities = response.total;
-            pagination.totalPages = Math.ceil(response.total / pagination.pageSize);
+            scrollState.totalEntities = response.total;
+            const totalPages = Math.ceil(response.total / scrollState.pageSize);
 
             // Check if there are more pages available
-            searchState.hasMore = pageToLoad < pagination.totalPages;
+            searchState.hasMore = pageToLoad < totalPages;
         } catch (error) {
             if (currentRequestController?.signal.aborted) return;
             console.error("Search failed:", error);
             searchState.error = error instanceof Error ? error.message : "Failed to fetch entities.";
             if (isInitialLoad) {
                 entities.value = [];
-                pagination.totalEntities = 0;
-                pagination.totalPages = 0;
+                scrollState.totalEntities = 0;
             }
             searchState.hasMore = false;
         } finally {
@@ -265,10 +259,10 @@ export function useEntitySearch() {
     }
 
     /**
-     * Execute search with pagination reset
+     * Execute search with scroll state reset
      */
     const executeSearch = (): void => {
-        pagination.currentPage = 1;
+        scrollState.currentPage = 1;
         performSearch(true);
     };
 
@@ -294,10 +288,10 @@ export function useEntitySearch() {
         }
 
         // Calculate next page to load
-        const nextPage = pagination.currentPage + 1;
+        const nextPage = scrollState.currentPage + 1;
 
         // Safeguard: Don't load if we've already loaded this page
-        if (pagination.loadedPages.has(nextPage)) {
+        if (scrollState.loadedPages.has(nextPage)) {
             console.warn(`Page ${nextPage} already loaded, skipping`);
             return;
         }
@@ -307,7 +301,7 @@ export function useEntitySearch() {
 
         try {
             // Update current page and load
-            pagination.currentPage = nextPage;
+            scrollState.currentPage = nextPage;
             await performSearch(false);
         } finally {
             // Always release the lock
@@ -316,11 +310,10 @@ export function useEntitySearch() {
     }
 
     /**
-     * Toggle between infinite scroll and pagination modes
+     * Toggle infinite scroll mode (simplified since we only use infinite scroll now)
      */
     const toggleMode = (): void => {
-        infiniteScrollEnabled.value = !infiniteScrollEnabled.value;
-        pagination.currentPage = 1;
+        scrollState.currentPage = 1;
         performSearch(true);
     };
 
@@ -335,7 +328,7 @@ export function useEntitySearch() {
      * Handle page size change
      */
     const handlePageSizeChange = (): void => {
-        pagination.currentPage = 1;
+        scrollState.currentPage = 1;
         performSearch(true);
     };
 
@@ -378,11 +371,11 @@ export function useEntitySearch() {
      * Update methods for readonly state
      */
     const updateCurrentPage = (page: number): void => {
-        pagination.currentPage = Math.max(1, Math.min(page, pagination.totalPages));
+        scrollState.currentPage = Math.max(1, page);
     };
 
     const updatePageSize = (size: number): void => {
-        pagination.pageSize = size;
+        scrollState.pageSize = size;
     };
 
     const updateSortBy = (field: string): void => {
@@ -416,7 +409,7 @@ export function useEntitySearch() {
         isFilterUpdateInProgress,
         entities,
         searchState,
-        pagination,
+        scrollState,
         sortState,
         apiAvailable,
 

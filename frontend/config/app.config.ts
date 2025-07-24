@@ -61,7 +61,7 @@ export const APP_CONFIG = {
     >,
 
     /**
-     * Search and pagination settings
+     * Search and infinite scroll settings
      */
     search: {
         defaultPageSize: 20,

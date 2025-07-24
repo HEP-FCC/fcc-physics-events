@@ -87,8 +87,8 @@
 
                 <!-- Batch size control -->
                 <div class="flex items-center gap-1 text-sm">
-                    <UTooltip text="Number of items to load at once. Range: 20-100" placement="top">
-                        <span>Load:</span>
+                    <UTooltip text="Number of items to load in each batch. Range: 20-100" placement="top">
+                        <span>Batch size:</span>
                     </UTooltip>
                     <UInput
                         :model-value="pageSize"

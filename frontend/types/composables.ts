@@ -5,6 +5,7 @@
 
 import type { Ref, ComputedRef } from "vue";
 import type { Entity, ApiError, DropdownOption } from "./api";
+import type { SearchState, ScrollState, SortState } from "./entity";
 
 /**
  * State interfaces for composables
@@ -14,38 +15,6 @@ export interface AsyncState<T> {
     loading: Ref<boolean>;
     error: Ref<ApiError | null>;
     refresh: () => Promise<void>;
-}
-
-export interface PaginationState {
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-    totalEntities: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-    loadedPages: Set<number>;
-}
-
-export interface SortState {
-    field: string;
-    order: SortOrder;
-    sortBy: string;
-    sortOrder: SortOrder;
-    availableFields: string[];
-    isLoading: boolean;
-}
-
-export interface SearchState {
-    query: string;
-    placeholder: string;
-    filters: Record<string, unknown>;
-    isLoading: boolean;
-    isLoadingMore: boolean;
-    error: string | null;
-    hasMore: boolean;
-    isSearching: boolean;
-    searchResults: Record<string, unknown>;
-    lastSearchQuery: string;
 }
 
 export interface SelectionState {
@@ -68,7 +37,7 @@ export interface EntitySearchComposable {
     isFilterUpdateInProgress: Ref<boolean>;
     entities: Ref<Entity[]>;
     searchState: SearchState;
-    pagination: PaginationState;
+    scrollState: ScrollState;
     sortState: SortState;
     apiAvailable: Ref<boolean>;
 

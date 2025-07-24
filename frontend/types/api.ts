@@ -57,26 +57,18 @@ export interface ApiResponse<T = unknown> {
 }
 
 /**
- * Enhanced paginated response with better typing
+ * Simplified response for infinite scroll
  */
-export interface PaginatedApiResponse<T = Entity> {
+export interface InfiniteScrollApiResponse<T = Entity> {
     data: T[];
     total: number;
-    pagination: {
-        currentPage: number;
-        totalPages: number;
-        pageSize: number;
-        total: number;
-        hasNext: boolean;
-        hasPrev: boolean;
-    };
     success: boolean;
 }
 
 /**
  * Search API response structure
  */
-export interface SearchApiResponse<T = Entity> extends PaginatedApiResponse<T> {
+export interface SearchApiResponse<T = Entity> extends InfiniteScrollApiResponse<T> {
     query?: string;
     filters?: Record<string, unknown>;
     sortBy?: string;

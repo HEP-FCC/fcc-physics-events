@@ -37,7 +37,7 @@
                 :sorting-field-options="search.sortingFieldOptions.value"
                 :sort-loading="search.sortState.isLoading"
                 :display-range="search.currentDisplayRange.value"
-                :page-size="search.pagination.pageSize"
+                :page-size="search.scrollState.pageSize"
                 @toggle-select-all="selection.toggleSelectAll(search.entities.value as Entity[])"
                 @download-selected="selection.downloadSelectedEntities"
                 @toggle-all-metadata="selection.toggleAllMetadata(search.entities.value as Entity[])"
@@ -50,7 +50,7 @@
             <!-- Entity List -->
             <EntityList
                 :entities="search.entities.value as Entity[]"
-                :pagination="search.pagination"
+                :scroll-state="search.scrollState"
                 :sort-state="search.sortState"
                 :selection-state="selection.selectionState"
                 :search-state="search.searchState"
@@ -60,6 +60,7 @@
                 :current-display-range="search.currentDisplayRange.value"
                 :should-show-loading-indicator="search.shouldShowLoadingIndicatorEntities.value"
                 :should-show-completion-message="search.shouldShowCompletionMessage.value"
+                :active-filters="search.activeFilters.value"
                 @toggle-entity-selection="selection.toggleEntitySelection"
                 @toggle-metadata="selection.toggleMetadata"
                 @enter-edit-mode="selection.enterEditMode"
@@ -86,7 +87,7 @@
             <div v-else-if="search.shouldShowCompletionMessage.value" class="flex justify-center py-6">
                 <div class="text-center text-sm text-gray-500 dark:text-gray-400">
                     <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
-                    All {{ search.pagination.totalEntities }} {{ mainTableDisplayName.toLowerCase() }} loaded
+                    All {{ search.scrollState.totalEntities }} {{ mainTableDisplayName.toLowerCase() }} loaded
                 </div>
             </div>
         </div>
@@ -217,7 +218,7 @@ watch(
 
 // Clear metadata expansions when page changes
 watch(
-    () => search.pagination.currentPage,
+    () => search.scrollState.currentPage,
     () => selection.clearMetadataExpansions(),
     { flush: "post" },
 );

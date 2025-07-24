@@ -21,26 +21,15 @@ export interface PaginatedResponse<T = Entity> {
     data?: T[];
     items?: T[];
     total: number;
-    pagination?: {
-        currentPage: number;
-        totalPages: number;
-        pageSize: number;
-        total: number;
-        hasNext: boolean;
-        hasPrev: boolean;
-    };
 }
 
 /**
- * Pagination state for entity lists
+ * State for infinite scroll functionality
  */
-export interface PaginationState {
+export interface ScrollState {
     currentPage: number;
     pageSize: number;
-    totalPages: number;
     totalEntities: number;
-    hasNext: boolean;
-    hasPrev: boolean;
     loadedPages: Set<number>;
 }
 
