@@ -105,9 +105,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Entity, PaginationState, SortState, SelectionState, SearchState } from "~/types/entity";
-import type { MetadataEditState } from "~/types/api";
-import { getPrimaryKeyValue } from "~/composables/useSchemaUtils";
+// Auto-imported types: Entity, PaginationState, SortState, SelectionState, SearchState
+// Auto-imported types: MetadataEditState
+// Auto-imported: getPrimaryKeyValue
 import EntityMetadata from "./EntityMetadata.vue";
 
 // Import schema utilities for dynamic entity handling

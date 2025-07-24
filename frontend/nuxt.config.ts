@@ -19,6 +19,21 @@ export default defineNuxtConfig({
         },
     ],
 
+    // Enhanced auto-imports for composables and utilities
+    imports: {
+        dirs: ["composables/**", "utils/**", "config/**"],
+        presets: [
+            {
+                from: "vue-router",
+                imports: ["RouteLocationNormalized", "Router"],
+            },
+            {
+                from: "@vueuse/core",
+                imports: ["watchDebounced", "useInfiniteScroll"],
+            },
+        ],
+    },
+
     runtimeConfig: {
         public: {
             apiBaseUrl: process.env.BACKEND_URL || "http://localhost:8000",

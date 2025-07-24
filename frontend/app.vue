@@ -34,12 +34,13 @@
 
 <script setup lang="ts">
 import AuthSection from "~/components/auth/AuthSection.vue";
-import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
+
+// Auto-imported: useAuth, useDynamicNavigation, useAppConfiguration
 
 // Check authentication status on app initialization
 const { checkAuthStatus } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
-const { mainTableDisplayName } = useDynamicAppConfig();
+const { mainTableDisplayName } = useAppConfiguration();
 
 onMounted(async () => {
     // Initialize navigation configuration globally

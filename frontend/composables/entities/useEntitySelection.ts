@@ -1,6 +1,6 @@
-import { ref, reactive, shallowReactive, computed } from "vue";
+// Auto-imported: ref, reactive, shallowReactive, computed
 import type { Entity, SelectionState, MetadataEditState } from "~/types/api";
-import { getPrimaryKeyValue, extractEntityIds } from "~/composables/useSchemaUtils";
+// Auto-imported: getPrimaryKeyValue, extractEntityIds
 
 /**
  * Generic entity selection and metadata management composable
@@ -323,6 +323,35 @@ export function useEntitySelection() {
         return Math.max(10, Math.min(lineCount + 1, 25));
     }
 
+    /**
+     * Get selected entities as Entity objects
+     * Helper for bulk operations
+     */
+    function getSelectedEntitiesAsObjects(allEntities: Entity[]): Entity[] {
+        return allEntities.filter((entity) => {
+            const id = getPrimaryKeyValue(entity);
+            return id && selectionState.selectedEntities.has(id);
+        });
+    }
+
+    /**
+     * Clear all selections
+     */
+    function clearAllSelections(): void {
+        selectionState.selectedEntities.clear();
+        selectionState.expandedMetadata.clear();
+        selectedEntitiesVersion.value++;
+        expandedMetadataVersion.value++;
+    }
+
+    /**
+     * Select entities by IDs
+     */
+    function selectEntitiesByIds(entityIds: number[]): void {
+        entityIds.forEach((id) => selectionState.selectedEntities.add(id));
+        selectedEntitiesVersion.value++;
+    }
+
     return {
         // State
         selectionState,
@@ -349,5 +378,10 @@ export function useEntitySelection() {
         cancelEdit,
         saveMetadataChanges,
         getTextareaRows,
+
+        // New helper methods
+        getSelectedEntitiesAsObjects,
+        clearAllSelections,
+        selectEntitiesByIds,
     };
 }

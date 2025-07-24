@@ -1,6 +1,6 @@
-import { ref, computed, readonly, watchEffect, type Ref } from "vue";
+// Auto-imported: ref, computed, readonly, watchEffect, type Ref
 import type { DropdownItem } from "~/types/schema";
-import { useNavigationConfig, getPreloadedDropdownData } from "~/composables/useNavigationConfig";
+// Auto-imported: useNavigationConfig, getPreloadedDropdownData
 
 /**
  * Dynamic navigation state management with schema-driven configuration

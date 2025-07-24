@@ -6,7 +6,7 @@
  * and configurations without hardcoding entity names or app titles.
  */
 
-import { ref, computed, readonly } from "vue";
+// Auto-imported: ref, computed, readonly
 
 interface AppConfig {
     appTitle?: string;
@@ -19,7 +19,7 @@ const appConfig = ref<AppConfig>({});
 const isLoaded = ref(false);
 const isLoading = ref(false);
 
-export const useDynamicAppConfig = () => {
+export const useAppConfiguration = () => {
     const { getSchemaConfig, baseUrl } = useTypedApiClient();
 
     // Check API availability

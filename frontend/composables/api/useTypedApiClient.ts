@@ -1,12 +1,5 @@
 /**
- import type {
-    Entity,
-    SearchApiResponse,
-    ApiError,
-    TypedFetchOptions,
-    CreateEntityPayload,
-    UpdateEntityPayload
-} from '~/types/api'yped API client using Nuxt 3's useFetch
+ * Typed API client using Nuxt 3's useFetch
  * Provides type-safe API calls with proper error handling
  */
 

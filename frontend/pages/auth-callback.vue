@@ -65,7 +65,9 @@
 </template>
 
 <script setup lang="ts">
-import { APP_CONFIG } from "~/config/app.config";
+// Auto-imported: useRoute, useRouter
+// Auto-imported: useAuth
+// Auto-imported: ref
 
 const route = useRoute();
 const router = useRouter();

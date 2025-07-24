@@ -5,15 +5,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watchEffect, onMounted } from "vue";
-import { useRoute } from "vue-router";
-import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
-import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
+// Auto-imported: computed, ref, watchEffect, onMounted
+// Auto-imported: useRoute
+// Auto-imported: useDynamicNavigation, useAppConfiguration
 import EntitySearchInterface from "~/components/search/EntitySearchInterface.vue";
 
 const route = useRoute();
 const { parseRouteToFilters, parseRouteToPath, getPageTitle } = useDynamicNavigation();
-const appConfigComposable = useDynamicAppConfig();
+const appConfigComposable = useAppConfiguration();
 
 const routeParams = computed(() => {
     return Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];

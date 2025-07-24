@@ -1,4 +1,4 @@
-import { ref, shallowRef, shallowReactive, computed, readonly } from "vue";
+// Auto-imported: ref, shallowRef, shallowReactive, computed, readonly
 import type { Entity, SearchState, PaginationState, SortState, PaginatedResponse } from "~/types/entity";
 
 /**

@@ -227,9 +227,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+// Auto-imported: ref, watch
 import type { MetadataEditState } from "~/types/api";
-import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
+// Auto-imported: useAppConfiguration
 
 /**
  * Entity Metadata Component
@@ -258,7 +258,7 @@ const actualEntityId = computed(() => props.entityId ?? 0);
 // Composables
 const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField } = useUtils();
 const { isAuthenticated } = useAuth();
-const { mainTableDisplayName } = useDynamicAppConfig();
+const { mainTableDisplayName } = useAppConfiguration();
 
 // Local reactive state for editing
 const localEditJson = ref(props.editState?.json || "");

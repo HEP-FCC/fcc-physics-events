@@ -100,12 +100,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from "vue";
-import { watchDebounced, useInfiniteScroll } from "@vueuse/core";
+// Auto-imported: ref, computed, onMounted, onUnmounted, watch, watchEffect
+// Auto-imported: watchDebounced, useInfiniteScroll
 import type { Entity } from "~/types/entity";
-import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
-import { extractEntityIds } from "~/composables/useSchemaUtils";
-import { useDynamicAppConfig } from "~/composables/useDynamicAppConfig";
+// Auto-imported: useDynamicNavigation
+// Auto-imported: extractEntityIds
+// Auto-imported: useAppConfiguration
 import SearchControls from "./SearchControls.vue";
 import EntityControls from "../entities/EntityControls.vue";
 import EntityList from "../entities/EntityList.vue";
@@ -131,7 +131,7 @@ const { parseRouteToPath } = useDynamicNavigation();
 // Composables
 const search = useEntitySearch();
 const selection = useEntitySelection();
-const { mainTableDisplayName } = useDynamicAppConfig();
+const { mainTableDisplayName } = useAppConfiguration();
 
 // Component state
 const isInitialized = ref(false);

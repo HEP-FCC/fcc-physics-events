@@ -71,10 +71,8 @@
 </template>
 
 <script setup lang="ts">
-import { watchEffect, ref, onMounted, onUnmounted, computed } from "vue";
-import { useNavigationState } from "~/composables/useNavigationState";
-import { useNavigationConfig } from "~/composables/useNavigationConfig";
-import { useDynamicNavigation } from "~/composables/useDynamicNavigation";
+// Auto-imported: watchEffect, ref, onMounted, onUnmounted, computed
+// Auto-imported: useNavigationState, useNavigationConfig, useDynamicNavigation
 
 interface Props {
     routeParams: string[];
