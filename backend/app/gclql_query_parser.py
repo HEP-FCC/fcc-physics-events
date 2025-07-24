@@ -4,6 +4,7 @@ A Python module to parse a query language and translate it into PostgreSQL queri
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -104,6 +105,7 @@ class Comparison:
 @dataclass(frozen=True)
 class GlobalSearch:
     value: str
+    is_quoted: bool = False
 
 
 @dataclass(frozen=True)
@@ -137,25 +139,49 @@ class AstTransformer(Transformer[Token, AstNode]):
         return Not(term=i[1]) if len(i) > 1 else i[0]
 
     def item(self, i: list[Any]) -> Any:
+        # The item is already transformed by other rules (e.g., global_search)
         return i[0]
 
     def comparison(self, i: list[Any]) -> Comparison:
         return Comparison(field=i[0], op=str(i[1]), value=i[2])
 
     def global_search(self, i: list[Any]) -> GlobalSearch:
-        return GlobalSearch(value=i[0])
+        # The value is already processed by simple_value, which is the first item in the list
+        processed_value = i[0]
+
+        # Check if the value was originally quoted (comes as a tuple from simple_value)
+        if isinstance(processed_value, tuple) and processed_value[0] == "quoted":
+            is_quoted = True
+            value = processed_value[1]
+        else:
+            is_quoted = False
+            value = str(processed_value)
+
+        logger.debug(
+            "global_search - processed_value: %s, is_quoted: %s, value: %s",
+            processed_value,
+            is_quoted,
+            value,
+        )
+
+        return GlobalSearch(value=value, is_quoted=is_quoted)
 
     def field(self, i: list[Any]) -> Field:
         return Field(parts=tuple(p.value for p in i))
 
     def value(self, i: list[Any]) -> float | str | Any:
-        return i[0]
+        processed = i[0]
+        # Handle the quoted tuple from simple_value
+        if isinstance(processed, tuple) and processed[0] == "quoted":
+            return processed[1]  # Return just the value part
+        return processed
 
     def simple_value(self, i: list[Any]) -> float | str | Any:
         v = i[0]
         if hasattr(v, "type"):
             if v.type == "ESCAPED_STRING":
-                return v.value[1:-1]
+                # Return a tuple to preserve the information that this was quoted
+                return ("quoted", v.value[1:-1])
             if v.type == "SIGNED_NUMBER":
                 return float(v.value) if "." in v.value else int(v.value)
             if v.type == "IDENTIFIER":
@@ -264,44 +290,86 @@ class SqlTranslator:
             return "TRUE"
 
         search_value = str(node.value).strip()
-        print(f"DEBUG: Global search for: '{search_value}'")
-        logger.info(f"Global search for: '{search_value}'")
-
-        # Use one parameter for all field searches to avoid duplication
-        self.param_index += 1
-        placeholder = f"${self.param_index}"
-        self.params.append(search_value)
-
-        # Check if this is likely a quoted string vs unquoted identifier
-        # Quoted strings should use exact substring search (ILIKE)
-        # Unquoted identifiers should use fuzzy similarity search
-        # We can detect this by checking if the search contains spaces or special chars
-        # Single words without quotes are parsed as identifiers and should use fuzzy search
-        contains_spaces_or_special = " " in search_value or any(
-            c in search_value for c in ["-", ".", "_"]
+        logger.debug(
+            "Global search for: '%s' (quoted: %s)", search_value, node.is_quoted
         )
 
-        print(f"DEBUG: Contains spaces or special chars: {contains_spaces_or_special}")
+        # Use the new helper to build the search clause
+        where_clause, placeholder = self._build_global_search_clause(
+            search_value, node.is_quoted, self.global_search_fields, self.param_index
+        )
 
-        clauses = []
-        for field_name in self.global_search_fields:
-            if contains_spaces_or_special:
-                # Multi-word phrases (likely from quoted strings) - use exact substring search
-                clauses.append(f"{field_name} ILIKE '%' || {placeholder} || '%'")
+        # Update parameter tracking
+        if placeholder:
+            self.param_index += 1
+            self.params.append(search_value)
+
+        logger.debug("Global search generated clause: %s", where_clause)
+        logger.debug("Global search parameter: '%s'", search_value)
+        return where_clause
+
+    def _build_search_condition(
+        self, field_name: str, placeholder: str, is_quoted: bool
+    ) -> str:
+        """
+        Build a search condition for a given field based on whether the search term is quoted.
+
+        Args:
+            field_name: The SQL field name to search in
+            placeholder: The parameter placeholder (e.g., "$1")
+            is_quoted: Whether the original search term was quoted
+
+        Returns:
+            A SQL condition string for this field
+        """
+        if is_quoted:
+            # For quoted strings, use simple substring search
+            return f"{field_name} ILIKE '%' || {placeholder} || '%'"
+        else:
+            # For unquoted terms, use similarity search
+            if field_name == "jsonb_values_to_text(d.metadata)":
+                # Use word_similarity for better phrase matching within metadata text
+                return f"word_similarity({placeholder}, {field_name}) > 0.4"
             else:
-                # Single words (likely unquoted identifiers) - use similarity for fuzzy matching
-                # similarity() is better than strict_word_similarity() for single word typos
-                # Use lower threshold (0.6) for better fuzzy matching of single words
-                clauses.append(f"similarity({placeholder}, {field_name}) > 0.6")
+                # Use similarity() for shorter text fields like names
+                return f"similarity({placeholder}, {field_name}) > 0.6"
 
-        if not clauses:
-            raise ValueError("Global search used, but no fields configured for it.")
+    def _build_global_search_clause(
+        self,
+        search_term: str,
+        is_quoted: bool,
+        field_list: list[str],
+        param_offset: int = 0,
+    ) -> tuple[str, str]:
+        """
+        Build a global search clause for a given search term across specified fields.
 
-        result = "(" + " OR ".join(clauses) + ")"
-        print(f"DEBUG: Global search generated clause: {result}")
-        logger.info(f"Global search generated clause: {result}")
-        logger.info(f"Global search parameter: '{search_value}'")
-        return result
+        Args:
+            search_term: The term to search for
+            is_quoted: Whether the search term was originally quoted
+            field_list: List of field names to search in
+            param_offset: Starting parameter index offset
+
+        Returns:
+            Tuple of (WHERE clause, parameter placeholder used)
+        """
+        if not search_term.strip():
+            return "TRUE", ""
+
+        param_index = param_offset + 1
+        placeholder = f"${param_index}"
+
+        conditions = []
+        for field_name in field_list:
+            conditions.append(
+                self._build_search_condition(field_name, placeholder, is_quoted)
+            )
+
+        if not conditions:
+            return "TRUE", ""
+
+        where_clause = f"({' OR '.join(conditions)})"
+        return where_clause, placeholder
 
 
 class QueryParser:
@@ -410,23 +478,19 @@ class QueryParser:
     def _build_fuzzy_search_clause(self, query_string: str) -> tuple[str, list[Any]]:
         """
         Build a fuzzy search clause using PostgreSQL's trigram similarity.
-        Uses the similarity() function with a 60% similarity threshold (0.6).
-
         This method treats the entire query as a single search term for fuzzy matching.
         """
         # Clean up the query string - remove quotes and operators, keep the actual search content
-        import re
 
         # Extract quoted strings first (these are likely the actual search terms)
         quoted_strings = re.findall(r'["\']([^"\']+)["\']', query_string)
 
         if quoted_strings:
             # If we have quoted strings, use the first one as the search term
-            # (assumes the failing part is what we want to search for)
             search_term = quoted_strings[0].strip()
+            is_quoted = True
         else:
             # If no quoted strings, clean up the query by removing operators
-            # Remove common operators and field assignments
             cleaned = re.sub(
                 r"\b(AND|OR|NOT)\b", " ", query_string, flags=re.IGNORECASE
             )
@@ -434,57 +498,29 @@ class QueryParser:
                 r'\w+\s*=\s*["\'][^"\']*["\']', " ", cleaned
             )  # Remove field=value pairs
             cleaned = re.sub(r"\s+", " ", cleaned).strip()  # Normalize whitespace
-            search_term = cleaned
+            search_term = cleaned if cleaned else query_string.strip()
+            is_quoted = False
 
-        # If we end up with empty search term, use the original query
-        if not search_term:
-            search_term = query_string.strip()
+        logger.debug(
+            "Fuzzy search extracted term: '%s' (quoted: %s)", search_term, is_quoted
+        )
 
-        print(f"DEBUG: Fuzzy search extracted term: '{search_term}'")
-        logger.info(f"Fuzzy search for term: '{search_term}'")
-        logger.info(f"Original query string: '{query_string}'")
-        logger.info(f"Quoted strings found: {quoted_strings}")
-        logger.info(f"Final search term: '{search_term}'")
-
-        # Build fuzzy search conditions for the single search term
-        # Use similarity() for fuzzy substring matching instead of strict word boundaries
-        # This is better for phrases that might appear as substrings in the text
-        conditions = []
-        params = []
-        param_index = 0
-
-        # Use one parameter for all field searches to avoid duplication
-        param_index += 1
-        placeholder = f"${param_index}"
-        params.append(search_term)
-
-        # Search in all fields using similarity with 0.6 threshold (more lenient than 0.6)
-        for field_name in [
-            "d.name",
-            "jsonb_values_to_text(d.metadata)",
-        ] + [
+        # Build the field list for fuzzy search
+        field_list = ["d.name", "jsonb_values_to_text(d.metadata)"] + [
             f"{self.entity_aliases[entity_key]}.{table_info['name_column']}"
             for entity_key, table_info in self.navigation_analysis[
                 "navigation_tables"
             ].items()
-        ]:
-            # For metadata, use word_similarity which is better for finding phrases within larger text
-            if field_name == "jsonb_values_to_text(d.metadata)":
-                # Use word_similarity for better phrase matching within metadata text
-                # This finds "forxed to tau" similar to "forced to tau" even as substring
-                conditions.append(f"word_similarity({placeholder}, {field_name}) > 0.6")
-            else:
-                # Use similarity() for other fields (shorter text)
-                conditions.append(f"similarity({placeholder}, {field_name}) > 0.6")
+        ]
 
-        # Combine all conditions with OR (any field can match)
-        if conditions:
-            where_clause = f"({' OR '.join(conditions)})"
-        else:
-            where_clause = "TRUE"
+        # Use the centralized helper to build the search clause
+        where_clause, _ = self.translator._build_global_search_clause(
+            search_term, is_quoted, field_list, 0
+        )
+        params = [search_term] if search_term.strip() else []
 
-        logger.info(f"Generated fuzzy search WHERE clause: {where_clause}")
-        logger.info(f"Fuzzy search parameters: {params}")
+        logger.debug("Generated fuzzy search WHERE clause: %s", where_clause)
+        logger.debug("Fuzzy search parameters: %s", params)
 
         return where_clause, params
 
@@ -492,12 +528,9 @@ class QueryParser:
         """
         Build a hybrid search clause that combines exact matches for valid parts
         with fuzzy search for the parts that failed to parse.
-
-        This approach first applies exact filters, then fuzzy search within those results.
         """
-        import re
 
-        print(f"DEBUG: Building hybrid search for: '{query_string}'")
+        logger.debug("Building hybrid search for: '%s'", query_string)
 
         # Split the query into parts separated by AND
         parts = re.split(r"\s+AND\s+", query_string, flags=re.IGNORECASE)
@@ -516,17 +549,17 @@ class QueryParser:
 
             try:
                 # Try to parse this individual part
-                print(f"DEBUG: Trying to parse part: '{part}'")
+                logger.debug("Trying to parse part: '%s'", part)
                 ast = cast(AstNode, self.transformer.transform(self.parser.parse(part)))
 
                 # If successful, translate to SQL
                 clause = self.translator.translate(ast)
                 valid_clauses.append(clause)
-                print(f"DEBUG: Successfully parsed part: '{part}' -> {clause}")
+                logger.debug("Successfully parsed part: '%s' -> %s", part, clause)
 
             except exceptions.LarkError:
                 # If this part fails, add it to fuzzy search terms
-                print(f"DEBUG: Failed to parse part: '{part}', adding to fuzzy search")
+                logger.debug("Failed to parse part: '%s', adding to fuzzy search", part)
                 fuzzy_search_terms.append(part)
 
         # Collect parameters from valid clauses
@@ -537,34 +570,21 @@ class QueryParser:
         if fuzzy_search_terms:
             # Combine all fuzzy search terms into one search phrase
             fuzzy_phrase = " ".join(fuzzy_search_terms).strip()
-            print(f"DEBUG: Fuzzy search phrase: '{fuzzy_phrase}'")
+            logger.debug("Fuzzy search phrase: '%s'", fuzzy_phrase)
 
-            # Build fuzzy search conditions using similarity for fuzzy substring matching
-            # This is better for phrases that might appear as substrings
-            fuzzy_conditions = []
-            param_index += 1
-            placeholder = f"${param_index}"
+            # Check if the original query had quoted strings
+            quoted_strings = re.findall(r'["\']([^"\']+)["\']', query_string)
+            is_quoted = len(quoted_strings) > 0
+
+            # Use the centralized helper to build the search clause
+            fuzzy_clause, _ = self.translator._build_global_search_clause(
+                fuzzy_phrase, is_quoted, global_search_fields, param_index
+            )
             all_params.append(fuzzy_phrase)
 
-            for field_name in global_search_fields:
-                # For metadata, use word_similarity which is better for finding phrases within larger text
-                if field_name == "jsonb_values_to_text(d.metadata)":
-                    # Use word_similarity for better phrase matching within metadata text
-                    # This finds "forxed to tau" similar to "forced to tau" even as substring
-                    fuzzy_conditions.append(
-                        f"word_similarity({placeholder}, {field_name}) > 0.6"
-                    )
-                else:
-                    # Use similarity() for other fields (shorter text)
-                    fuzzy_conditions.append(
-                        f"similarity({placeholder}, {field_name}) > 0.6"
-                    )
-
-            if fuzzy_conditions:
-                fuzzy_clause = f"({' OR '.join(fuzzy_conditions)})"
+            if fuzzy_clause != "TRUE":
                 valid_clauses.append(fuzzy_clause)
-                print(f"DEBUG: Added fuzzy clause: {fuzzy_clause}")
-                print(f"DEBUG: Fuzzy phrase parameter: '{fuzzy_phrase}'")
+                logger.debug("Added fuzzy clause: %s", fuzzy_clause)
 
         # Combine all clauses with AND
         if valid_clauses:
@@ -572,8 +592,8 @@ class QueryParser:
         else:
             where_clause = "TRUE"
 
-        print(f"DEBUG: Final hybrid WHERE clause: {where_clause}")
-        print(f"DEBUG: Final hybrid parameters: {all_params}")
+        logger.debug("Final hybrid WHERE clause: %s", where_clause)
+        logger.debug("Final hybrid parameters: %s", all_params)
 
         return where_clause, all_params
 
@@ -598,34 +618,29 @@ class QueryParser:
 
         try:
             # Try to parse the query with the grammar
-            print(f"DEBUG: Attempting to parse query: '{query_string}'")
-            logger.info(f"Attempting to parse query: '{query_string}'")
+            logger.debug("Attempting to parse query: '%s'", query_string)
             ast = cast(
                 AstNode, self.transformer.transform(self.parser.parse(query_string))
             )
-            print(f"DEBUG: Query parsed successfully. AST type: {type(ast)}")
-            logger.info(f"Query parsed successfully. AST type: {type(ast)}")
+            logger.debug("Query parsed successfully. AST type: %s", type(ast))
 
             # If parsing succeeds, use the normal translation
             global_search_fields = self._build_dynamic_global_search_fields()
             self.translator.reset(self.schema_mapping, global_search_fields)
             where_clause = self.translator.translate(ast)
-            print(f"DEBUG: Generated WHERE clause: {where_clause}")
-            print(f"DEBUG: Generated parameters: {self.translator.params}")
-            logger.info(f"Generated WHERE clause: {where_clause}")
-            logger.info(f"Generated parameters: {self.translator.params}")
+
+            logger.debug("Generated WHERE clause: %s", where_clause)
+            logger.debug("Generated parameters: %s", self.translator.params)
 
         except exceptions.LarkError as e:
             # If parsing fails, try to parse valid parts and apply fuzzy search to the rest
-            print(f"DEBUG: Query parsing failed with error: {e}")
-            logger.info(f"Query parsing failed, using hybrid approach: {e}")
+            logger.debug("Query parsing failed, using hybrid approach: %s", e)
 
             try:
                 where_clause, params = self._build_hybrid_search_clause(query_string)
-                print("DEBUG: Hybrid search completed successfully")
+                logger.debug("Hybrid search completed successfully")
             except Exception as hybrid_error:
-                print(f"DEBUG: Hybrid search failed with error: {hybrid_error}")
-                logger.error(f"Hybrid search failed: {hybrid_error}")
+                logger.error("Hybrid search failed: %s", hybrid_error)
                 # Fallback to fuzzy search only
                 where_clause, params = self._build_fuzzy_search_clause(query_string)
 
@@ -637,8 +652,8 @@ class QueryParser:
                 {self._build_order_by_clause(sort_by, sort_order)}
             """
             count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
-            print(f"DEBUG: Hybrid search final query: {select_query}")
-            print(f"DEBUG: Hybrid search final params: {params}")
+            logger.debug("Hybrid search final query: %s", select_query)
+            logger.debug("Hybrid search final params: %s", params)
             return count_query, select_query, params
 
         select_fields = self._build_dynamic_select_fields()
@@ -701,18 +716,3 @@ class QueryParser:
         except Exception as e:
             logger.error("Could not find the column to sort by: %s", e)
             raise e
-            # # If the field doesn't map, try direct dataset field access
-            # # This handles cases like "dataset_id", "created_at", etc.
-            # if sort_by in ["dataset_id", "created_at", "last_edited_at", "name"]:
-            #     return f"ORDER BY d.{sort_by} {sort_order.upper()}"
-            # elif sort_by in [
-            #     "detector_name",
-            #     "campaign_name",
-            #     "stage_name",
-            #     "accelerator_name",
-            # ]:
-            #     # These are already available in the SELECT clause
-            #     return f"ORDER BY {sort_by} {sort_order.upper()}"
-            # else:
-            #     # Fallback: try to access the field directly
-            #     return f"ORDER BY d.{sort_by} {sort_order.upper()}"
