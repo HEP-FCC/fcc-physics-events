@@ -170,6 +170,49 @@ async def get_sorting_fields() -> dict[str, Any]:
     return result
 
 
+@router.get("/download-filtered/", response_model=list[dict[str, Any]])
+async def download_filtered_entities(
+    q: str,
+    sort_by: str = Query("last_edited_at", description="Field to sort by"),
+    sort_order: str = Query("desc", description="Sort order: 'asc' or 'desc'"),
+) -> Any:
+    """
+    Download all entities matching the given query filter.
+    This endpoint returns all results without pagination for download purposes.
+    """
+    logger.info(
+        f"*** /download-filtered/ endpoint called with q={q}, sort_by={sort_by}, sort_order={sort_order}"
+    )
+    try:
+        # Validate sort_order parameter
+        if sort_order.lower() not in ["asc", "desc"]:
+            raise HTTPException(
+                status_code=400, detail="sort_order must be 'asc' or 'desc'"
+            )
+
+        logger.debug("DOWNLOAD_QUERY_STRING: %s", q)
+
+        count_query, search_query, search_query_params = query_parser.parse_query(
+            q, sort_by=sort_by, sort_order=sort_order.lower()
+        )
+
+        logger.debug("DOWNLOAD_COUNT_QUERY: %s", count_query)
+        logger.debug("DOWNLOAD_SEARCH_QUERY: %s", search_query)
+        logger.debug("DOWNLOAD_SEARCH_QUERY_PARAMS: %s", search_query_params)
+
+        # Get all results by using a very large limit
+        result = await database.perform_search(
+            count_query, search_query, search_query_params, limit=999999, offset=0
+        )
+
+        # Return only the items array for download
+        return result.get("items", [])
+
+    except ValueError as e:
+        logger.error("Invalid download query", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Invalid query: {e}")
+
+
 @router.get("/entities/{entity_id}", response_model=dict[str, Any])
 async def get_entity_by_id(entity_id: int) -> Any:
     """

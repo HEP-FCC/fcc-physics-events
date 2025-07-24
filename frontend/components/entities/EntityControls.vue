@@ -24,8 +24,23 @@
                 :loading="isDownloading"
                 @click="$emit('downloadSelected')"
             >
-                Download ({{ selectedCount }})
+                Download all selected ({{ selectedCount }})
             </UButton>
+
+            <UButton
+                icon="i-heroicons-arrow-down-tray"
+                color="neutral"
+                variant="solid"
+                size="sm"
+                class="cursor-pointer"
+                :disabled="displayRange.total === 0"
+                :loading="isDownloadingFiltered"
+                @click="$emit('downloadFiltered')"
+            >
+                Download all filtered ({{ displayRange.total }})
+            </UButton>
+
+            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
             <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
@@ -114,6 +129,7 @@ interface Props {
     allEntitiesSelected: boolean;
     selectedCount: number;
     isDownloading: boolean;
+    isDownloadingFiltered: boolean;
     allMetadataExpanded: boolean;
     sortBy: string;
     sortOrder: "asc" | "desc";
@@ -125,7 +141,13 @@ interface Props {
 
 interface Emits {
     (
-        e: "toggleSelectAll" | "downloadSelected" | "toggleAllMetadata" | "toggleSortOrder" | "handlePageSizeChange",
+        e:
+            | "toggleSelectAll"
+            | "downloadSelected"
+            | "downloadFiltered"
+            | "toggleAllMetadata"
+            | "toggleSortOrder"
+            | "handlePageSizeChange",
     ): void;
     (e: "updateSortBy", value: string): void;
     (e: "updatePageSize", value: number): void;

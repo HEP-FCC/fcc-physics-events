@@ -1,5 +1,6 @@
 // Auto-imported: ref, reactive, shallowReactive, computed
 import type { Entity, SelectionState, MetadataEditState } from "~/types/api";
+import type { SearchOptions } from "~/types/composables";
 // Auto-imported: getPrimaryKeyValue, extractEntityIds
 
 /**
@@ -8,7 +9,7 @@ import type { Entity, SelectionState, MetadataEditState } from "~/types/api";
  * Works with any entity type (books, products, etc.)
  */
 export function useEntitySelection() {
-    const { downloadEntitiesByIds } = useApiClient();
+    const { downloadEntitiesByIds, downloadFilteredEntities } = useApiClient();
 
     // Check API availability
     const apiAvailable = computed(() => {
@@ -27,6 +28,9 @@ export function useEntitySelection() {
         isIndeterminate: false,
         isDownloading: false,
     });
+
+    // Additional state for filtered download
+    const isDownloadingFiltered = ref(false);
 
     // Force reactivity triggers for Set changes
     const selectedEntitiesVersion = ref(0);
@@ -180,6 +184,25 @@ export function useEntitySelection() {
             console.error("Failed to download entities:", error);
         } finally {
             selectionState.isDownloading = false;
+        }
+    }
+
+    /**
+     * Download all filtered entities as JSON file
+     */
+    async function downloadAllFilteredEntities(searchOptions: SearchOptions): Promise<void> {
+        isDownloadingFiltered.value = true;
+        try {
+            const entitiesToDownload = await downloadFilteredEntities(searchOptions);
+
+            if (entitiesToDownload.length > 0) {
+                const filename = createEntityDownloadFilename(entitiesToDownload.length);
+                downloadAsJsonFile(entitiesToDownload, filename);
+            }
+        } catch (error) {
+            console.error("Failed to download filtered entities:", error);
+        } finally {
+            isDownloadingFiltered.value = false;
         }
     }
 
@@ -356,6 +379,7 @@ export function useEntitySelection() {
         // State
         selectionState,
         metadataEditState,
+        isDownloadingFiltered,
 
         // Computed
         selectedCount,
@@ -373,6 +397,7 @@ export function useEntitySelection() {
         isEntitySelected,
         isMetadataExpanded,
         downloadSelectedEntities,
+        downloadAllFilteredEntities,
         handleRowClick,
         enterEditMode,
         cancelEdit,

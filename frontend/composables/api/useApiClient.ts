@@ -177,6 +177,22 @@ export function useApiClient() {
     };
 
     /**
+     * Download all filtered entities based on search query
+     */
+    const downloadFilteredEntities = async (options: SearchOptions = {}): Promise<Entity[]> => {
+        const queryParams: Record<string, string | number | boolean> = {};
+
+        if (options.query) queryParams.q = options.query;
+        if (options.sortBy) queryParams.sort_by = options.sortBy;
+        if (options.sortOrder) queryParams.sort_order = options.sortOrder;
+
+        return typedFetch<Entity[]>("/download-filtered/", {
+            method: "GET",
+            query: queryParams,
+        });
+    };
+
+    /**
      * Initiate OAuth login - redirects user to authentication
      */
     const initiateLogin = (): void => {
@@ -218,6 +234,7 @@ export function useApiClient() {
         getDropdownOptions,
         getSchemaConfig,
         downloadEntitiesByIds,
+        downloadFilteredEntities,
 
         // Authentication methods
         initiateLogin,

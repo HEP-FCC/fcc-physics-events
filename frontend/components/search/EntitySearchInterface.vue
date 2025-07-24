@@ -31,6 +31,7 @@
                 :all-entities-selected="allEntitiesSelected"
                 :selected-count="selection.selectedCount.value"
                 :is-downloading="selection.selectionState.isDownloading"
+                :is-downloading-filtered="selection.isDownloadingFiltered.value"
                 :all-metadata-expanded="allMetadataExpanded"
                 :sort-by="search.sortState.sortBy"
                 :sort-order="search.sortState.sortOrder"
@@ -40,6 +41,13 @@
                 :page-size="search.scrollState.pageSize"
                 @toggle-select-all="selection.toggleSelectAll(search.entities.value as Entity[])"
                 @download-selected="selection.downloadSelectedEntities"
+                @download-filtered="
+                    selection.downloadAllFilteredEntities({
+                        query: search.combinedSearchQuery.value,
+                        sortBy: search.sortState.sortBy,
+                        sortOrder: search.sortState.sortOrder,
+                    })
+                "
                 @toggle-all-metadata="selection.toggleAllMetadata(search.entities.value as Entity[])"
                 @update-sort-by="search.updateSortBy"
                 @toggle-sort-order="search.toggleSortOrder"
