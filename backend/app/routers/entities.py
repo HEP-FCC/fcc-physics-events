@@ -115,7 +115,7 @@ async def execute_gclql_query(
     sort_order: str = Query("desc", description="Sort order: 'asc' or 'desc'"),
 ) -> Any:
     """
-    Executes a GCLQL-style query against the database with pagination and sorting.
+    Executes a GCLQL-style query against the database with infinite scroll support and sorting.
     Supports sorting by any entity field or metadata JSON field (e.g., 'metadata.key').
     """
     logger.info(

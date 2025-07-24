@@ -801,15 +801,21 @@ class Database:
                     joined_field_name = f"{base_name}_name"
                     joined_fields.append(joined_field_name)
 
-            # Build metadata fields list with 'metadata.' prefix
-            metadata_fields = [
-                f"metadata.{row['metadata_key']}" for row in metadata_keys
-            ]
+            # Build metadata fields list - now include both prefixed and non-prefixed versions
+            metadata_fields = []
+            for row in metadata_keys:
+                field_name = row['metadata_key']
+                # Add both the new simplified syntax and the old explicit syntax for backward compatibility
+                metadata_fields.append(field_name)  # New: simplified syntax (e.g., "status")
+                metadata_fields.append(f"metadata.{field_name}")  # Old: explicit syntax (e.g., "metadata.status")
 
-            # Build nested metadata fields list
-            nested_fields = [
-                f"metadata.{row['nested_key']}" for row in nested_metadata_keys
-            ]
+            # Build nested metadata fields list - include both prefixed and non-prefixed versions
+            nested_fields = []
+            for row in nested_metadata_keys:
+                field_name = row['nested_key']
+                # Add both the new simplified syntax and the old explicit syntax for backward compatibility
+                nested_fields.append(field_name)  # New: simplified syntax (e.g., "config.version")
+                nested_fields.append(f"metadata.{field_name}")  # Old: explicit syntax (e.g., "metadata.config.version")
 
             # Combine all fields into a single flat list
             all_fields = []
@@ -824,7 +830,7 @@ class Database:
             return {
                 "fields": all_fields,
                 "count": len(all_fields),
-                "info": "All available fields for sorting. Use 'metadata.key' format for JSON fields.",
+                "info": "All available fields for sorting. Metadata fields can be used with or without 'metadata.' prefix (e.g., 'status' or 'metadata.status').",
             }
 
     async def perform_search(
@@ -838,11 +844,11 @@ class Database:
         async with self.session() as conn:
             total_records = await conn.fetchval(count_query, *params) or 0
 
-            # Then, get the paginated results for the current page
-            paginated_query = (
+            # Get the batch of results for infinite scroll
+            batch_query = (
                 f"{search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
             )
-            records = await conn.fetch(paginated_query, *params, limit, offset)
+            records = await conn.fetch(batch_query, *params, limit, offset)
 
             # Convert records to dictionaries and parse JSON metadata
             items = []

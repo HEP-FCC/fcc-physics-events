@@ -45,7 +45,11 @@ class Field:
     parts: tuple[str, ...]
 
     def to_sql(
-        self, schema_mapping: dict[str, str], value: Any = None, op: str | None = None
+        self,
+        schema_mapping: dict[str, str],
+        value: Any = None,
+        op: str | None = None,
+        available_metadata_fields: set[str] | None = None
     ) -> str:
         base_field = self.parts[0]
         if base_field[-5:] == "_name":
@@ -66,11 +70,37 @@ class Field:
             if base_field in entity_fields:
                 # Map to the foreign key column in the dataset table
                 sql_column = f"d.{base_field}_id"
+            elif available_metadata_fields and base_field in available_metadata_fields:
+                # AUTO-DETECT: If field doesn't exist as regular column but exists in metadata,
+                # automatically treat it as metadata.{field}
+                logger.debug("Auto-detecting metadata field: %s", base_field)
+
+                # Construct metadata field access
+                metadata_column = schema_mapping.get("metadata", "d.metadata")
+                json_path_parts = self.parts  # Use all parts for nested access
+
+                if len(json_path_parts) == 1:
+                    # Simple metadata field: field -> metadata.field
+                    json_field = f"{metadata_column}->>'{json_path_parts[0]}'"
+                else:
+                    # Nested metadata field: field.sub -> metadata.field.sub
+                    path_expression = "->".join([f"'{part}'" for part in json_path_parts[:-1]])
+                    json_field = f"{metadata_column}->{path_expression}->>'{json_path_parts[-1]}'"
+
+                # Handle numeric casting for comparison operators
+                if (
+                    value is not None
+                    and isinstance(value, int | float)
+                    and op in ("=", "!=", ">", "<", ">=", "<=", ":")
+                ):
+                    json_field = f"({json_field})::numeric"
+
+                return json_field
             else:
                 # Try to search the dataset columns directly
                 sql_column = f"d.{base_field}"
 
-        # Hardcoded "metadata" field name required in the db schema
+        # Handle explicit metadata fields (metadata.field syntax)
         if base_field == "metadata" and len(self.parts) > 1:
             json_path_parts = self.parts[1:]
             path_expression = "->".join([f"'{part}'" for part in json_path_parts[:-1]])
@@ -195,6 +225,7 @@ class SqlTranslator:
     def __init__(self) -> None:
         self.schema_mapping: dict[str, str] = {}
         self.global_search_fields: list[str] = []  # Will be set dynamically
+        self.available_metadata_fields: set[str] = set()  # Store available metadata fields
         self.params: list[Any] = []
         self.param_index = 0
 
@@ -202,10 +233,13 @@ class SqlTranslator:
         self,
         schema_mapping: dict[str, str],
         global_search_fields: list[str] | None = None,
+        available_metadata_fields: set[str] | None = None,
     ) -> None:
         self.schema_mapping = schema_mapping
         if global_search_fields is not None:
             self.global_search_fields = global_search_fields
+        if available_metadata_fields is not None:
+            self.available_metadata_fields = available_metadata_fields
         self.params = []
         self.param_index = 0
 
@@ -223,7 +257,12 @@ class SqlTranslator:
         raise TypeError(f"Unknown AST node type: {type(node)}")
 
     def _translate_comparison(self, node: Comparison) -> str:
-        sql_field = node.field.to_sql(self.schema_mapping, node.value, node.op)
+        sql_field = node.field.to_sql(
+            self.schema_mapping,
+            node.value,
+            node.op,
+            self.available_metadata_fields
+        )
         op = node.op
         value = node.value
 
@@ -260,20 +299,26 @@ class SqlTranslator:
         For regular fields, checks if NOT NULL.
         For JSON fields, checks if the key exists in the JSON object.
         """
-        # Check if this is a metadata (JSON) field
-        if field.parts[0] == "metadata" and len(field.parts) > 1:
-            # For JSON fields, check if the key exists using the ? operator
-            json_path = field.parts[1:]
+        # Check if this is a metadata (JSON) field (explicit or auto-detected)
+        if (field.parts[0] == "metadata" and len(field.parts) > 1) or \
+           (field.parts[0] in self.available_metadata_fields):
+
+            # Handle auto-detected metadata fields
+            if field.parts[0] in self.available_metadata_fields:
+                json_path = field.parts  # field.sub becomes ["field", "sub"]
+            else:
+                # Handle explicit metadata.field syntax
+                json_path = field.parts[1:]  # metadata.field.sub becomes ["field", "sub"]
 
             if len(json_path) == 1:
-                # Simple JSON key: metadata.key
+                # Simple JSON key: metadata.key or auto-detected key
                 # Use JSONB ? operator to check if key exists
                 self.param_index += 1
                 placeholder = f"${self.param_index}"
                 self.params.append(json_path[0])
                 return f"d.metadata ? {placeholder}"
             else:
-                # Nested JSON key: metadata.nested.key
+                # Nested JSON key: metadata.nested.key or auto-detected nested.key
                 # Check if the nested path exists using JSONB path functions
                 path_expression = ".".join(json_path)
                 self.param_index += 1
@@ -376,6 +421,7 @@ class QueryParser:
     def __init__(self, database: Database):
         self.database = database
         self.schema_mapping: dict[str, str] = {}
+        self.available_metadata_fields: set[str] = set()  # Store available metadata fields
         self.parser = Lark(QUERY_LANGUAGE_GRAMMAR, start="start", parser="lalr")
         self.transformer = AstTransformer()
         self.translator = SqlTranslator()
@@ -387,6 +433,7 @@ class QueryParser:
 
     async def setup(self) -> None:
         self.schema_mapping = await self.database.generate_schema_mapping()
+        self.available_metadata_fields = await self._fetch_available_metadata_fields()
 
         # Get navigation structure analysis to build dynamic JOINs
         from app.schema_discovery import get_schema_discovery
@@ -401,6 +448,63 @@ class QueryParser:
 
         # Build dynamic FROM and JOIN clauses
         self._build_dynamic_joins()
+
+    async def _fetch_available_metadata_fields(self) -> set[str]:
+        """Fetch all available metadata field names from the database."""
+        main_table = config["application"]["main_table"]
+
+        async with self.database.session() as conn:
+            # Get top-level metadata fields
+            metadata_query = f"""
+                SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
+                FROM {main_table}
+                WHERE metadata IS NOT NULL
+                AND metadata != 'null'::jsonb
+                ORDER BY metadata_key
+            """
+
+            # Get nested metadata fields (one level deep)
+            nested_metadata_query = f"""
+                SELECT DISTINCT
+                    parent_key || '.' || child_key as nested_key
+                FROM (
+                    SELECT
+                        parent_key,
+                        jsonb_object_keys(parent_value) as child_key
+                    FROM (
+                        SELECT
+                            key as parent_key,
+                            value as parent_value
+                        FROM {main_table}, jsonb_each(metadata)
+                        WHERE metadata IS NOT NULL
+                        AND metadata != 'null'::jsonb
+                        AND jsonb_typeof(value) = 'object'
+                    ) nested_objects
+                ) nested_keys
+                ORDER BY nested_key
+            """
+
+            try:
+                metadata_keys = await conn.fetch(metadata_query)
+                nested_keys = await conn.fetch(nested_metadata_query)
+
+                # Combine all metadata field names
+                all_fields = set()
+
+                # Add top-level fields
+                for row in metadata_keys:
+                    all_fields.add(row['metadata_key'])
+
+                # Add nested fields
+                for row in nested_keys:
+                    all_fields.add(row['nested_key'])
+
+                logger.debug(f"Found {len(all_fields)} available metadata fields: {sorted(all_fields)}")
+                return all_fields
+
+            except Exception as e:
+                logger.error(f"Failed to fetch metadata fields: {e}")
+                return set()
 
     def _build_dynamic_joins(self) -> None:
         """Build FROM and JOIN clauses dynamically based on schema analysis."""
@@ -626,7 +730,11 @@ class QueryParser:
 
             # If parsing succeeds, use the normal translation
             global_search_fields = self._build_dynamic_global_search_fields()
-            self.translator.reset(self.schema_mapping, global_search_fields)
+            self.translator.reset(
+                self.schema_mapping,
+                global_search_fields,
+                self.available_metadata_fields
+            )
             where_clause = self.translator.translate(ast)
 
             logger.debug("Generated WHERE clause: %s", where_clause)
