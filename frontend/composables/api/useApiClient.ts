@@ -137,6 +137,20 @@ export function useApiClient() {
     };
 
     /**
+     * Update entity metadata lock state
+     */
+    const updateMetadataLock = async (
+        entityId: number,
+        fieldName: string,
+        locked: boolean,
+    ): Promise<{ success: boolean; message: string }> => {
+        return typedFetch<{ success: boolean; message: string }>(`/entities/${entityId}/metadata/lock`, {
+            method: "PUT",
+            body: { field_name: fieldName, locked },
+        });
+    };
+
+    /**
      * Delete entity
      */
     const deleteEntity = async (id: number): Promise<undefined> => {
@@ -227,6 +241,7 @@ export function useApiClient() {
         getEntitiesByIds,
         createEntity,
         updateEntity,
+        updateMetadataLock,
         deleteEntity,
 
         // Utility methods

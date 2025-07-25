@@ -388,7 +388,8 @@ export function useEntitySearch() {
 
     const updateEntity = (index: number, entity: Entity): void => {
         if (index >= 0 && index < entities.value.length) {
-            entities.value[index] = { ...entity };
+            // Use splice to ensure Vue reactivity is triggered
+            entities.value.splice(index, 1, { ...entity });
         }
     };
 

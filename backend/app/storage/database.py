@@ -383,14 +383,60 @@ class Database:
                                     exclude_none=False
                                 )
 
-                                # Convert metadata to JSON if it exists
+                                # Handle metadata with lock-aware merging for upserts
                                 if (
                                     "metadata" in entity_dict
                                     and entity_dict["metadata"] is not None
                                 ):
-                                    entity_dict["metadata"] = json.dumps(
-                                        entity_dict["metadata"]
+                                    new_metadata = entity_dict["metadata"]
+
+                                    # Check if entity already exists to merge locked fields
+                                    existing_metadata_query = f"SELECT metadata FROM {main_table} WHERE name = $1"
+                                    existing_metadata_result = await conn.fetchval(
+                                        existing_metadata_query, entity_dict["name"]
                                     )
+
+                                    if existing_metadata_result:
+                                        # Entity exists, respect locked fields
+                                        existing_metadata = {}
+                                        if isinstance(existing_metadata_result, str):
+                                            existing_metadata = json.loads(
+                                                existing_metadata_result
+                                            )
+                                        elif isinstance(existing_metadata_result, dict):
+                                            existing_metadata = existing_metadata_result
+
+                                        # Create merged metadata respecting locked fields
+                                        merged_metadata = existing_metadata.copy()
+
+                                        # Process each field in the new metadata
+                                        for key, value in new_metadata.items():
+                                            # For lock field updates, allow them to pass through
+                                            if key.startswith("__") and key.endswith(
+                                                "__lock__"
+                                            ):
+                                                merged_metadata[key] = value
+                                                continue
+
+                                            # Check if this field is locked
+                                            lock_field_name = f"__{key}__lock__"
+                                            is_locked = existing_metadata.get(
+                                                lock_field_name, False
+                                            )
+
+                                            if not is_locked:
+                                                # Field is not locked, allow update
+                                                merged_metadata[key] = value
+                                            # If field is locked, keep the existing value
+
+                                        entity_dict["metadata"] = json.dumps(
+                                            merged_metadata
+                                        )
+                                    else:
+                                        # New entity, use new metadata as-is
+                                        entity_dict["metadata"] = json.dumps(
+                                            new_metadata
+                                        )
 
                                 # Build column names and placeholders
                                 columns = list(entity_dict.keys())
@@ -650,10 +696,91 @@ class Database:
 
                     param_count += 1
 
-                    # Handle metadata field specially (convert dict to JSON)
+                    # Handle metadata field specially (convert dict to JSON and respect locked fields)
                     if field_name == "metadata" and isinstance(field_value, dict):
+                        # Get current metadata to check for locked fields
+                        current_metadata_query = f"SELECT metadata FROM {main_table} WHERE {primary_key_column} = $1"
+                        current_metadata_result = await conn.fetchval(
+                            current_metadata_query, entity_id
+                        )
+
+                        current_metadata = {}
+                        if current_metadata_result:
+                            if isinstance(current_metadata_result, str):
+                                current_metadata = json.loads(current_metadata_result)
+                            elif isinstance(current_metadata_result, dict):
+                                current_metadata = current_metadata_result
+
+                        # Create merged metadata respecting locked fields
+                        merged_metadata = current_metadata.copy()
+                        logger.info(
+                            f"Database update_entity - Current metadata keys: {list(current_metadata.keys())}"
+                        )
+                        logger.info(
+                            f"Database update_entity - Update data keys: {list(field_value.keys())}"
+                        )
+                        logger.info(
+                            f"Database update_entity - Current lock fields: {[k for k in current_metadata.keys() if '__lock__' in k]}"
+                        )
+
+                        # First, preserve all existing lock fields
+                        for existing_key, existing_value in current_metadata.items():
+                            if existing_key.startswith("__") and existing_key.endswith(
+                                "__lock__"
+                            ):
+                                merged_metadata[existing_key] = existing_value
+                                logger.debug(
+                                    f"Preserving existing lock field: {existing_key} = {existing_value}"
+                                )
+
+                        # Process each field in the update data
+                        for key, value in field_value.items():
+                            # For lock field updates, allow them to pass through (override preserved values)
+                            if key.startswith("__") and key.endswith("__lock__"):
+                                if value is None:
+                                    # Remove the lock field
+                                    merged_metadata.pop(key, None)
+                                    logger.debug(f"Removing lock field: {key}")
+                                else:
+                                    merged_metadata[key] = value
+                                    logger.debug(
+                                        f"Updating lock field: {key} = {value}"
+                                    )
+                                continue
+
+                            # Check if this field is locked
+                            lock_field_name = f"__{key}__lock__"
+                            is_locked = current_metadata.get(lock_field_name, False)
+
+                            if not is_locked:
+                                # Field is not locked, allow update
+                                merged_metadata[key] = value
+                                logger.debug(f"Updating unlocked field: {key}")
+                            else:
+                                logger.debug(f"Skipping locked field: {key}")
+                            # If field is locked, keep the existing value (skip update)
+
+                        # Handle removed fields (for unlock operations)
+                        # Only remove lock fields that are explicitly set to None (explicit unlock)
+                        for key, value in field_value.items():
+                            if (
+                                key.startswith("__")
+                                and key.endswith("__lock__")
+                                and value is None
+                            ):
+                                # This was an explicit unlock operation
+                                merged_metadata.pop(key, None)
+                                logger.debug(f"Explicit unlock - removing field: {key}")
+
+                        logger.debug(
+                            f"Final merged metadata keys: {list(merged_metadata.keys())}"
+                        )
+                        logger.info(
+                            f"Database update_entity - Final lock fields: {[k for k in merged_metadata.keys() if '__lock__' in k]}"
+                        )
+
                         update_fields.append(f"{field_name} = ${param_count}")
-                        values.append(json.dumps(field_value))
+                        values.append(json.dumps(merged_metadata))
                     else:
                         update_fields.append(f"{field_name} = ${param_count}")
                         values.append(field_value)
@@ -804,18 +931,26 @@ class Database:
             # Build metadata fields list - now include both prefixed and non-prefixed versions
             metadata_fields = []
             for row in metadata_keys:
-                field_name = row['metadata_key']
+                field_name = row["metadata_key"]
                 # Add both the new simplified syntax and the old explicit syntax for backward compatibility
-                metadata_fields.append(field_name)  # New: simplified syntax (e.g., "status")
-                metadata_fields.append(f"metadata.{field_name}")  # Old: explicit syntax (e.g., "metadata.status")
+                metadata_fields.append(
+                    field_name
+                )  # New: simplified syntax (e.g., "status")
+                metadata_fields.append(
+                    f"metadata.{field_name}"
+                )  # Old: explicit syntax (e.g., "metadata.status")
 
             # Build nested metadata fields list - include both prefixed and non-prefixed versions
             nested_fields = []
             for row in nested_metadata_keys:
-                field_name = row['nested_key']
+                field_name = row["nested_key"]
                 # Add both the new simplified syntax and the old explicit syntax for backward compatibility
-                nested_fields.append(field_name)  # New: simplified syntax (e.g., "config.version")
-                nested_fields.append(f"metadata.{field_name}")  # Old: explicit syntax (e.g., "metadata.config.version")
+                nested_fields.append(
+                    field_name
+                )  # New: simplified syntax (e.g., "config.version")
+                nested_fields.append(
+                    f"metadata.{field_name}"
+                )  # Old: explicit syntax (e.g., "metadata.config.version")
 
             # Combine all fields into a single flat list
             all_fields = []

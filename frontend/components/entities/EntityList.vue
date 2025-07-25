@@ -97,6 +97,7 @@
                         @enter-edit="enterEditMode"
                         @cancel-edit="cancelEdit"
                         @save-metadata="saveMetadata"
+                        @refresh-entity="refreshEntity"
                     />
                 </div>
             </UCard>
@@ -135,6 +136,7 @@ interface Emits {
     (e: "toggleEntitySelection" | "toggleMetadata" | "cancelEdit", entityId: number): void;
     (e: "saveMetadata", entityId: number, editedJson?: string): void;
     (e: "enterEditMode", entityId: number, metadata: Record<string, unknown>): void;
+    (e: "refreshEntity", entityId: number): void;
 }
 
 const props = defineProps<Props>();
@@ -231,6 +233,10 @@ function cancelEdit(entityId: number): void {
 
 function saveMetadata(entityId: number, editedJson?: string): void {
     emit("saveMetadata", entityId, editedJson);
+}
+
+function refreshEntity(entityId: number): void {
+    emit("refreshEntity", entityId);
 }
 
 function isEntitySelected(entityId: number): boolean {

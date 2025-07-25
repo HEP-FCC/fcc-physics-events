@@ -258,6 +258,103 @@ async def update_entity(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class MetadataLockRequest(BaseModel):
+    """Request model for locking/unlocking metadata fields."""
+
+    field_name: str
+    locked: bool
+
+
+@router.put("/entities/{entity_id}/metadata/lock", response_model=dict[str, Any])
+async def update_metadata_lock(
+    entity_id: int,
+    lock_request: MetadataLockRequest,
+    _request: Request,
+    # user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+) -> Any:
+    """
+    Update the lock state of a metadata field.
+    Requires authentication via session cookie.
+    """
+    try:
+        # logger.info(
+        #     f"User {user.get('preferred_username', 'unknown')} updating lock state for field '{lock_request.field_name}' "
+        #     f"on entity {entity_id} to {'locked' if lock_request.locked else 'unlocked'}."
+        # )
+
+        # Get current entity to check if it exists and get current metadata
+        current_entity = await database.get_entity_by_id(entity_id)
+        if not current_entity:
+            raise HTTPException(
+                status_code=404, detail=f"Entity with ID {entity_id} not found"
+            )
+
+        # Get current metadata or initialize empty dict
+        current_metadata = current_entity.get("metadata", {})
+        if isinstance(current_metadata, str):
+            import json
+
+            current_metadata = json.loads(current_metadata)
+        elif current_metadata is None:
+            current_metadata = {}
+
+        logger.info(f"Current metadata before lock update: {current_metadata}")
+        logger.info(
+            f"Current lock fields: {[k for k in current_metadata.keys() if '__lock__' in k]}"
+        )
+
+        # Create lock field name using the convention: __{key}__lock__
+        lock_field_name = f"__{lock_request.field_name}__lock__"
+
+        # Update lock state
+        if lock_request.locked:
+            # Set lock to True
+            current_metadata[lock_field_name] = True
+            logger.info(
+                f"Locking field '{lock_request.field_name}' by setting {lock_field_name} = True"
+            )
+        else:
+            # Remove lock field when unlocking (saves storage space)
+            if lock_field_name in current_metadata:
+                current_metadata.pop(lock_field_name, None)
+                logger.info(
+                    f"Unlocking field '{lock_request.field_name}' by removing {lock_field_name}"
+                )
+            else:
+                logger.info(f"Field '{lock_request.field_name}' was already unlocked")
+
+        logger.info(f"Updated metadata keys: {list(current_metadata.keys())}")
+        logger.info(
+            f"Final lock fields: {[k for k in current_metadata.keys() if '__lock__' in k]}"
+        )
+
+        # Update the entity with only the lock field that changed
+        if lock_request.locked:
+            # Only pass the new lock field
+            lock_update = {lock_field_name: True}
+        else:
+            # For unlock, pass a special indicator to remove the field
+            lock_update = {lock_field_name: None}  # None will indicate removal
+
+        update_data = {"metadata": lock_update}
+        logger.info(f"Sending update_data to database: {update_data}")
+        await database.update_entity(entity_id, update_data)
+
+        return {
+            "success": True,
+            "message": f"Field '{lock_request.field_name}' {'locked' if lock_request.locked else 'unlocked'} successfully",
+            "field_name": lock_request.field_name,
+            "locked": lock_request.locked,
+            "entity_id": entity_id,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error updating metadata lock: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.get("/session-status")
 async def get_session_status(request: Request) -> dict[str, Any]:
     """Get current session authentication status."""

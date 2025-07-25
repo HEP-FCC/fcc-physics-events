@@ -69,7 +69,7 @@
             <div class="flex items-center justify-between px-2 py-1 border-b border-gray-200 dark:border-gray-700">
                 <div>
                     <h4 class="text-xs font-medium text-gray-900 dark:text-gray-100">
-                        Metadata ({{ Object.keys(props.metadata).length }} fields)
+                        Metadata ({{ visibleFieldCount }} fields)
                     </h4>
                 </div>
                 <UButton icon="i-heroicons-pencil" color="neutral" variant="ghost" size="xs" @click="enterEditMode">
@@ -107,16 +107,44 @@
                                         <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
                                             {{ String(value) }}
                                         </div>
-                                        <UButton
-                                            icon="i-heroicons-clipboard-document"
-                                            color="neutral"
-                                            variant="ghost"
-                                            size="xs"
-                                            :padded="false"
-                                            class="w-3 h-3 shrink-0 ml-2 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
-                                            :title="`Copy ${getSpecialFieldTitle(key)} value`"
-                                            @click="copyFieldValue(key, value)"
-                                        />
+                                        <div class="flex items-center gap-1 shrink-0 ml-2">
+                                            <!-- Lock button for special fields (only show if authenticated) -->
+                                            <UButton
+                                                v-if="isAuthenticated"
+                                                :icon="
+                                                    isFieldLocked(key)
+                                                        ? 'i-heroicons-lock-closed'
+                                                        : 'i-heroicons-lock-open'
+                                                "
+                                                :color="isFieldLocked(key) ? 'warning' : 'neutral'"
+                                                variant="ghost"
+                                                size="xs"
+                                                :padded="false"
+                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
+                                                :class="{
+                                                    'hover:text-orange-500': !isFieldLocked(key),
+                                                    'text-orange-600 hover:text-orange-700': isFieldLocked(key),
+                                                }"
+                                                :title="
+                                                    isFieldLocked(key)
+                                                        ? `Unlock ${getSpecialFieldTitle(key)}`
+                                                        : `Lock ${getSpecialFieldTitle(key)}`
+                                                "
+                                                @click="toggleFieldLock(key)"
+                                            />
+
+                                            <!-- Copy button for special fields -->
+                                            <UButton
+                                                icon="i-heroicons-clipboard-document"
+                                                color="neutral"
+                                                variant="ghost"
+                                                size="xs"
+                                                :padded="false"
+                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                                :title="`Copy ${getSpecialFieldTitle(key)} value`"
+                                                @click="copyFieldValue(key, value)"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -204,17 +232,45 @@
                                             </template>
                                         </div>
 
-                                        <!-- Copy button -->
-                                        <UButton
-                                            icon="i-heroicons-clipboard-document"
-                                            color="neutral"
-                                            variant="ghost"
-                                            size="xs"
-                                            :padded="false"
-                                            class="w-4 h-4 shrink-0 ml-2 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
-                                            :title="`Copy ${formatFieldName(key)} value`"
-                                            @click="copyFieldValue(key, value)"
-                                        />
+                                        <!-- Action buttons -->
+                                        <div class="flex items-center gap-1 shrink-0 ml-2">
+                                            <!-- Lock button (only show if authenticated) -->
+                                            <UButton
+                                                v-if="isAuthenticated"
+                                                :icon="
+                                                    isFieldLocked(key)
+                                                        ? 'i-heroicons-lock-closed'
+                                                        : 'i-heroicons-lock-open'
+                                                "
+                                                :color="isFieldLocked(key) ? 'warning' : 'neutral'"
+                                                variant="ghost"
+                                                size="xs"
+                                                :padded="false"
+                                                class="w-4 h-4 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
+                                                :class="{
+                                                    'hover:text-orange-500': !isFieldLocked(key),
+                                                    'text-orange-600 hover:text-orange-700': isFieldLocked(key),
+                                                }"
+                                                :title="
+                                                    isFieldLocked(key)
+                                                        ? `Unlock ${formatFieldName(key)}`
+                                                        : `Lock ${formatFieldName(key)}`
+                                                "
+                                                @click="toggleFieldLock(key)"
+                                            />
+
+                                            <!-- Copy button -->
+                                            <UButton
+                                                icon="i-heroicons-clipboard-document"
+                                                color="neutral"
+                                                variant="ghost"
+                                                size="xs"
+                                                :padded="false"
+                                                class="w-4 h-4 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                                :title="`Copy ${formatFieldName(key)} value`"
+                                                @click="copyFieldValue(key, value)"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </template>
@@ -227,7 +283,7 @@
 </template>
 
 <script setup lang="ts">
-// Auto-imported: ref, watch
+// Auto-imported: ref, watch, watchEffect, computed
 import type { MetadataEditState } from "~/types/api";
 // Auto-imported: useAppConfiguration
 
@@ -247,6 +303,7 @@ interface Props {
 interface Emits {
     (e: "enterEdit", entityId: number, metadata: Record<string, unknown>): void;
     (e: "cancelEdit" | "saveMetadata", entityId: number, editedJson?: string): void;
+    (e: "refreshEntity", entityId: number): void;
 }
 
 const props = defineProps<Props>();
@@ -263,6 +320,9 @@ const { mainTableDisplayName } = useAppConfiguration();
 // Local reactive state for editing
 const localEditJson = ref(props.editState?.json || "");
 
+// Local reactive state for lock overrides (immediate UI updates)
+const localLockStates = ref<Record<string, boolean>>({});
+
 // Watch for changes to editState prop and update local state
 watch(
     () => props.editState?.json,
@@ -274,9 +334,43 @@ watch(
     { immediate: true },
 );
 
+// Watch for metadata changes and update edit JSON if in edit mode
+watch(
+    [() => props.metadata, () => localLockStates.value],
+    () => {
+        // Only update if we're currently in edit mode and localLockStates is initialized
+        if (props.editState?.isEditing && localLockStates.value !== undefined) {
+            const editableMetadata = getEditableMetadata();
+            const newJson = JSON.stringify(editableMetadata, null, 2);
+            localEditJson.value = newJson;
+        }
+    },
+    { deep: true },
+);
+
+// Get filtered metadata without lock fields for editing
+const getEditableMetadata = (): Record<string, unknown> => {
+    const filtered: Record<string, unknown> = {};
+    Object.entries(props.metadata).forEach(([key, value]) => {
+        // Skip lock fields themselves
+        if (isLockField(key)) {
+            return;
+        }
+
+        // Skip fields that are currently locked
+        if (isFieldLocked(key)) {
+            return;
+        }
+
+        filtered[key] = value;
+    });
+    return filtered;
+};
+
 // Methods
 const enterEditMode = (): void => {
-    emit("enterEdit", actualEntityId.value, props.metadata);
+    const editableMetadata = getEditableMetadata();
+    emit("enterEdit", actualEntityId.value, editableMetadata);
 };
 
 const cancelEdit = (): void => {
@@ -296,6 +390,95 @@ const formatJson = (): void => {
         console.error("Invalid JSON:", error);
         // Show user feedback for invalid JSON
         alert("Invalid JSON format. Please check your syntax.");
+    }
+};
+
+// Lock-related functionality
+const { updateMetadataLock } = useApiClient();
+const toast = useToast();
+
+// Initialize local lock states from props
+watchEffect(() => {
+    // Ensure all lock states are properly initialized
+    Object.keys(props.metadata).forEach((key) => {
+        if (key.includes("__lock__")) {
+            const fieldName = key.replace("__", "").replace("__lock__", "");
+            const metadataValue = !!props.metadata[key];
+            localLockStates.value[fieldName] = metadataValue;
+        }
+    });
+});
+
+// Create a reactive function to check if fields are locked
+const isFieldLocked = (fieldName: string): boolean => {
+    // Always check local state first if it exists
+    if (localLockStates.value && fieldName in localLockStates.value) {
+        return localLockStates.value[fieldName];
+    }
+
+    // Fall back to props metadata if local state isn't available yet
+    const lockFieldName = `__${fieldName}__lock__`;
+    const isLocked = !!props.metadata[lockFieldName];
+
+    // If we found a lock state in metadata but not in local state, sync it
+    if (localLockStates.value && props.metadata[lockFieldName] !== undefined) {
+        localLockStates.value[fieldName] = isLocked;
+    }
+
+    return isLocked;
+};
+
+const toggleFieldLock = async (fieldName: string): Promise<void> => {
+    if (!isAuthenticated.value || !actualEntityId.value) {
+        toast.add({
+            title: "Authentication Required",
+            description: "Please login to manage field locks.",
+            color: "warning",
+        });
+        return;
+    }
+
+    const currentlyLocked = isFieldLocked(fieldName);
+    const newLockState = !currentlyLocked;
+
+    console.log(`Toggling lock for field "${fieldName}": ${currentlyLocked} -> ${newLockState}`);
+    console.log(`Entity ID: ${actualEntityId.value}`);
+
+    try {
+        const response = await updateMetadataLock(actualEntityId.value, fieldName, newLockState);
+
+        console.log("Lock API response:", response);
+
+        if (response.success) {
+            // Only update local state after successful API response
+            localLockStates.value[fieldName] = newLockState;
+
+            toast.add({
+                title: "Success",
+                description: `Field "${formatFieldName(fieldName)}" ${
+                    newLockState ? "locked" : "unlocked"
+                } successfully.`,
+                color: "success",
+            });
+
+            // Emit a refresh event so parent can update the entity data
+            console.log("Emitting refreshEntity event for entity:", actualEntityId.value);
+            emit("refreshEntity", actualEntityId.value);
+        } else {
+            console.error("Lock operation failed:", response);
+            toast.add({
+                title: "Error",
+                description: response.message || "Failed to update field lock.",
+                color: "error",
+            });
+        }
+    } catch (error) {
+        console.error("Failed to toggle field lock:", error);
+        toast.add({
+            title: "Error",
+            description: "Failed to update field lock. Please try again.",
+            color: "error",
+        });
     }
 };
 
@@ -553,9 +736,19 @@ const isSpecialField = (key: string): boolean => {
     );
 };
 
+// Lock fields handling (internal metadata fields)
+const isLockField = (key: string): boolean => {
+    return key.includes("__lock__");
+};
+
+// Get count of visible fields (excluding lock fields)
+const visibleFieldCount = computed(() => {
+    return Object.keys(props.metadata).filter((key) => !isLockField(key)).length;
+});
+
 const getSpecialFields = (metadata: Record<string, unknown>): [string, unknown][] => {
     return Object.entries(metadata)
-        .filter(([key]) => isSpecialField(key))
+        .filter(([key]) => isSpecialField(key) && !isLockField(key)) // Exclude lock fields from special fields too
         .sort(([a], [b]) => {
             // Prioritize certain field names
             const priorityOrder = ["description", "summary", "comment", "notes", "note"];
@@ -589,7 +782,7 @@ const getSpecialFieldTitle = (key: string): string => {
 
 const getRegularFieldsSorted = (metadata: Record<string, unknown>): [string, unknown, string][] => {
     const fieldsWithTypes = Object.entries(metadata)
-        .filter(([key]) => !isSpecialField(key) && !isStatusField(key)) // Exclude both special and status fields
+        .filter(([key]) => !isSpecialField(key) && !isStatusField(key) && !isLockField(key)) // Exclude special, status, and lock fields
         .map(([key, value]): [string, unknown, string] => {
             if (isVectorField(value)) return [key, value, "vector"];
             if (typeof value === "number") return [key, value, "number"];
