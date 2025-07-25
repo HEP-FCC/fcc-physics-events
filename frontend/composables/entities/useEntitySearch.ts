@@ -7,6 +7,8 @@ import type { Entity, SearchState, ScrollState, SortState, PaginatedResponse } f
  */
 export function useEntitySearch() {
     const { searchEntities, getSortingFields, baseUrl } = useApiClient();
+    const { getNavigationOrder } = useNavigationConfig();
+    const { preloadBadgeColors } = useEntityBadges();
 
     // Check API availability
     const apiAvailable = computed(() => !!baseUrl);
@@ -394,13 +396,24 @@ export function useEntitySearch() {
     };
 
     /**
-     * Cleanup function
+     * Cleanup function for removing watchers and controllers
      */
-    const cleanup = (): void => {
+    function cleanup(): void {
         if (currentRequestController) {
             currentRequestController.abort();
+            currentRequestController = null;
         }
-    };
+        isLoadingLock = false;
+    }
+
+    // Preload badge colors when navigation order is available
+    watchEffect(() => {
+        const navigationOrder = getNavigationOrder();
+        if (navigationOrder.length > 0) {
+            // Warm up badge color cache for better UX
+            preloadBadgeColors(navigationOrder);
+        }
+    });
 
     return {
         // State

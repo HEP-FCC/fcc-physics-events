@@ -47,7 +47,7 @@ const { initializeNavigation } = useDynamicNavigation();
 const { mainTableDisplayName } = useAppConfiguration();
 
 onMounted(async () => {
-    // Initialize navigation configuration globally
+    // Initialize navigation configuration globally (early initialization for better UX)
     await initializeNavigation();
 
     // Check authentication status
