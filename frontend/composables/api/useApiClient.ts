@@ -20,8 +20,6 @@ export function useApiClient() {
     const config = useRuntimeConfig();
     const baseUrl = config.public.apiBaseUrl || "http://localhost:8000";
 
-    console.log("DEBUG: baseUrl configured as:", baseUrl);
-
     /**
      * Generic typed fetch wrapper - handles direct backend responses
      */
@@ -39,8 +37,6 @@ export function useApiClient() {
                 }
                 fullUrl += `?${queryParams.toString()}`;
             }
-
-            console.log("DEBUG: Making request to:", fullUrl);
 
             const response = await $fetch<T>(fullUrl, {
                 method: (options.method || "GET") as "GET" | "POST" | "PUT" | "DELETE",
@@ -83,8 +79,6 @@ export function useApiClient() {
             method: "GET",
             query: queryParams,
         });
-
-        console.info("DEBUG:", backendResponse);
 
         // Transform backend response to match frontend interface
         const result: SearchApiResponse<Entity> = {

@@ -175,29 +175,20 @@ const handleClickOutside = (_event: Event): void => {
 // Handle entity refresh after lock state changes
 const { getEntityById } = useApiClient();
 const handleRefreshEntity = async (entityId: number): Promise<void> => {
-    console.log("handleRefreshEntity called for entity:", entityId);
     try {
         // Fetch the updated entity from the backend
         const updatedEntity = await getEntityById(entityId);
-        console.log("Fetched updated entity:", updatedEntity);
-        console.log("Updated entity metadata:", updatedEntity.metadata);
 
         // Find and update the entity in the current entities array
         const entityIndex = search.entities.value.findIndex((entity: Entity) => {
             return entity.dataset_id === entityId;
         });
 
-        console.log("Entity index in array:", entityIndex);
-
         if (entityIndex !== -1) {
-            console.log("Current entity before update:", search.entities.value[entityIndex]);
-            console.log("Updating entity at index", entityIndex, "with:", updatedEntity);
             search.updateEntity(entityIndex, updatedEntity);
 
             // Force reactivity by waiting for next tick
             await nextTick();
-            console.log("Entity after update:", search.entities.value[entityIndex]);
-            console.log("Entity updated successfully");
         } else {
             console.warn("Entity not found in current entities array");
         }

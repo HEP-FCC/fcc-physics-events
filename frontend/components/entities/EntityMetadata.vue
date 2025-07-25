@@ -441,13 +441,8 @@ const toggleFieldLock = async (fieldName: string): Promise<void> => {
     const currentlyLocked = isFieldLocked(fieldName);
     const newLockState = !currentlyLocked;
 
-    console.log(`Toggling lock for field "${fieldName}": ${currentlyLocked} -> ${newLockState}`);
-    console.log(`Entity ID: ${actualEntityId.value}`);
-
     try {
         const response = await updateMetadataLock(actualEntityId.value, fieldName, newLockState);
-
-        console.log("Lock API response:", response);
 
         if (response.success) {
             // Only update local state after successful API response
@@ -462,7 +457,6 @@ const toggleFieldLock = async (fieldName: string): Promise<void> => {
             });
 
             // Emit a refresh event so parent can update the entity data
-            console.log("Emitting refreshEntity event for entity:", actualEntityId.value);
             emit("refreshEntity", actualEntityId.value);
         } else {
             console.error("Lock operation failed:", response);

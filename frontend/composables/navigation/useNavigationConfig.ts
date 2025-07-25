@@ -168,8 +168,6 @@ export const useNavigationConfig = () => {
         }
 
         try {
-            console.debug(`Starting background preloading for ${order.length} dropdown types:`, order);
-
             // Create concurrent API calls for all navigation types
             const preloadPromises = order.map(async (type: string) => {
                 try {
@@ -178,7 +176,6 @@ export const useNavigationConfig = () => {
                     // Store the preloaded data in module cache
                     preloadedDropdownCache[type] = items;
 
-                    console.debug(`Preloaded ${type}: ${items.length} items cached`);
                     return { type, success: true, count: items.length };
                 } catch (error) {
                     console.warn(`Error preloading ${type}:`, error);
@@ -188,10 +185,6 @@ export const useNavigationConfig = () => {
 
             // Wait for all preload operations to complete
             const results = await Promise.allSettled(preloadPromises);
-
-            // Log summary
-            const successful = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
-            console.debug(`Dropdown preloading completed: ${successful}/${order.length} successful`);
         } catch (error) {
             console.warn("Error during dropdown preloading:", error);
         }
