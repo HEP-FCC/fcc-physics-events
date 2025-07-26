@@ -48,7 +48,7 @@ export const clearPreloadedDropdownCache = (): void => {
 };
 
 export const useNavigationConfig = () => {
-    const { getSchemaConfig } = useApiClient();
+    const { getSchema } = useSchema();
 
     // Use global singleton state
     const navigationConfig = globalNavigationConfig;
@@ -65,7 +65,7 @@ export const useNavigationConfig = () => {
             isLoading.value = true;
             error.value = null;
 
-            const response = (await getSchemaConfig()) as unknown as SchemaInfo;
+            const response = (await getSchema()) as unknown as SchemaInfo;
 
             if (response.navigation_config) {
                 navigationConfig.value = {

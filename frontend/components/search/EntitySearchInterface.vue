@@ -17,7 +17,7 @@
         />
 
         <!-- Loading Skeleton -->
-        <UCard v-if="search.showLoadingSkeleton.value">
+        <UCard v-if="search.showLoadingSkeleton.value || !isInitialized">
             <div class="space-y-4">
                 <USkeleton v-for="i in 5" :key="i" class="h-12 w-full" />
             </div>
@@ -147,17 +147,16 @@ const { mainTableDisplayName } = useAppConfiguration();
 // Component state
 const isInitialized = ref(false);
 
-// Async navigation state
-const currentPath = ref<Record<string, string | null>>({});
+// Reactive state for duplicate search prevention
+const lastSearchKey = ref<string>("");
 
-// Watch route params and update data asynchronously
-watchEffect(() => {
-    const params = props.routeParams;
+// Computed current path from route params (for watcher consistency)
+const currentPath = computed(() => {
     try {
-        currentPath.value = parseRouteToPath(params);
+        return parseRouteToPath(props.routeParams);
     } catch (error) {
         console.error("Error parsing route to path:", error);
-        currentPath.value = {};
+        return {};
     }
 });
 
@@ -198,50 +197,59 @@ const handleRefreshEntity = async (entityId: number): Promise<void> => {
 };
 
 // Watchers
-// Watch for route param changes and update filters
-watch(
-    currentPath,
-    (newPath, _oldPath) => {
-        // Build navigation filters from current path
-        const navigationFilters = Object.entries(newPath)
-            .filter(([, value]) => value !== null)
-            .reduce((acc, [key, value]) => {
-                acc[`${key}_name`] = value!;
-                return acc;
-            }, {} as Record<string, string>);
+// Use watchDebounced to prevent multiple rapid fires
+watchDebounced(
+    [isInitialized, () => JSON.stringify(props.initialFilters), () => props.routeParams.length],
+    ([initialized, filtersStr, routeParamsLength]) => {
+        const filters = JSON.parse(filtersStr);
 
-        // Update filters
-        search.updateFilters(navigationFilters);
+        // Only proceed if component is initialized
+        if (!initialized) {
+            return;
+        }
 
-        // Note: Dropdown state management is now handled by NavigationMenu
+        // Skip if filters are empty but we have route params (waiting for filters to populate)
+        const hasRouteParams = routeParamsLength > 0;
+        const hasFilters = Object.keys(filters).length > 0;
+
+        if (hasRouteParams && !hasFilters) {
+            return;
+        }
+
+        // Create a search key to prevent duplicate searches with same parameters
+        const searchKey = JSON.stringify({
+            filters,
+            searchQuery: search.userSearchQuery.value,
+            routeParamsLength,
+        });
+
+        // Skip if this exact search was already performed
+        if (searchKey === lastSearchKey.value) {
+            return;
+        }
+
+        lastSearchKey.value = searchKey;
+
+        // Update filters - use the already parsed filters from props
+        search.updateFilters(filters);
+
+        // Always perform search - let the backend handle empty query as "*"
+        search.performSearch(true);
     },
-    { immediate: true, deep: true, flush: "post" },
+    { debounce: 300, immediate: false, flush: "post" },
 );
 
 // Watch sorting changes to trigger new search
 watch(
     [() => search.sortState.sortBy, () => search.sortState.sortOrder],
     () => {
-        search.updateCurrentPage(1);
-        search.performSearch(true);
+        // Only trigger search if component is fully initialized
+        if (isInitialized.value) {
+            search.updateCurrentPage(1);
+            search.performSearch(true);
+        }
     },
     { flush: "post" },
-);
-
-// Watch filter changes with debounce
-watchDebounced(
-    search.activeFilters,
-    () => {
-        // Only proceed if not already in a filter update process from elsewhere
-        if (!search.isFilterUpdateInProgress.value) {
-            search.isFilterUpdateInProgress.value = true;
-        }
-        search.updateCurrentPage(1);
-        search.performSearch(true).finally(() => {
-            search.isFilterUpdateInProgress.value = false;
-        });
-    },
-    { debounce: 250, deep: true, immediate: false, flush: "post" },
 );
 
 // Clear metadata expansions when entities change (only when entity IDs change)
@@ -258,11 +266,20 @@ watch(
     { flush: "post" },
 );
 
-// Set up infinite scroll
-useInfiniteScroll(window, () => search.loadMoreData(), {
-    distance: 600,
-    canLoadMore: () => search.canLoadMore.value,
-});
+// Set up infinite scroll - but only after component is ready
+useInfiniteScroll(
+    window,
+    () => {
+        // Guard against infinite scroll triggers before component is ready
+        if (search.isComponentReady.value) {
+            search.loadMoreData();
+        }
+    },
+    {
+        distance: 600,
+        canLoadMore: () => search.canLoadMore.value && search.isComponentReady.value,
+    },
+);
 
 // Component lifecycle
 onMounted(async () => {
@@ -271,14 +288,13 @@ onMounted(async () => {
         const { initializeNavigation } = useDynamicNavigation();
         await initializeNavigation();
 
-        // Initialize search with any initial filters
-        await search.initializeSearch(props.initialFilters);
-
         // Fetch sorting fields
         await search.fetchSortingFields();
 
-        // Note: Navigation dropdown data is now loaded by NavigationMenu itself
+        // Mark component as ready for searches
+        search.isComponentReady.value = true;
 
+        // Mark component as initialized
         isInitialized.value = true;
     }
 

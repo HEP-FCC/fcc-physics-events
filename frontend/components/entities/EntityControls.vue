@@ -24,7 +24,7 @@
                 :loading="isDownloading"
                 @click="$emit('downloadSelected')"
             >
-                Download all selected ({{ selectedCount }})
+                Selected ({{ selectedCount }})
             </UButton>
 
             <UButton
@@ -37,12 +37,10 @@
                 :loading="isDownloadingFiltered"
                 @click="$emit('downloadFiltered')"
             >
-                Download all filtered ({{ displayRange.total }})
+                Filtered ({{ displayRange.total }})
             </UButton>
 
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
 
             <UButton
                 :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
@@ -71,7 +69,7 @@
                     value-key="value"
                     :search-input="{ placeholder: 'Search fields...' }"
                     size="sm"
-                    class="w-48"
+                    class="w-38"
                     @update:model-value="$emit('updateSortBy', $event)"
                 />
                 <UButton

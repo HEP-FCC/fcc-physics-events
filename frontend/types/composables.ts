@@ -1,6 +1,14 @@
 /**
- * TypeScript types for composables
- * Defines interfaces for reactive state and composable returns
+ * TypeScript types for comexport interface SearchComposable {
+    // State
+    userSearchQuery: Ref<string>;
+    infiniteScrollEnabled: Ref<boolean>;
+    activeFilters: Ref<Record<string, string>>;
+    entities: Ref<Entity[]>;
+    searchState: SearchState;
+    scrollState: ScrollState;
+    sortState: SortState;
+    apiAvailable: ComputedRef<boolean>; Defines interfaces for reactive state and composable returns
  */
 
 import type { Ref, ComputedRef } from "vue";

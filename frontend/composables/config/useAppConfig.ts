@@ -50,7 +50,8 @@ export const useAppConfiguration = () => {
 
         isLoading.value = true;
         try {
-            const schemaResponse = await getSchemaConfig();
+            const { getSchema } = useSchema();
+            const schemaResponse = await getSchema();
             const { appTitle, searchPlaceholder, main_table } = schemaResponse;
 
             appConfig.value = {

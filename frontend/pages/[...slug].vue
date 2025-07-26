@@ -18,20 +18,24 @@ const routeParams = computed(() => {
     return Array.isArray(route.params.slug) ? route.params.slug : route.params.slug ? [route.params.slug] : [];
 });
 
-// Use refs for async data
-const activeFilters = ref<Record<string, string>>({});
-const currentPath = ref<Record<string, string | null>>({});
-
-// Watch route params and update data asynchronously
-watchEffect(() => {
+// Computed filters and path from route params (synchronous)
+const activeFilters = computed(() => {
     const params = routeParams.value;
     try {
-        activeFilters.value = parseRouteToFilters(params);
-        currentPath.value = parseRouteToPath(params);
+        return parseRouteToFilters(params);
     } catch (error) {
-        console.error("Error parsing route:", error);
-        activeFilters.value = {};
-        currentPath.value = {};
+        console.error("Error parsing route to filters:", error);
+        return {};
+    }
+});
+
+const currentPath = computed(() => {
+    const params = routeParams.value;
+    try {
+        return parseRouteToPath(params);
+    } catch (error) {
+        console.error("Error parsing route to path:", error);
+        return {};
     }
 });
 

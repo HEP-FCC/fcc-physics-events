@@ -14,11 +14,13 @@ export function useEntitySearch() {
     const apiAvailable = computed(() => !!baseUrl);
     const route = useRoute();
 
+    // Component initialization guard - prevent searches until component is ready
+    const isComponentReady = ref(false);
+
     // Search state
     const userSearchQuery = ref((route.query.q as string) || "");
     const infiniteScrollEnabled = ref(true);
     const activeFilters = ref<Record<string, string>>({});
-    const isFilterUpdateInProgress = ref(false);
     let currentRequestController: AbortController | null = null;
 
     // Entity storage - using shallowRef for large arrays that don't need deep reactivity
@@ -98,12 +100,7 @@ export function useEntitySearch() {
     );
 
     const canLoadMore = computed(() => {
-        return (
-            searchState.hasMore &&
-            !searchState.isLoading &&
-            !searchState.isLoadingMore &&
-            !isFilterUpdateInProgress.value
-        );
+        return searchState.hasMore && !searchState.isLoading && !searchState.isLoadingMore;
     });
 
     const sortingFieldOptions = computed(() => {
@@ -114,7 +111,7 @@ export function useEntitySearch() {
     });
 
     const showLoadingSkeleton = computed(() => {
-        return (searchState.isLoading && entities.value.length === 0) || isFilterUpdateInProgress.value;
+        return searchState.isLoading && entities.value.length === 0;
     });
 
     const shouldShowLoadingIndicatorEntities = computed(() => {
@@ -129,7 +126,7 @@ export function useEntitySearch() {
     const formatFieldLabel = (field: string): string => {
         if (field.startsWith("metadata.")) {
             const metadataKey = field.replace("metadata.", "");
-            return `Metadata: ${metadataKey.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}`;
+            return `${metadataKey.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}`;
         }
         return field
             .replace(/_/g, " ")
@@ -141,16 +138,14 @@ export function useEntitySearch() {
      * Main search function with pagination and error handling
      */
     async function performSearch(resetResults = true): Promise<void> {
-        if (!apiAvailable.value) {
-            console.warn("API is unavailable, skipping search");
+        // Guard against searches before component is ready
+        if (!isComponentReady.value) {
             return;
         }
 
-        // If this is not a filter-triggered search and filters are updating,
-        // wait a bit to avoid race conditions
-        if (isFilterUpdateInProgress.value && resetResults) {
-            // Wait for a short moment to allow filter updates to settle
-            await new Promise((resolve) => setTimeout(resolve, 50));
+        if (!apiAvailable.value) {
+            console.warn("API is unavailable, skipping search");
+            return;
         }
 
         if (currentRequestController) {
@@ -229,8 +224,6 @@ export function useEntitySearch() {
                 } else {
                     searchState.isLoadingMore = false;
                 }
-                // Reset filter update progress flag
-                isFilterUpdateInProgress.value = false;
             }
         }
     }
@@ -244,8 +237,8 @@ export function useEntitySearch() {
             return;
         }
 
-        // Prevent duplicate calls - only allow if no fields loaded yet
-        if (sortState.availableFields.length > 0) {
+        // Prevent duplicate calls - only allow if no fields loaded yet AND not currently loading
+        if (sortState.availableFields.length > 0 || sortState.isLoading) {
             return;
         }
 
@@ -285,7 +278,7 @@ export function useEntitySearch() {
         }
 
         // Check if we can load more
-        if (isFilterUpdateInProgress.value || searchState.isLoadingMore || !canLoadMore.value || !searchState.hasMore) {
+        if (searchState.isLoadingMore || !canLoadMore.value || !searchState.hasMore) {
             return;
         }
 
@@ -335,37 +328,22 @@ export function useEntitySearch() {
     };
 
     /**
-     * Update filters and trigger search
+     * Update filters
      */
     const updateFilters = (newFilters: Record<string, string>): void => {
         if (JSON.stringify(activeFilters.value) !== JSON.stringify(newFilters)) {
-            isFilterUpdateInProgress.value = true;
             activeFilters.value = { ...newFilters };
-            // Don't trigger immediate search here - let the debounced watcher handle it
         }
     };
 
     /**
-     * Initialize search with auto-search if needed
+     * Initialize search with filters (no auto-search)
+     * Search triggering is now handled by component watchers
      */
     async function initializeSearch(initialFilters: Record<string, string>): Promise<void> {
-        // Initialize filters from props first
+        // Only update filters - search will be triggered by component watchers
         if (Object.keys(initialFilters).length > 0) {
             updateFilters(initialFilters);
-            // Wait a moment for filter update to settle before performing search
-            await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
-        // Check conditions for auto-search
-        const hasUserQuery = userSearchQuery.value && userSearchQuery.value.trim() !== "";
-        const hasActiveFilters = Object.keys(activeFilters.value).length > 0;
-        const hasInitialFilters = Object.keys(initialFilters).length > 0;
-
-        // Automatically perform search if query or filters are present, OR if no conditions are met (show all)
-        if (hasUserQuery || hasActiveFilters || hasInitialFilters) {
-            await performSearch(true);
-        } else {
-            await performSearch(true);
         }
     }
 
@@ -420,12 +398,12 @@ export function useEntitySearch() {
         userSearchQuery,
         infiniteScrollEnabled,
         activeFilters,
-        isFilterUpdateInProgress,
         entities,
         searchState,
         scrollState,
         sortState,
         apiAvailable,
+        isComponentReady, // Export this so components can control it
 
         // Computed
         urlFilterQuery,
