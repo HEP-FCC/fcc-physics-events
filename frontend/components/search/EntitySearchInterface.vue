@@ -177,7 +177,7 @@ const showScrollToTop = ref(false);
 const scrollToTop = () => {
     window.scrollTo({
         top: 0,
-        behavior: 'smooth'
+        behavior: "smooth",
     });
 };
 
@@ -380,10 +380,10 @@ onMounted(async () => {
 
     // Add click outside handler (now mostly handled by NavigationMenu)
     document.addEventListener("click", handleClickOutside);
-    
+
     // Add scroll event listener for scroll-to-top button
     window.addEventListener("scroll", handleScroll);
-    
+
     // Initialize scroll button state
     handleScroll();
 });

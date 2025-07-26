@@ -992,7 +992,6 @@ const renderedFieldsByType = computed(() => {
 // Replace individual functions with computed access to memoized results
 const getSpecialFieldsComputed = () => processedFields.value.specialFields;
 const getStatusFieldsComputed = () => processedFields.value.statusFields;
-const getRegularFieldsSortedComputed = () => processedFields.value.regularFieldsWithTypes;
 const getFieldsByTypeComputed = () => renderedFieldsByType.value;
 
 // Determine column span for special fields based on content length and status fields presence
