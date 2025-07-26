@@ -260,7 +260,7 @@ watch(
 
 // Set up infinite scroll
 useInfiniteScroll(window, () => search.loadMoreData(), {
-    distance: 800,
+    distance: 600,
     canLoadMore: () => search.canLoadMore.value,
 });
 

@@ -1,16 +1,17 @@
 <template>
     <div>
         <!-- Entity List -->
-        <div class="space-y-2">
+        <div class="space-y-1.5">
             <!-- Entity cards -->
             <UCard
                 v-for="(entity, index) in entities"
                 :key="getEntityId(entity)"
                 :data-entity-card="index"
-                class="overflow-hidden select-text cursor-pointer"
+                :ui="{ body: 'sm:p-1.5' }"
+                class="overflow-hidden select-text cursor-pointer root-p-0"
                 @click="handleRowClick($event, getEntityId(entity))"
             >
-                <div class="px-2 py-1.5">
+                <div class="px-2">
                     <div class="flex items-center justify-between gap-3">
                         <div class="flex-1 min-w-0">
                             <!-- Row 1: Entity name (full width) -->
