@@ -122,7 +122,7 @@ export function useEntitySelection() {
     }
 
     /**
-     * Toggle all metadata expansions
+     * Toggle all metadata expansions - optimized for large entity lists
      */
     function toggleAllMetadata(entities: Entity[]): void {
         const currentEntityIds = extractEntityIds(entities);
@@ -131,9 +131,13 @@ export function useEntitySelection() {
             currentEntityIds.every((id: number) => selectionState.expandedMetadata.has(id));
 
         if (allExpanded) {
+            // Batch removal for better performance
             currentEntityIds.forEach((id: number) => selectionState.expandedMetadata.delete(id));
         } else {
-            currentEntityIds.forEach((id: number) => selectionState.expandedMetadata.add(id));
+            // Batch addition - use Set operations for efficiency
+            const newExpandedSet = new Set(selectionState.expandedMetadata);
+            currentEntityIds.forEach((id: number) => newExpandedSet.add(id));
+            selectionState.expandedMetadata = newExpandedSet;
         }
         expandedMetadataVersion.value++;
     }

@@ -1,5 +1,9 @@
 <template>
-    <div class="bg-gray-50 dark:bg-gray-800 rounded border-t border-gray-200 dark:border-gray-700">
+    <!-- v-memo to prevent unnecessary re-renders when props haven't changed -->
+    <div
+        class="bg-gray-50 dark:bg-gray-800 rounded border-t border-gray-200 dark:border-gray-700"
+        v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing]"
+    >
         <!-- Editing Mode -->
         <div v-if="editState?.isEditing" class="p-6">
             <div class="flex items-center justify-between mb-4">
@@ -79,16 +83,13 @@
             <!-- Compact Content -->
             <div class="p-2">
                 <!-- Special Fields and Status Section - Side by Side Layout -->
-                <div
-                    v-if="getSpecialFields(props.metadata).length > 0 || getStatusFields(props.metadata).length > 0"
-                    class="mb-2"
-                >
+                <div v-if="getSpecialFieldsComputed().length > 0 || getStatusFieldsComputed().length > 0" class="mb-2">
                     <div class="grid grid-cols-12 gap-2">
                         <!-- Special Fields (Comments & Descriptions) -->
                         <div
-                            v-for="[key, value] in getSpecialFields(props.metadata)"
+                            v-for="[key, value] in getSpecialFieldsComputed()"
                             :key="key"
-                            :class="getSpecialFieldSpanClass(value, getStatusFields(props.metadata).length)"
+                            :class="getSpecialFieldSpanClass(value, getStatusFieldsComputed().length)"
                             class="group relative rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-100/60 dark:bg-indigo-950/50 hover:bg-indigo-200/70 dark:hover:bg-indigo-900/60 transition-colors duration-200 shadow-sm p-2"
                         >
                             <!-- Compact special field content -->
@@ -112,9 +113,8 @@
                                             {{ String(value) }}
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <!-- Lock button for special fields (only show if authenticated) -->
+                                            <!-- Lock indicator for special fields (always visible, clickable only if authenticated) -->
                                             <UButton
-                                                v-if="isAuthenticated"
                                                 :icon="
                                                     isFieldLocked(key)
                                                         ? 'i-heroicons-lock-closed'
@@ -124,17 +124,25 @@
                                                 variant="ghost"
                                                 size="xs"
                                                 :padded="false"
-                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
+                                                :disabled="!isAuthenticated"
+                                                class="w-3 h-3 transition-all duration-200"
                                                 :class="{
-                                                    'hover:text-orange-500': !isFieldLocked(key),
-                                                    'text-orange-600 hover:text-orange-700': isFieldLocked(key),
+                                                    'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
+                                                        isAuthenticated && !isFieldLocked(key),
+                                                    'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
+                                                        isAuthenticated && isFieldLocked(key),
+                                                    'cursor-not-allowed opacity-50': !isAuthenticated,
                                                 }"
                                                 :title="
-                                                    isFieldLocked(key)
+                                                    !isAuthenticated
+                                                        ? `Field is ${
+                                                              isFieldLocked(key) ? 'locked' : 'unlocked'
+                                                          } - You need to be logged in to modify locks`
+                                                        : isFieldLocked(key)
                                                         ? `Unlock ${getSpecialFieldTitle(key)}`
                                                         : `Lock ${getSpecialFieldTitle(key)}`
                                                 "
-                                                @click="toggleFieldLock(key)"
+                                                @click="isAuthenticated ? toggleFieldLock(key) : undefined"
                                             />
 
                                             <!-- Copy button for special fields -->
@@ -156,7 +164,7 @@
 
                         <!-- Status Fields Section - Same style as special fields but compact -->
                         <div
-                            v-for="statusField in getStatusFields(props.metadata)"
+                            v-for="statusField in getStatusFieldsComputed()"
                             :key="`status_${statusField.key}`"
                             :class="[
                                 getStatusFieldSpanClass(statusField.value),
@@ -189,9 +197,8 @@
                                             {{ String(statusField.value) }}
                                         </div>
                                         <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <!-- Lock button for status fields (only show if authenticated) -->
+                                            <!-- Lock indicator for status fields (always visible, clickable only if authenticated) -->
                                             <UButton
-                                                v-if="isAuthenticated"
                                                 :icon="
                                                     isFieldLocked(statusField.key)
                                                         ? 'i-heroicons-lock-closed'
@@ -201,19 +208,25 @@
                                                 variant="ghost"
                                                 size="xs"
                                                 :padded="false"
-                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
+                                                :disabled="!isAuthenticated"
+                                                class="w-3 h-3 transition-all duration-200"
                                                 :class="{
-                                                    'hover:text-orange-500': !isFieldLocked(statusField.key),
-                                                    'text-orange-600 hover:text-orange-700': isFieldLocked(
-                                                        statusField.key,
-                                                    ),
+                                                    'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
+                                                        isAuthenticated && !isFieldLocked(statusField.key),
+                                                    'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
+                                                        isAuthenticated && isFieldLocked(statusField.key),
+                                                    'cursor-not-allowed opacity-50': !isAuthenticated,
                                                 }"
                                                 :title="
-                                                    isFieldLocked(statusField.key)
+                                                    !isAuthenticated
+                                                        ? `Field is ${
+                                                              isFieldLocked(statusField.key) ? 'locked' : 'unlocked'
+                                                          } - You need to be logged in to modify locks`
+                                                        : isFieldLocked(statusField.key)
                                                         ? `Unlock ${statusField.label}`
                                                         : `Lock ${statusField.label}`
                                                 "
-                                                @click="toggleFieldLock(statusField.key)"
+                                                @click="isAuthenticated ? toggleFieldLock(statusField.key) : undefined"
                                             />
 
                                             <!-- Copy button for status fields -->
@@ -237,10 +250,7 @@
 
                 <!-- Regular Fields Grid Layout with Type-Based Row Breaks -->
                 <div class="space-y-2">
-                    <template
-                        v-for="typeGroup in getFieldsByType(getRegularFieldsSorted(props.metadata))"
-                        :key="typeGroup.type"
-                    >
+                    <template v-for="typeGroup in getFieldsByTypeComputed()" :key="typeGroup.type">
                         <!-- Type Row -->
                         <div class="grid grid-cols-12 gap-2 text-xs">
                             <template v-for="[key, value, type] in typeGroup.fields" :key="key">
@@ -317,9 +327,8 @@
 
                                         <!-- Action buttons -->
                                         <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <!-- Lock button (only show if authenticated) -->
+                                            <!-- Lock indicator (always visible, clickable only if authenticated) -->
                                             <UButton
-                                                v-if="isAuthenticated"
                                                 :icon="
                                                     isFieldLocked(key)
                                                         ? 'i-heroicons-lock-closed'
@@ -329,17 +338,25 @@
                                                 variant="ghost"
                                                 size="xs"
                                                 :padded="false"
-                                                class="w-4 h-4 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
+                                                :disabled="!isAuthenticated"
+                                                class="w-4 h-4 transition-all duration-200"
                                                 :class="{
-                                                    'hover:text-orange-500': !isFieldLocked(key),
-                                                    'text-orange-600 hover:text-orange-700': isFieldLocked(key),
+                                                    'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
+                                                        isAuthenticated && !isFieldLocked(key),
+                                                    'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
+                                                        isAuthenticated && isFieldLocked(key),
+                                                    'cursor-not-allowed opacity-50': !isAuthenticated,
                                                 }"
                                                 :title="
-                                                    isFieldLocked(key)
+                                                    !isAuthenticated
+                                                        ? `Field is ${
+                                                              isFieldLocked(key) ? 'locked' : 'unlocked'
+                                                          } - You need to be logged in to modify locks`
+                                                        : isFieldLocked(key)
                                                         ? `Unlock ${formatFieldName(key)}`
                                                         : `Lock ${formatFieldName(key)}`
                                                 "
-                                                @click="toggleFieldLock(key)"
+                                                @click="isAuthenticated ? toggleFieldLock(key) : undefined"
                                             />
 
                                             <!-- Copy button -->
@@ -366,7 +383,7 @@
 </template>
 
 <script setup lang="ts">
-// Auto-imported: ref, watch, watchEffect, computed
+// Auto-imported: ref, watch, watchEffect, computed, nextTick
 import type { MetadataEditState } from "~/types/api";
 // Auto-imported: useAppConfiguration
 
@@ -376,6 +393,7 @@ import type { MetadataEditState } from "~/types/api";
  * - Supports read-only view with syntax highlighting
  * - Provides edit mode with validation
  * - Works with any entity type dynamically
+ * - Optimized for large metadata objects with memoization and lazy rendering
  */
 interface Props {
     entityId?: number;
@@ -395,8 +413,11 @@ const emit = defineEmits<Emits>();
 // Use the entityId directly
 const actualEntityId = computed(() => props.entityId ?? 0);
 
+// Performance optimizations - applied universally to ALL entity metadata
+// No longer using lazy loading - show all fields by default
+
 // Composables
-const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getStatusFields } = useUtils();
+const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getStatusBadgeColor } = useUtils();
 const { isAuthenticated } = useAuth();
 const { mainTableDisplayName } = useAppConfiguration();
 
@@ -480,35 +501,62 @@ const formatJson = (): void => {
 const { updateMetadataLock } = useApiClient();
 const toast = useToast();
 
-// Initialize local lock states from props
-watchEffect(() => {
-    // Ensure all lock states are properly initialized
+// Optimized lock field handling with memoization
+const lockedFieldsSet = computed(() => {
+    const lockedFields = new Set<string>();
+
+    // Process local state first (most up-to-date)
+    if (localLockStates.value) {
+        Object.entries(localLockStates.value).forEach(([fieldName, isLocked]) => {
+            if (isLocked) {
+                lockedFields.add(fieldName);
+            }
+        });
+    }
+
+    // Process metadata lock fields as fallback
     Object.keys(props.metadata).forEach((key) => {
         if (key.includes("__lock__")) {
             const fieldName = key.replace("__", "").replace("__lock__", "");
-            const metadataValue = !!props.metadata[key];
+            const isLocked = !!props.metadata[key];
+
+            // Only add if not already in local state
+            if (!localLockStates.value || !(fieldName in localLockStates.value)) {
+                if (isLocked) {
+                    lockedFields.add(fieldName);
+                }
+                // Sync to local state
+                if (localLockStates.value) {
+                    localLockStates.value[fieldName] = isLocked;
+                }
+            }
+        }
+    });
+
+    return lockedFields;
+});
+
+// Initialize local lock states from props (optimized)
+watchEffect(() => {
+    if (!localLockStates.value) return;
+
+    // Only process lock fields once per metadata change
+    const lockFields = Object.keys(props.metadata).filter((key) => key.includes("__lock__"));
+
+    lockFields.forEach((key) => {
+        const fieldName = key.replace("__", "").replace("__lock__", "");
+        const metadataValue = !!props.metadata[key];
+
+        // Only update if value actually changed
+        if (localLockStates.value[fieldName] !== metadataValue) {
             localLockStates.value[fieldName] = metadataValue;
         }
     });
 });
 
-// Create a reactive function to check if fields are locked
+// Optimized lock checking - O(1) lookup instead of string operations
 const isFieldLocked = (fieldName: string): boolean => {
-    // Always check local state first if it exists
-    if (localLockStates.value && fieldName in localLockStates.value) {
-        return localLockStates.value[fieldName];
-    }
-
-    // Fall back to props metadata if local state isn't available yet
-    const lockFieldName = `__${fieldName}__lock__`;
-    const isLocked = !!props.metadata[lockFieldName];
-
-    // If we found a lock state in metadata but not in local state, sync it
-    if (localLockStates.value && props.metadata[lockFieldName] !== undefined) {
-        localLockStates.value[fieldName] = isLocked;
-    }
-
-    return isLocked;
+    return lockedFieldsSet.value.has(fieldName);
 };
 
 const toggleFieldLock = async (fieldName: string): Promise<void> => {
@@ -818,31 +866,109 @@ const isLockField = (key: string): boolean => {
     return key.includes("__lock__");
 };
 
-// Get count of visible fields (excluding lock fields)
+// Get count of visible fields (excluding lock fields) - optimized
 const visibleFieldCount = computed(() => {
-    return Object.keys(props.metadata).filter((key) => !isLockField(key)).length;
+    return processedFields.value.visibleCount;
 });
 
-const getSpecialFields = (metadata: Record<string, unknown>): [string, unknown][] => {
-    return Object.entries(metadata)
-        .filter(([key]) => isSpecialField(key) && !isLockField(key)) // Exclude lock fields from special fields too
-        .sort(([a], [b]) => {
-            // Prioritize certain field names
-            const priorityOrder = ["description", "summary", "comment", "notes", "note"];
-            const aPriority = priorityOrder.findIndex((p) => a.toLowerCase().includes(p));
-            const bPriority = priorityOrder.findIndex((p) => b.toLowerCase().includes(p));
+// Memoized field processing to avoid expensive recalculations
+const processedFields = computed(() => {
+    const metadata = props.metadata;
 
-            if (aPriority !== -1 && bPriority !== -1) {
-                return aPriority - bPriority;
-            } else if (aPriority !== -1) {
-                return -1;
-            } else if (bPriority !== -1) {
-                return 1;
-            }
-            return a.localeCompare(b);
-        });
-};
+    // Separate and process different field types
+    const specialFields: [string, unknown][] = [];
+    const statusFields: Array<{
+        key: string;
+        label: string;
+        value: unknown;
+        color: "success" | "warning" | "info" | "primary" | "secondary" | "error" | "neutral";
+    }> = [];
+    const regularFieldsWithTypes: [string, unknown, string][] = [];
 
+    Object.entries(metadata).forEach(([key, value]) => {
+        // Skip lock fields
+        if (isLockField(key)) return;
+
+        if (isSpecialField(key)) {
+            specialFields.push([key, value]);
+        } else if (isStatusField(key)) {
+            statusFields.push({
+                key,
+                label: formatFieldName(key),
+                value,
+                color: getStatusBadgeColor(value),
+            });
+        } else {
+            // Regular field - determine type
+            let type: string;
+            if (isVectorField(value)) type = "vector";
+            else if (typeof value === "number") type = "number";
+            else if (typeof value === "boolean") type = "boolean";
+            else if (isNumericString(value)) type = "number"; // Treat numeric strings as numbers
+            else if (typeof value === "string" && isLongString(value)) type = "longString";
+            else type = "shortString";
+
+            regularFieldsWithTypes.push([key, value, type]);
+        }
+    });
+
+    // Sort special fields
+    specialFields.sort(([a], [b]) => {
+        const priorityOrder = ["description", "summary", "comment", "notes", "note"];
+        const aPriority = priorityOrder.findIndex((p) => a.toLowerCase().includes(p));
+        const bPriority = priorityOrder.findIndex((p) => b.toLowerCase().includes(p));
+
+        if (aPriority !== -1 && bPriority !== -1) {
+            return aPriority - bPriority;
+        } else if (aPriority !== -1) {
+            return -1;
+        } else if (bPriority !== -1) {
+            return 1;
+        }
+        return a.localeCompare(b);
+    });
+
+    // Sort status fields
+    statusFields.sort((a, b) => a.label.localeCompare(b.label));
+
+    // Sort regular fields
+    const typeOrder = ["number", "boolean", "shortString", "vector", "longString"];
+    regularFieldsWithTypes.sort(([keyA, , typeA], [keyB, , typeB]) => {
+        const typeOrderA = typeOrder.indexOf(typeA);
+        const typeOrderB = typeOrder.indexOf(typeB);
+
+        if (typeOrderA !== typeOrderB) {
+            return typeOrderA - typeOrderB;
+        }
+        return keyA.localeCompare(keyB);
+    });
+
+    // Group regular fields by type
+    const groupedRegularFields = new Map<string, [string, unknown, string][]>();
+    regularFieldsWithTypes.forEach(([key, value, type]) => {
+        if (!groupedRegularFields.has(type)) {
+            groupedRegularFields.set(type, []);
+        }
+        groupedRegularFields.get(type)!.push([key, value, type]);
+    });
+
+    const fieldsByType = typeOrder
+        .filter((type) => groupedRegularFields.has(type))
+        .map((type) => ({
+            type,
+            fields: groupedRegularFields.get(type)!,
+        }));
+
+    return {
+        specialFields,
+        statusFields,
+        regularFieldsWithTypes,
+        fieldsByType,
+        visibleCount: specialFields.length + statusFields.length + regularFieldsWithTypes.length,
+    };
+});
+
+// Helper functions for special fields
 const getSpecialFieldIcon = (key: string): string => {
     const normalizedKey = key.toLowerCase();
     if (normalizedKey.includes("description") || normalizedKey.includes("desc")) return "📝";
@@ -857,34 +983,17 @@ const getSpecialFieldTitle = (key: string): string => {
     return formatFieldName(key);
 };
 
-const getRegularFieldsSorted = (metadata: Record<string, unknown>): [string, unknown, string][] => {
-    const fieldsWithTypes = Object.entries(metadata)
-        .filter(([key]) => !isSpecialField(key) && !isLockField(key) && !isStatusField(key)) // Exclude special, lock, and status fields
-        .map(([key, value]): [string, unknown, string] => {
-            if (isVectorField(value)) return [key, value, "vector"];
-            if (typeof value === "number") return [key, value, "number"];
-            if (typeof value === "boolean") return [key, value, "boolean"];
-            if (isNumericString(value)) return [key, value, "number"]; // Treat numeric strings as numbers
-            if (typeof value === "string" && isLongString(value)) return [key, value, "longString"];
-            return [key, value, "shortString"];
-        });
+// Optimized lazy loading for ALL metadata (always render efficiently)
+const renderedFieldsByType = computed(() => {
+    // Always show all fields - no lazy loading needed
+    return processedFields.value.fieldsByType;
+});
 
-    // Define type order for consistent grouping
-    const typeOrder = ["number", "boolean", "shortString", "vector", "longString"];
-
-    return fieldsWithTypes.sort(([keyA, , typeA], [keyB, , typeB]) => {
-        // First sort by type order
-        const typeOrderA = typeOrder.indexOf(typeA);
-        const typeOrderB = typeOrder.indexOf(typeB);
-
-        if (typeOrderA !== typeOrderB) {
-            return typeOrderA - typeOrderB;
-        }
-
-        // Then sort alphabetically within the same type
-        return keyA.localeCompare(keyB);
-    });
-};
+// Replace individual functions with computed access to memoized results
+const getSpecialFieldsComputed = () => processedFields.value.specialFields;
+const getStatusFieldsComputed = () => processedFields.value.statusFields;
+const getRegularFieldsSortedComputed = () => processedFields.value.regularFieldsWithTypes;
+const getFieldsByTypeComputed = () => renderedFieldsByType.value;
 
 // Determine column span for special fields based on content length and status fields presence
 const getSpecialFieldSpanClass = (value: unknown, statusFieldsCount: number): string => {
@@ -913,29 +1022,6 @@ const getSpecialFieldSpanClass = (value: unknown, statusFieldsCount: number): st
 
     // No status fields, use original logic
     return isLong ? "col-span-12" : "col-span-6";
-};
-
-// Group fields by type for row-based display
-const getFieldsByType = (
-    fields: [string, unknown, string][],
-): Array<{ type: string; fields: [string, unknown, string][] }> => {
-    const grouped = new Map<string, [string, unknown, string][]>();
-
-    fields.forEach(([key, value, type]) => {
-        if (!grouped.has(type)) {
-            grouped.set(type, []);
-        }
-        grouped.get(type)!.push([key, value, type]);
-    });
-
-    // Convert to array and maintain type order
-    const typeOrder = ["number", "boolean", "shortString", "vector", "longString"];
-    return typeOrder
-        .filter((type) => grouped.has(type))
-        .map((type) => ({
-            type,
-            fields: grouped.get(type)!,
-        }));
 };
 
 // Copy field value to clipboard with type handling

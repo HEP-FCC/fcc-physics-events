@@ -85,7 +85,7 @@
                 <!-- Metadata component (inline) -->
                 <div
                     v-if="isMetadataExpanded(getEntityId(entity))"
-                    class="border-t border-gray-200 bg-gray-50 cursor-default"
+                    class="border-t border-gray-200 bg-gray-50 cursor-default my-1"
                     @click.stop
                 >
                     <EntityMetadata

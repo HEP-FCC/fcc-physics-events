@@ -106,6 +106,29 @@
             <p class="text-lg font-medium">No {{ mainTableDisplayName }} found.</p>
             <p class="text-sm">Try adjusting your search query or filters. 🔎</p>
         </UCard>
+
+        <!-- Scroll to Top Button -->
+        <Transition
+            enter-active-class="transition-all duration-300 ease-out"
+            enter-from-class="opacity-0 scale-95 translate-y-2"
+            enter-to-class="opacity-100 scale-100 translate-y-0"
+            leave-active-class="transition-all duration-200 ease-in"
+            leave-from-class="opacity-100 scale-100 translate-y-0"
+            leave-to-class="opacity-0 scale-95 translate-y-2"
+        >
+            <UTooltip v-if="showScrollToTop" text="Scroll to top" placement="left">
+                <UButton
+                    icon="i-heroicons-arrow-up"
+                    color="primary"
+                    variant="solid"
+                    size="lg"
+                    class="fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300"
+                    @click="scrollToTop"
+                >
+                    <span class="sr-only">Scroll to top</span>
+                </UButton>
+            </UTooltip>
+        </Transition>
     </div>
 </template>
 
@@ -146,6 +169,22 @@ const { mainTableDisplayName } = useAppConfiguration();
 
 // Component state
 const isInitialized = ref(false);
+
+// Scroll to top functionality
+const showScrollToTop = ref(false);
+
+// Function to scroll smoothly to top
+const scrollToTop = () => {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+};
+
+// Watch scroll position to show/hide scroll to top button
+const handleScroll = () => {
+    showScrollToTop.value = window.scrollY > 400; // Show after scrolling 400px
+};
 
 // Reactive state for duplicate search prevention
 const lastSearchKey = ref<string>("");
@@ -252,17 +291,48 @@ watch(
     { flush: "post" },
 );
 
-// Clear metadata expansions when entities change (only when entity IDs change)
+// Smart metadata expansion management - preserve user intent across pagination
 watch(
     () => extractEntityIds(search.entities.value),
-    () => selection.clearMetadataExpansions(),
+    (newEntityIds, oldEntityIds) => {
+        // Get all previously expanded entities before clearing
+        const previouslyExpanded = Array.from(selection.selectionState.expandedMetadata);
+
+        // Only clear metadata on new searches, not infinite scroll
+        const isNewSearch =
+            !oldEntityIds ||
+            oldEntityIds.length === 0 ||
+            (newEntityIds && oldEntityIds && newEntityIds.length < oldEntityIds.length);
+
+        if (isNewSearch) {
+            // Clear metadata expansions only on new searches
+            selection.clearMetadataExpansions();
+        } else {
+            // This is infinite scroll - preserve expansion state
+            // If all previous entities were expanded, expand new ones too
+            const allPreviouslyExpanded =
+                oldEntityIds && oldEntityIds.length > 0 && oldEntityIds.every((id) => previouslyExpanded.includes(id));
+
+            if (allPreviouslyExpanded && newEntityIds) {
+                // User had expanded all metadata - expand new entities too
+                const currentEntities = search.entities.value as Entity[];
+                selection.toggleAllMetadata(currentEntities);
+            }
+        }
+    },
     { flush: "post" },
 );
 
-// Clear metadata expansions when page changes
+// Clear metadata expansions only when manually changing pages (not infinite scroll)
 watch(
     () => search.scrollState.currentPage,
-    () => selection.clearMetadataExpansions(),
+    (newPage, oldPage) => {
+        // Only clear on manual page changes (when going backwards or jumping pages)
+        // Don't clear on infinite scroll (sequential page increments)
+        if (oldPage && newPage !== oldPage + 1) {
+            selection.clearMetadataExpansions();
+        }
+    },
     { flush: "post" },
 );
 
@@ -276,7 +346,7 @@ useInfiniteScroll(
         }
     },
     {
-        distance: 500, // Increased from 600px to 1000px to be less aggressive
+        distance: 650,
         canLoadMore: () =>
             search.canLoadMore.value && search.isComponentReady.value && search.isInfiniteScrollActive.value,
     },
@@ -310,11 +380,18 @@ onMounted(async () => {
 
     // Add click outside handler (now mostly handled by NavigationMenu)
     document.addEventListener("click", handleClickOutside);
+    
+    // Add scroll event listener for scroll-to-top button
+    window.addEventListener("scroll", handleScroll);
+    
+    // Initialize scroll button state
+    handleScroll();
 });
 
 onUnmounted(() => {
     // Clean up event listeners
     document.removeEventListener("click", handleClickOutside);
+    window.removeEventListener("scroll", handleScroll);
 
     // Clean up composables
     search.cleanup();

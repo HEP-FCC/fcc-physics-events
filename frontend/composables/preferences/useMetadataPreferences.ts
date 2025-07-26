@@ -161,15 +161,16 @@ export const useMetadataPreferences = () => {
     };
 
     /**
-     * Get all available metadata fields from a collection of entities
+     * Get all available metadata fields from a collection of entities - optimized
      */
     const getAvailableFields = (entities: any[]): string[] => {
         const fieldsSet = new Set<string>();
 
         entities.forEach((entity) => {
             if (entity.metadata) {
+                // Use Object.keys for better performance than Object.entries when we only need keys
                 Object.keys(entity.metadata).forEach((key) => {
-                    // Exclude lock fields and other internal fields
+                    // Exclude lock fields and other internal fields - optimized string checks
                     if (!key.includes("__lock__") && !key.startsWith("_")) {
                         fieldsSet.add(key);
                     }
@@ -178,6 +179,26 @@ export const useMetadataPreferences = () => {
         });
 
         return Array.from(fieldsSet).sort();
+    };
+
+    /**
+     * Get metadata fields that are currently locked across entities - optimized
+     */
+    const getLockedFields = (entities: any[]): Set<string> => {
+        const lockedFields = new Set<string>();
+
+        entities.forEach((entity) => {
+            if (entity.metadata) {
+                Object.keys(entity.metadata).forEach((key) => {
+                    if (key.includes("__lock__") && entity.metadata[key]) {
+                        const fieldName = key.replace("__", "").replace("__lock__", "");
+                        lockedFields.add(fieldName);
+                    }
+                });
+            }
+        });
+
+        return lockedFields;
     };
 
     /**
@@ -213,6 +234,7 @@ export const useMetadataPreferences = () => {
         isFieldSelected,
         getMetadataBadges,
         getAvailableFields,
+        getLockedFields,
         formatFieldName,
     };
 };
