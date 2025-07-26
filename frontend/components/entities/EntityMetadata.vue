@@ -90,74 +90,74 @@
                             v-for="[key, value] in getSpecialFieldsComputed()"
                             :key="key"
                             :class="getSpecialFieldSpanClass(value, getStatusFieldsComputed().length)"
-                            class="group relative rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-100/60 dark:bg-indigo-950/50 hover:bg-indigo-200/70 dark:hover:bg-indigo-900/60 transition-colors duration-200 shadow-sm p-2"
+                            class="group relative overflow-hidden rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-100/60 dark:bg-indigo-950/50 hover:bg-indigo-200/70 dark:hover:bg-indigo-900/60 transition-colors duration-200 shadow-sm"
                         >
-                            <!-- Compact special field content -->
-                            <div class="flex items-start gap-1.5">
-                                <!-- Smaller icon -->
-                                <div
-                                    class="flex-shrink-0 w-4 h-4 rounded bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center"
-                                >
-                                    <span class="text-indigo-600 dark:text-indigo-400 text-[10px]">
-                                        {{ getSpecialFieldIcon(key) }}
-                                    </span>
-                                </div>
-
-                                <!-- Content -->
-                                <div class="flex-1 min-w-0">
-                                    <h6 class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-0.5">
+                            <!-- Field Header with icon -->
+                            <div class="relative flex items-center justify-between px-2 py-1 border-b border-indigo-200 dark:border-indigo-700 border-opacity-20">
+                                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <!-- Smaller icon -->
+                                    <div
+                                        class="flex-shrink-0 w-4 h-4 rounded bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center"
+                                    >
+                                        <span class="text-indigo-600 dark:text-indigo-400 text-[10px]">
+                                            {{ getSpecialFieldIcon(key) }}
+                                        </span>
+                                    </div>
+                                    <h6 class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 truncate">
                                         {{ getSpecialFieldTitle(key) }}
                                     </h6>
-                                    <div class="flex items-center justify-between">
-                                        <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
-                                            {{ String(value) }}
-                                        </div>
-                                        <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <!-- Lock indicator for special fields (always visible, clickable only if authenticated) -->
-                                            <UButton
-                                                :icon="
-                                                    isFieldLocked(key)
-                                                        ? 'i-heroicons-lock-closed'
-                                                        : 'i-heroicons-lock-open'
-                                                "
-                                                :color="isFieldLocked(key) ? 'warning' : 'neutral'"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                :disabled="!isAuthenticated"
-                                                class="w-3 h-3 transition-all duration-200"
-                                                :class="{
-                                                    'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
-                                                        isAuthenticated && !isFieldLocked(key),
-                                                    'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
-                                                        isAuthenticated && isFieldLocked(key),
-                                                    'cursor-not-allowed opacity-50': !isAuthenticated,
-                                                }"
-                                                :title="
-                                                    !isAuthenticated
-                                                        ? `Field is ${
-                                                              isFieldLocked(key) ? 'locked' : 'unlocked'
-                                                          } - You need to be logged in to modify locks`
-                                                        : isFieldLocked(key)
-                                                        ? `Unlock ${getSpecialFieldTitle(key)}`
-                                                        : `Lock ${getSpecialFieldTitle(key)}`
-                                                "
-                                                @click="isAuthenticated ? toggleFieldLock(key) : undefined"
-                                            />
+                                </div>
+                            </div>
 
-                                            <!-- Copy button for special fields -->
-                                            <UButton
-                                                icon="i-heroicons-clipboard-document"
-                                                color="neutral"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
-                                                :title="`Copy ${getSpecialFieldTitle(key)} value`"
-                                                @click="copyFieldValue(key, value)"
-                                            />
-                                        </div>
-                                    </div>
+                            <!-- Field Value -->
+                            <div class="relative px-2 py-1.5 flex items-center justify-between min-h-[1.5rem]">
+                                <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
+                                    {{ String(value) }}
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0 ml-2">
+                                    <!-- Lock indicator for special fields (always visible, clickable only if authenticated) -->
+                                    <UButton
+                                        :icon="
+                                            isFieldLocked(key)
+                                                ? 'i-heroicons-lock-closed'
+                                                : 'i-heroicons-lock-open'
+                                        "
+                                        :color="isFieldLocked(key) ? 'warning' : 'neutral'"
+                                        variant="ghost"
+                                        size="xs"
+                                        :padded="false"
+                                        :disabled="!isAuthenticated"
+                                        class="w-3 h-3 transition-all duration-200"
+                                        :class="{
+                                            'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
+                                                isAuthenticated && !isFieldLocked(key),
+                                            'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
+                                                isAuthenticated && isFieldLocked(key),
+                                            'cursor-not-allowed opacity-50': !isAuthenticated,
+                                        }"
+                                        :title="
+                                            !isAuthenticated
+                                                ? `Field is ${
+                                                      isFieldLocked(key) ? 'locked' : 'unlocked'
+                                                  } - You need to be logged in to modify locks`
+                                                : isFieldLocked(key)
+                                                ? `Unlock ${getSpecialFieldTitle(key)}`
+                                                : `Lock ${getSpecialFieldTitle(key)}`
+                                        "
+                                        @click="isAuthenticated ? toggleFieldLock(key) : undefined"
+                                    />
+
+                                    <!-- Copy button for special fields -->
+                                    <UButton
+                                        icon="i-heroicons-clipboard-document"
+                                        color="neutral"
+                                        variant="ghost"
+                                        size="xs"
+                                        :padded="false"
+                                        class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                        :title="`Copy ${getSpecialFieldTitle(key)} value`"
+                                        @click="copyFieldValue(key, value)"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -170,78 +170,78 @@
                                 getStatusFieldSpanClass(statusField.value),
                                 getStatusFieldColorClass(statusField.color),
                             ]"
-                            class="group relative rounded border transition-colors duration-200 shadow-sm p-2"
+                            class="group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm"
                         >
-                            <!-- Compact status field content -->
-                            <div class="flex items-start gap-1.5">
-                                <!-- Status icon -->
-                                <div
-                                    class="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center"
-                                    :class="getStatusIconBgClass(statusField.color)"
-                                >
-                                    <span class="text-[10px]" :class="getStatusIconTextClass(statusField.color)">
-                                        {{ getStatusFieldIcon(statusField.key) }}
-                                    </span>
-                                </div>
-
-                                <!-- Content -->
-                                <div class="flex-1 min-w-0">
+                            <!-- Field Header with icon -->
+                            <div class="relative flex items-center justify-between px-2 py-1 border-b border-opacity-20" :class="getStatusFieldBorderClass(statusField.color)">
+                                <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                    <!-- Status icon -->
+                                    <div
+                                        class="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                                        :class="getStatusIconBgClass(statusField.color)"
+                                    >
+                                        <span class="text-[10px]" :class="getStatusIconTextClass(statusField.color)">
+                                            {{ getStatusFieldIcon(statusField.key) }}
+                                        </span>
+                                    </div>
                                     <h6
-                                        class="text-xs font-semibold mb-0.5"
+                                        class="text-xs font-semibold truncate"
                                         :class="getStatusTitleTextClass(statusField.color)"
                                     >
                                         {{ statusField.label }}
                                     </h6>
-                                    <div class="flex items-center justify-between">
-                                        <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
-                                            {{ String(statusField.value) }}
-                                        </div>
-                                        <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <!-- Lock indicator for status fields (always visible, clickable only if authenticated) -->
-                                            <UButton
-                                                :icon="
-                                                    isFieldLocked(statusField.key)
-                                                        ? 'i-heroicons-lock-closed'
-                                                        : 'i-heroicons-lock-open'
-                                                "
-                                                :color="isFieldLocked(statusField.key) ? 'warning' : 'neutral'"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                :disabled="!isAuthenticated"
-                                                class="w-3 h-3 transition-all duration-200"
-                                                :class="{
-                                                    'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
-                                                        isAuthenticated && !isFieldLocked(statusField.key),
-                                                    'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
-                                                        isAuthenticated && isFieldLocked(statusField.key),
-                                                    'cursor-not-allowed opacity-50': !isAuthenticated,
-                                                }"
-                                                :title="
-                                                    !isAuthenticated
-                                                        ? `Field is ${
-                                                              isFieldLocked(statusField.key) ? 'locked' : 'unlocked'
-                                                          } - You need to be logged in to modify locks`
-                                                        : isFieldLocked(statusField.key)
-                                                        ? `Unlock ${statusField.label}`
-                                                        : `Lock ${statusField.label}`
-                                                "
-                                                @click="isAuthenticated ? toggleFieldLock(statusField.key) : undefined"
-                                            />
+                                </div>
+                            </div>
 
-                                            <!-- Copy button for status fields -->
-                                            <UButton
-                                                icon="i-heroicons-clipboard-document"
-                                                color="neutral"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
-                                                :title="`Copy ${statusField.label} value`"
-                                                @click="copyFieldValue(statusField.key, statusField.value)"
-                                            />
-                                        </div>
-                                    </div>
+                            <!-- Field Value -->
+                            <div class="relative px-2 py-1.5 flex items-center justify-between min-h-[1.5rem]">
+                                <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
+                                    {{ String(statusField.value) }}
+                                </div>
+                                <div class="flex items-center gap-1 shrink-0 ml-2">
+                                    <!-- Lock indicator for status fields (always visible, clickable only if authenticated) -->
+                                    <UButton
+                                        :icon="
+                                            isFieldLocked(statusField.key)
+                                                ? 'i-heroicons-lock-closed'
+                                                : 'i-heroicons-lock-open'
+                                        "
+                                        :color="isFieldLocked(statusField.key) ? 'warning' : 'neutral'"
+                                        variant="ghost"
+                                        size="xs"
+                                        :padded="false"
+                                        :disabled="!isAuthenticated"
+                                        class="w-3 h-3 transition-all duration-200"
+                                        :class="{
+                                            'cursor-pointer opacity-70 hover:opacity-100 hover:text-orange-500':
+                                                isAuthenticated && !isFieldLocked(statusField.key),
+                                            'cursor-pointer opacity-70 hover:opacity-100 text-orange-600 hover:text-orange-700':
+                                                isAuthenticated && isFieldLocked(statusField.key),
+                                            'cursor-not-allowed opacity-50': !isAuthenticated,
+                                        }"
+                                        :title="
+                                            !isAuthenticated
+                                                ? `Field is ${
+                                                      isFieldLocked(statusField.key) ? 'locked' : 'unlocked'
+                                                  } - You need to be logged in to modify locks`
+                                                : isFieldLocked(statusField.key)
+                                                ? `Unlock ${statusField.label}`
+                                                : `Lock ${statusField.label}`
+                                        "
+                                        @click="isAuthenticated ? toggleFieldLock(statusField.key) : undefined"
+                                    />
+
+                                    <!-- Copy button for status fields -->
+                                    <UButton
+                                        icon="i-heroicons-clipboard-document"
+                                        color="neutral"
+                                        variant="ghost"
+                                        size="xs"
+                                        :padded="false"
+                                        class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                        :title="`Copy ${statusField.label} value`"
+                                        @click="copyFieldValue(statusField.key, statusField.value)"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -1134,6 +1134,23 @@ const getStatusTitleTextClass = (color: string): string => {
             return "text-purple-700 dark:text-purple-300";
         default: // neutral
             return "text-gray-700 dark:text-gray-300";
+    }
+};
+
+const getStatusFieldBorderClass = (color: string): string => {
+    switch (color) {
+        case "success":
+            return "border-green-200 dark:border-green-700";
+        case "warning":
+            return "border-yellow-200 dark:border-yellow-700";
+        case "error":
+            return "border-red-200 dark:border-red-700";
+        case "info":
+            return "border-blue-200 dark:border-blue-700";
+        case "primary":
+            return "border-purple-200 dark:border-purple-700";
+        default: // neutral
+            return "border-gray-200 dark:border-gray-700";
     }
 };
 
