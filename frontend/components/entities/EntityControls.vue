@@ -161,11 +161,11 @@ const emit = defineEmits<Emits>();
 
 // Handle page size input to prevent unwanted "0" insertion
 const handlePageSizeInput = (value: string | number) => {
-    const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
-    
+    const numValue = typeof value === "string" ? parseInt(value, 10) : value;
+
     // Only emit if we have a valid number
     if (!isNaN(numValue) && numValue > 0) {
-        emit('updatePageSize', numValue);
+        emit("updatePageSize", numValue);
     }
 };
 
@@ -173,7 +173,7 @@ const handlePageSizeInput = (value: string | number) => {
 const handlePageSizeBlur = (event: Event) => {
     const target = event.target as HTMLInputElement;
     const value = parseInt(target.value, 10);
-    
+
     // If the input is empty or invalid, reset to current pageSize
     if (isNaN(value) || value < 25) {
         target.value = props.pageSize.toString();
@@ -181,8 +181,8 @@ const handlePageSizeBlur = (event: Event) => {
         // Clamp the value within bounds and apply it
         const clampedValue = Math.max(25, Math.min(1000, value));
         target.value = clampedValue.toString();
-        emit('updatePageSize', clampedValue);
-        emit('handlePageSizeChange');
+        emit("updatePageSize", clampedValue);
+        emit("handlePageSizeChange");
     }
 };
 </script>
