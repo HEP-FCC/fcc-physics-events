@@ -24,9 +24,6 @@
                                 <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
                                     {{ entity.name }}
                                 </h3>
-                                <UBadge color="neutral" variant="soft" size="xs" class="flex-shrink-0">
-                                    ID: {{ getEntityId(entity) }}
-                                </UBadge>
                             </div>
 
                             <!-- Row 2: Badges and timestamps in one compact row -->

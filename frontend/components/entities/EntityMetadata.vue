@@ -78,13 +78,17 @@
             </div>
             <!-- Compact Content -->
             <div class="p-2">
-                <!-- Special Fields Section (Comments & Descriptions) - Side by Side -->
-                <div v-if="getSpecialFields(props.metadata).length > 0" class="mb-2">
+                <!-- Special Fields and Status Section - Side by Side Layout -->
+                <div
+                    v-if="getSpecialFields(props.metadata).length > 0 || getStatusFields(props.metadata).length > 0"
+                    class="mb-2"
+                >
                     <div class="grid grid-cols-12 gap-2">
+                        <!-- Special Fields (Comments & Descriptions) -->
                         <div
                             v-for="[key, value] in getSpecialFields(props.metadata)"
                             :key="key"
-                            :class="getSpecialFieldSpanClass(value)"
+                            :class="getSpecialFieldSpanClass(value, getStatusFields(props.metadata).length)"
                             class="group relative rounded border border-indigo-200 dark:border-indigo-700 bg-indigo-100/60 dark:bg-indigo-950/50 hover:bg-indigo-200/70 dark:hover:bg-indigo-900/60 transition-colors duration-200 shadow-sm p-2"
                         >
                             <!-- Compact special field content -->
@@ -143,6 +147,85 @@
                                                 class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
                                                 :title="`Copy ${getSpecialFieldTitle(key)} value`"
                                                 @click="copyFieldValue(key, value)"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Fields Section - Same style as special fields but compact -->
+                        <div
+                            v-for="statusField in getStatusFields(props.metadata)"
+                            :key="`status_${statusField.key}`"
+                            :class="[
+                                getStatusFieldSpanClass(statusField.value),
+                                getStatusFieldColorClass(statusField.color),
+                            ]"
+                            class="group relative rounded border transition-colors duration-200 shadow-sm p-2"
+                        >
+                            <!-- Compact status field content -->
+                            <div class="flex items-start gap-1.5">
+                                <!-- Status icon -->
+                                <div
+                                    class="flex-shrink-0 w-4 h-4 rounded flex items-center justify-center"
+                                    :class="getStatusIconBgClass(statusField.color)"
+                                >
+                                    <span class="text-[10px]" :class="getStatusIconTextClass(statusField.color)">
+                                        {{ getStatusFieldIcon(statusField.key) }}
+                                    </span>
+                                </div>
+
+                                <!-- Content -->
+                                <div class="flex-1 min-w-0">
+                                    <h6
+                                        class="text-xs font-semibold mb-0.5"
+                                        :class="getStatusTitleTextClass(statusField.color)"
+                                    >
+                                        {{ statusField.label }}
+                                    </h6>
+                                    <div class="flex items-center justify-between">
+                                        <div class="text-xs text-gray-600 dark:text-gray-400 leading-tight flex-1">
+                                            {{ String(statusField.value) }}
+                                        </div>
+                                        <div class="flex items-center gap-1 shrink-0 ml-2">
+                                            <!-- Lock button for status fields (only show if authenticated) -->
+                                            <UButton
+                                                v-if="isAuthenticated"
+                                                :icon="
+                                                    isFieldLocked(statusField.key)
+                                                        ? 'i-heroicons-lock-closed'
+                                                        : 'i-heroicons-lock-open'
+                                                "
+                                                :color="isFieldLocked(statusField.key) ? 'warning' : 'neutral'"
+                                                variant="ghost"
+                                                size="xs"
+                                                :padded="false"
+                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
+                                                :class="{
+                                                    'hover:text-orange-500': !isFieldLocked(statusField.key),
+                                                    'text-orange-600 hover:text-orange-700': isFieldLocked(
+                                                        statusField.key,
+                                                    ),
+                                                }"
+                                                :title="
+                                                    isFieldLocked(statusField.key)
+                                                        ? `Unlock ${statusField.label}`
+                                                        : `Lock ${statusField.label}`
+                                                "
+                                                @click="toggleFieldLock(statusField.key)"
+                                            />
+
+                                            <!-- Copy button for status fields -->
+                                            <UButton
+                                                icon="i-heroicons-clipboard-document"
+                                                color="neutral"
+                                                variant="ghost"
+                                                size="xs"
+                                                :padded="false"
+                                                class="w-3 h-3 cursor-pointer opacity-70 hover:opacity-100 hover:text-blue-500 transition-all duration-200"
+                                                :title="`Copy ${statusField.label} value`"
+                                                @click="copyFieldValue(statusField.key, statusField.value)"
                                             />
                                         </div>
                                     </div>
@@ -313,7 +396,7 @@ const emit = defineEmits<Emits>();
 const actualEntityId = computed(() => props.entityId ?? 0);
 
 // Composables
-const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField } = useUtils();
+const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getStatusFields } = useUtils();
 const { isAuthenticated } = useAuth();
 const { mainTableDisplayName } = useAppConfiguration();
 
@@ -776,7 +859,7 @@ const getSpecialFieldTitle = (key: string): string => {
 
 const getRegularFieldsSorted = (metadata: Record<string, unknown>): [string, unknown, string][] => {
     const fieldsWithTypes = Object.entries(metadata)
-        .filter(([key]) => !isSpecialField(key) && !isLockField(key)) // Exclude special and lock fields (now includes status fields)
+        .filter(([key]) => !isSpecialField(key) && !isLockField(key) && !isStatusField(key)) // Exclude special, lock, and status fields
         .map(([key, value]): [string, unknown, string] => {
             if (isVectorField(value)) return [key, value, "vector"];
             if (typeof value === "number") return [key, value, "number"];
@@ -803,10 +886,32 @@ const getRegularFieldsSorted = (metadata: Record<string, unknown>): [string, unk
     });
 };
 
-// Determine column span for special fields based on content length
-const getSpecialFieldSpanClass = (value: unknown): string => {
+// Determine column span for special fields based on content length and status fields presence
+const getSpecialFieldSpanClass = (value: unknown, statusFieldsCount: number): string => {
     const stringValue = String(value);
     const isLong = stringValue.length > 60; // Reduced threshold for more compact layout
+
+    // If there are status fields, we need to reserve space for them
+    if (statusFieldsCount > 0) {
+        // Reserve less space for status fields (2 columns each, up to 3 status fields = 6 columns max)
+        const statusColumnsReserved = Math.min(statusFieldsCount * 2, 6);
+        const availableColumns = 12 - statusColumnsReserved;
+
+        if (isLong) {
+            // Long content takes all remaining space after status fields
+            if (availableColumns >= 6) return "col-span-6";
+            if (availableColumns >= 4) return "col-span-4";
+            return "col-span-3";
+        } else {
+            // Short content takes most of remaining space
+            if (availableColumns >= 8) return "col-span-5";
+            if (availableColumns >= 6) return "col-span-4";
+            if (availableColumns >= 4) return "col-span-3";
+            return "col-span-3";
+        }
+    }
+
+    // No status fields, use original logic
     return isLong ? "col-span-12" : "col-span-6";
 };
 
@@ -870,5 +975,91 @@ const copyFieldValue = async (key: string, value: unknown): Promise<void> => {
             color: "error",
         });
     }
+};
+
+// Status field styling functions
+const getStatusFieldSpanClass = (value: unknown): string => {
+    // Status fields are typically shorter, so use smaller spans (2 columns max)
+    const stringValue = String(value);
+    return stringValue.length > 20 ? "col-span-2" : "col-span-2";
+};
+
+const getStatusFieldColorClass = (color: string): string => {
+    switch (color) {
+        case "success":
+            return "bg-green-100/60 dark:bg-green-950/50 hover:bg-green-200/70 dark:hover:bg-green-900/60 border-green-200 dark:border-green-700";
+        case "warning":
+            return "bg-yellow-100/60 dark:bg-yellow-950/50 hover:bg-yellow-200/70 dark:hover:bg-yellow-900/60 border-yellow-200 dark:border-yellow-700";
+        case "error":
+            return "bg-red-100/60 dark:bg-red-950/50 hover:bg-red-200/70 dark:hover:bg-red-900/60 border-red-200 dark:border-red-700";
+        case "info":
+            return "bg-blue-100/60 dark:bg-blue-950/50 hover:bg-blue-200/70 dark:hover:bg-blue-900/60 border-blue-200 dark:border-blue-700";
+        case "primary":
+            return "bg-purple-100/60 dark:bg-purple-950/50 hover:bg-purple-200/70 dark:hover:bg-purple-900/60 border-purple-200 dark:border-purple-700";
+        default: // neutral
+            return "bg-gray-100/60 dark:bg-gray-950/50 hover:bg-gray-200/70 dark:hover:bg-gray-900/60 border-gray-200 dark:border-gray-700";
+    }
+};
+
+const getStatusIconBgClass = (color: string): string => {
+    switch (color) {
+        case "success":
+            return "bg-green-100 dark:bg-green-900";
+        case "warning":
+            return "bg-yellow-100 dark:bg-yellow-900";
+        case "error":
+            return "bg-red-100 dark:bg-red-900";
+        case "info":
+            return "bg-blue-100 dark:bg-blue-900";
+        case "primary":
+            return "bg-purple-100 dark:bg-purple-900";
+        default: // neutral
+            return "bg-gray-100 dark:bg-gray-900";
+    }
+};
+
+const getStatusIconTextClass = (color: string): string => {
+    switch (color) {
+        case "success":
+            return "text-green-600 dark:text-green-400";
+        case "warning":
+            return "text-yellow-600 dark:text-yellow-400";
+        case "error":
+            return "text-red-600 dark:text-red-400";
+        case "info":
+            return "text-blue-600 dark:text-blue-400";
+        case "primary":
+            return "text-purple-600 dark:text-purple-400";
+        default: // neutral
+            return "text-gray-600 dark:text-gray-400";
+    }
+};
+
+const getStatusTitleTextClass = (color: string): string => {
+    switch (color) {
+        case "success":
+            return "text-green-700 dark:text-green-300";
+        case "warning":
+            return "text-yellow-700 dark:text-yellow-300";
+        case "error":
+            return "text-red-700 dark:text-red-300";
+        case "info":
+            return "text-blue-700 dark:text-blue-300";
+        case "primary":
+            return "text-purple-700 dark:text-purple-300";
+        default: // neutral
+            return "text-gray-700 dark:text-gray-300";
+    }
+};
+
+const getStatusFieldIcon = (key: string): string => {
+    const normalizedKey = key.toLowerCase();
+    if (normalizedKey.includes("status")) return "📊";
+    if (normalizedKey.includes("state")) return "🏃";
+    if (normalizedKey.includes("phase")) return "🔄";
+    if (normalizedKey.includes("health")) return "💚";
+    if (normalizedKey.includes("condition")) return "⚡";
+    if (normalizedKey.includes("progress")) return "📈";
+    return "🔧"; // Default status icon
 };
 </script>
