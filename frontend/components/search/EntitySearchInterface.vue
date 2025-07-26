@@ -116,18 +116,20 @@
             leave-from-class="opacity-100 scale-100 translate-y-0"
             leave-to-class="opacity-0 scale-95 translate-y-2"
         >
-            <UTooltip v-if="showScrollToTop" text="Scroll to top" placement="left">
-                <UButton
-                    icon="i-heroicons-arrow-up"
-                    color="primary"
-                    variant="solid"
-                    size="lg"
-                    class="fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300"
-                    @click="scrollToTop"
-                >
-                    <span class="sr-only">Scroll to top</span>
-                </UButton>
-            </UTooltip>
+            <div v-if="showScrollToTop">
+                <UTooltip text="Scroll to top" placement="left">
+                    <UButton
+                        icon="i-heroicons-arrow-up"
+                        color="primary"
+                        variant="solid"
+                        size="lg"
+                        class="cursor-pointer fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300"
+                        @click="scrollToTop"
+                    >
+                        <span class="sr-only">Scroll to top</span>
+                    </UButton>
+                </UTooltip>
+            </div>
         </Transition>
     </div>
 </template>
