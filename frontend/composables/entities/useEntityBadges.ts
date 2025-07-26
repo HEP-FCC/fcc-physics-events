@@ -24,6 +24,7 @@ interface BadgeInfo {
 export const useEntityBadges = () => {
     const { getNavigationItem, isNavigationReady, getNavigationOrder } = useNavigationConfig();
     const { formatFieldName, getStatusFields } = useUtils();
+    const { getMetadataBadges } = useMetadataPreferences();
 
     // Cache for badge colors to avoid recalculation
     const badgeColorCache = new Map<string, BadgeColor>();
@@ -88,16 +89,16 @@ export const useEntityBadges = () => {
                 return !activeFilterValue || activeFilterValue !== badge.value;
             });
 
-        // Add status badges from metadata (these are always shown as they're not navigation filters)
-        const statusBadges = getStatusFields(entity.metadata || {}).map((statusField) => ({
-            key: statusField.key ? `status_${String(statusField.key)}` : "status_unknown",
-            label: String(statusField.label || "Unknown"),
-            value: String(statusField.value || ""),
-            color: (statusField.color as BadgeColor) || "neutral",
-            filterKey: `status_${statusField.key}`, // Not used for filtering but kept for consistency
+        // Add metadata badges from user preferences (includes status if user selects it)
+        const metadataBadges = getMetadataBadges(entity).map((metadataBadge) => ({
+            key: metadataBadge.key,
+            label: metadataBadge.label,
+            value: metadataBadge.value,
+            color: metadataBadge.color as BadgeColor,
+            filterKey: `metadata_${metadataBadge.key}`, // Not used for filtering but kept for consistency
         }));
 
-        return [...navigationBadges, ...statusBadges];
+        return [...navigationBadges, ...metadataBadges];
     };
 
     /**

@@ -776,7 +776,7 @@ const getSpecialFieldTitle = (key: string): string => {
 
 const getRegularFieldsSorted = (metadata: Record<string, unknown>): [string, unknown, string][] => {
     const fieldsWithTypes = Object.entries(metadata)
-        .filter(([key]) => !isSpecialField(key) && !isStatusField(key) && !isLockField(key)) // Exclude special, status, and lock fields
+        .filter(([key]) => !isSpecialField(key) && !isLockField(key)) // Exclude special and lock fields (now includes status fields)
         .map(([key, value]): [string, unknown, string] => {
             if (isVectorField(value)) return [key, value, "vector"];
             if (typeof value === "number") return [key, value, "number"];

@@ -55,6 +55,9 @@
                 {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
             </UButton>
 
+            <!-- Metadata Tags Dropdown -->
+            <MetadataTagsDropdown :entities="entities" />
+
             <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
             <!-- Sorting controls -->
@@ -123,6 +126,7 @@
 
 <script setup lang="ts">
 import type { Entity } from "~/types/entity";
+import MetadataTagsDropdown from "./MetadataTagsDropdown.vue";
 
 interface Props {
     entities: Entity[];
