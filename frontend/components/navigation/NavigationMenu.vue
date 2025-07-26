@@ -84,6 +84,7 @@ const {
     dropdowns,
     navigationOrder,
     loadDropdownData,
+    loadDropdownCascade,
     toggleDropdown,
     closeAllDropdowns,
     clearDependentDropdowns,
@@ -108,9 +109,9 @@ watchEffect(() => {
     try {
         currentPath.value = parseRouteToPath(params);
 
-        // Trigger context-aware preloading when path changes
+        // Trigger optimized cascade loading when path changes
         if (isNavigationReady.value) {
-            proactivelyLoadDropdownData(currentPath.value);
+            loadDropdownCascade(currentPath.value);
         }
     } catch (error) {
         console.error("Error parsing route to path:", error);

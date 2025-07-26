@@ -233,8 +233,12 @@ watchDebounced(
         // Update filters - use the already parsed filters from props
         search.updateFilters(filters);
 
-        // Always perform search - let the backend handle empty query as "*"
-        search.performSearch(true);
+        // Run search and navigation loading concurrently for better performance
+        // These are independent operations that can happen in parallel
+        Promise.allSettled([
+            search.performSearch(true), // Main search query
+            // Navigation dropdowns will be loaded by NavigationMenu's watchEffect
+        ]);
     },
     { debounce: 300, immediate: false, flush: "post" },
 );
@@ -284,12 +288,14 @@ useInfiniteScroll(
 // Component lifecycle
 onMounted(async () => {
     if (!isInitialized.value) {
-        // Initialize navigation configuration first (needed for badges)
+        // Run independent initialization tasks concurrently
         const { initializeNavigation } = useDynamicNavigation();
-        await initializeNavigation();
 
-        // Fetch sorting fields
-        await search.fetchSortingFields();
+        // These can run in parallel since they're independent
+        const [_, __] = await Promise.all([
+            initializeNavigation(), // Initialize navigation configuration
+            search.fetchSortingFields(), // Fetch sorting fields
+        ]);
 
         // Mark component as ready for searches
         search.isComponentReady.value = true;

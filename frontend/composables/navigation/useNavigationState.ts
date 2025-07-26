@@ -101,7 +101,7 @@ export function useNavigationState() {
 
     /**
      * Proactively load dropdown data in the background for better UX
-     * Loads the appropriate dropdown level based on current navigation context
+     * Loads multiple dropdown levels concurrently when possible
      */
     async function proactivelyLoadDropdownData(currentPath: Record<string, string | null> = {}) {
         if (!isNavigationReady() || navigationOrder.value.length === 0) {
@@ -111,90 +111,114 @@ export function useNavigationState() {
         const order = navigationOrder.value;
 
         try {
-            // Determine which level to preload based on current navigation state
-            let levelToPreload = 0; // Default to first level
+            // Always load the first level immediately (no dependencies)
+            const firstLevelType = order[0];
+            const firstLevelPromise = loadSingleDropdownLevel(firstLevelType, {});
 
-            // Find the deepest level that has a value, then preload the next level
+            // Find the deepest level that has a value
+            let deepestFilledLevel = -1;
             for (let i = 0; i < order.length; i++) {
                 const type = order[i];
                 if (currentPath[type]) {
-                    levelToPreload = i + 1; // Preload the next level after this one
+                    deepestFilledLevel = i;
                 } else {
-                    break; // Stop at the first empty level
+                    break;
                 }
             }
 
-            // Don't preload beyond the available levels
-            if (levelToPreload >= order.length) {
-                return;
+            // Create concurrent promises for levels that can be loaded
+            const loadPromises: Promise<void>[] = [firstLevelPromise];
+
+            // If we have path data, load the next level after the deepest filled level
+            if (deepestFilledLevel >= 0 && deepestFilledLevel + 1 < order.length) {
+                const nextLevelType = order[deepestFilledLevel + 1];
+                const filters = buildFiltersForLevel(currentPath, deepestFilledLevel + 1);
+                loadPromises.push(loadSingleDropdownLevel(nextLevelType, filters));
             }
 
-            const typeToPreload = order[levelToPreload];
-            const itemsRef = getItemsRef(typeToPreload);
-            const loadingRef = getLoadingRef(typeToPreload);
-
-            // Only load if not already loaded or loading
-            if (itemsRef && loadingRef && itemsRef.value.length === 0 && !loadingRef.value) {
-                try {
-                    // Check for preloaded data first (only for first level without filters)
-                    if (levelToPreload === 0) {
-                        const preloadedData = getPreloadedDropdownData(typeToPreload);
-                        if (preloadedData && preloadedData.length > 0) {
-                            itemsRef.value = preloadedData as DropdownItem[];
-                            return;
-                        }
-                    }
-
-                    // Build filters for the dropdown based on current path
-                    const filters: Record<string, string> = {};
-                    for (let i = 0; i < levelToPreload; i++) {
-                        const filterType = order[i];
-                        const filterValue = currentPath[filterType];
-                        if (filterValue) {
-                            filters[filterType] = filterValue;
-                        }
-                    }
-
-                    // Fetch from API with appropriate filters
-                    loadingRef.value = true;
-
-                    let requestUrl = `/api/dropdown/${typeToPreload}`;
-                    if (Object.keys(filters).length > 0) {
-                        const params = new URLSearchParams();
-                        const filterObj: Record<string, string> = {};
-                        Object.entries(filters).forEach(([key, value]) => {
-                            if (value?.trim()) {
-                                const filterKey = key.endsWith("_name") ? key : `${key}_name`;
-                                filterObj[filterKey] = value;
-                            }
-                        });
-
-                        if (Object.keys(filterObj).length > 0) {
-                            params.append("filters", JSON.stringify(filterObj));
-                            requestUrl += `?${params.toString()}`;
-                        }
-                    }
-
-                    const response = await fetch(`${baseUrl}${requestUrl}`);
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        const items = data.data || [];
-                        itemsRef.value = items;
-                    } else {
-                        console.warn(`Failed to load ${typeToPreload}: ${response.status}`);
-                    }
-                } catch (error) {
-                    console.warn(`Error loading ${typeToPreload}:`, error);
-                } finally {
-                    if (loadingRef) {
-                        loadingRef.value = false;
-                    }
-                }
-            }
+            // Run all possible loads concurrently
+            await Promise.allSettled(loadPromises);
         } catch (error) {
             console.warn("Error during proactive dropdown loading:", error);
         }
+    }
+
+    /**
+     * Load a single dropdown level with given filters
+     */
+    async function loadSingleDropdownLevel(type: string, filters: Record<string, string> = {}) {
+        const itemsRef = getItemsRef(type);
+        const loadingRef = getLoadingRef(type);
+
+        // Only load if not already loaded or loading
+        if (!itemsRef || !loadingRef || itemsRef.value.length > 0 || loadingRef.value) {
+            return;
+        }
+
+        try {
+            // Check for preloaded data first (only for first level without filters)
+            if (Object.keys(filters).length === 0) {
+                const preloadedData = getPreloadedDropdownData(type);
+                if (preloadedData && preloadedData.length > 0) {
+                    itemsRef.value = preloadedData as DropdownItem[];
+                    return;
+                }
+            }
+
+            // Fetch from API with appropriate filters
+            loadingRef.value = true;
+
+            let requestUrl = `/api/dropdown/${type}`;
+            if (Object.keys(filters).length > 0) {
+                const params = new URLSearchParams();
+                const filterObj: Record<string, string> = {};
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value?.trim()) {
+                        const filterKey = key.endsWith("_name") ? key : `${key}_name`;
+                        filterObj[filterKey] = value;
+                    }
+                });
+
+                if (Object.keys(filterObj).length > 0) {
+                    params.append("filters", JSON.stringify(filterObj));
+                    requestUrl += `?${params.toString()}`;
+                }
+            }
+
+            const response = await fetch(`${baseUrl}${requestUrl}`);
+
+            if (response.ok) {
+                const data = await response.json();
+                const items = data.data || [];
+                itemsRef.value = items;
+            } else {
+                console.warn(`Failed to load ${type}: ${response.status}`);
+            }
+        } catch (error) {
+            console.warn(`Error loading ${type}:`, error);
+        } finally {
+            if (loadingRef) {
+                loadingRef.value = false;
+            }
+        }
+    }
+
+    /**
+     * Build filters for a specific level based on current path
+     */
+    function buildFiltersForLevel(currentPath: Record<string, string | null>, level: number): Record<string, string> {
+        const order = navigationOrder.value;
+        const filters: Record<string, string> = {};
+
+        for (let i = 0; i < level; i++) {
+            const filterType = order[i];
+            const filterValue = currentPath[filterType];
+            if (filterValue) {
+                filters[filterType] = filterValue;
+            }
+        }
+
+        return filters;
     }
 
     async function loadDropdownData(type: string, filters: Record<string, string> = {}, forceReload: boolean = false) {
@@ -269,6 +293,43 @@ export function useNavigationState() {
         }
     }
 
+    /**
+     * Load dropdown cascade efficiently with concurrent requests where possible
+     * This optimizes the loading of dependent dropdowns by batching independent calls
+     */
+    async function loadDropdownCascade(currentPath: Record<string, string | null> = {}) {
+        if (!isNavigationReady() || navigationOrder.value.length === 0) {
+            return;
+        }
+
+        const order = navigationOrder.value;
+        const loadPromises: Promise<void>[] = [];
+
+        // Always load the first level (independent)
+        loadPromises.push(loadSingleDropdownLevel(order[0], {}));
+
+        // For each subsequent level, check if we have enough path data to load it
+        for (let level = 1; level < order.length; level++) {
+            const type = order[level];
+            const filters = buildFiltersForLevel(currentPath, level);
+
+            // Only load if we have all required filters for this level
+            if (Object.keys(filters).length === level) {
+                loadPromises.push(loadSingleDropdownLevel(type, filters));
+            } else {
+                // If we can't load this level, we can't load any subsequent levels
+                break;
+            }
+        }
+
+        // Run all possible loads concurrently
+        try {
+            await Promise.allSettled(loadPromises);
+        } catch (error) {
+            console.warn("Error during dropdown cascade loading:", error);
+        }
+    }
+
     function toggleDropdown(type: string) {
         const openRef = getOpenRef(type);
         if (!openRef) {
@@ -340,6 +401,7 @@ export function useNavigationState() {
         loadingRefs: readonly(loadingRefs),
         openRefs: readonly(openRefs),
         loadDropdownData,
+        loadDropdownCascade,
         toggleDropdown,
         closeAllDropdowns,
         clearDropdownData,
