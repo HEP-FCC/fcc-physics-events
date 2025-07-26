@@ -101,10 +101,10 @@
 
                 <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
 
-                <!-- Batch size control -->
+                <!-- Page size control -->
                 <div class="flex items-center gap-1 text-sm">
-                    <UTooltip text="Number of items to load in each batch. Range: 20-100" placement="top">
-                        <span>Batch size:</span>
+                    <UTooltip text="Number of items to load per page. Range: 25-1000" placement="top">
+                        <span>Page size:</span>
                     </UTooltip>
                     <UInput
                         :model-value="pageSize"
@@ -113,8 +113,9 @@
                         max="1000"
                         size="xs"
                         class="w-16"
-                        @update:model-value="$emit('updatePageSize', Number($event))"
-                        @change="$emit('handlePageSizeChange')"
+                        placeholder="25"
+                        @update:model-value="handlePageSizeInput"
+                        @blur="handlePageSizeBlur"
                     />
                 </div>
             </div>
@@ -155,6 +156,33 @@ interface Emits {
     (e: "updatePageSize", value: number): void;
 }
 
-defineProps<Props>();
-defineEmits<Emits>();
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+
+// Handle page size input to prevent unwanted "0" insertion
+const handlePageSizeInput = (value: string | number) => {
+    const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
+    
+    // Only emit if we have a valid number
+    if (!isNaN(numValue) && numValue > 0) {
+        emit('updatePageSize', numValue);
+    }
+};
+
+// Handle page size blur to ensure we have a valid value
+const handlePageSizeBlur = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const value = parseInt(target.value, 10);
+    
+    // If the input is empty or invalid, reset to current pageSize
+    if (isNaN(value) || value < 25) {
+        target.value = props.pageSize.toString();
+    } else {
+        // Clamp the value within bounds and apply it
+        const clampedValue = Math.max(25, Math.min(1000, value));
+        target.value = clampedValue.toString();
+        emit('updatePageSize', clampedValue);
+        emit('handlePageSizeChange');
+    }
+};
 </script>

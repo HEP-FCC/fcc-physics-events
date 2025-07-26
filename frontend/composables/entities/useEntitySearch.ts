@@ -9,6 +9,10 @@ export function useEntitySearch() {
     const { searchEntities, getSortingFields, baseUrl } = useApiClient();
     const { getNavigationOrder } = useNavigationConfig();
     const { preloadBadgeColors } = useEntityBadges();
+    const searchPreferences = useSearchPreferences();
+
+    // Initialize search preferences
+    searchPreferences.initializePreferences();
 
     // Check API availability
     const apiAvailable = computed(() => !!baseUrl);
@@ -52,17 +56,17 @@ export function useEntitySearch() {
     // Infinite scroll state management
     const scrollState = shallowReactive<ScrollState>({
         currentPage: 1,
-        pageSize: 25,
+        pageSize: searchPreferences.pageSize.value,
         totalEntities: 0,
         loadedPages: new Set<number>(),
     });
 
     // Sorting state management
     const sortState = shallowReactive<SortState>({
-        field: "last_edited_at",
-        order: "desc",
-        sortBy: "last_edited_at",
-        sortOrder: "desc",
+        field: searchPreferences.sortBy.value,
+        order: searchPreferences.sortOrder.value,
+        sortBy: searchPreferences.sortBy.value,
+        sortOrder: searchPreferences.sortOrder.value,
         availableFields: [],
         isLoading: false,
     });
@@ -338,6 +342,8 @@ export function useEntitySearch() {
      */
     const toggleSortOrder = (): void => {
         sortState.sortOrder = sortState.sortOrder === "asc" ? "desc" : "asc";
+        // Save to preferences
+        searchPreferences.setSortOrder(sortState.sortOrder);
     };
 
     /**
@@ -377,10 +383,14 @@ export function useEntitySearch() {
 
     const updatePageSize = (size: number): void => {
         scrollState.pageSize = size;
+        // Save to preferences
+        searchPreferences.setPageSize(size);
     };
 
     const updateSortBy = (field: string): void => {
         sortState.sortBy = field;
+        // Save to preferences
+        searchPreferences.setSortBy(field);
     };
 
     const clearError = (): void => {
@@ -413,6 +423,39 @@ export function useEntitySearch() {
             preloadBadgeColors(navigationOrder);
         }
     });
+
+    // Watch preferences and sync to local state
+    watch(
+        () => searchPreferences.sortBy.value,
+        (newSortBy) => {
+            if (sortState.sortBy !== newSortBy) {
+                sortState.sortBy = newSortBy;
+                sortState.field = newSortBy;
+            }
+        },
+        { immediate: true },
+    );
+
+    watch(
+        () => searchPreferences.sortOrder.value,
+        (newSortOrder) => {
+            if (sortState.sortOrder !== newSortOrder) {
+                sortState.sortOrder = newSortOrder;
+                sortState.order = newSortOrder;
+            }
+        },
+        { immediate: true },
+    );
+
+    watch(
+        () => searchPreferences.pageSize.value,
+        (newPageSize) => {
+            if (scrollState.pageSize !== newPageSize) {
+                scrollState.pageSize = newPageSize;
+            }
+        },
+        { immediate: true },
+    );
 
     return {
         // State
