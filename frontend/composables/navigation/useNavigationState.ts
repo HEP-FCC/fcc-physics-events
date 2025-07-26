@@ -330,6 +330,44 @@ export function useNavigationState() {
         }
     }
 
+    /**
+     * Priority loading: Navigation dropdowns first, then other content
+     * This ensures navigation UI is responsive immediately
+     */
+    async function loadNavigationWithPriority(currentPath: Record<string, string | null> = {}) {
+        if (!isNavigationReady() || navigationOrder.value.length === 0) {
+            return;
+        }
+
+        try {
+            // High priority: Load first level immediately (always available)
+            const order = navigationOrder.value;
+            const firstLevelType = order[0];
+
+            // Start first level loading immediately
+            await loadSingleDropdownLevel(firstLevelType, {});
+
+            // Medium priority: Load subsequent levels based on current path
+            const cascadePromises: Promise<void>[] = [];
+            for (let level = 1; level < order.length; level++) {
+                const type = order[level];
+                const filters = buildFiltersForLevel(currentPath, level);
+
+                if (Object.keys(filters).length === level) {
+                    cascadePromises.push(loadSingleDropdownLevel(type, filters));
+                } else {
+                    break;
+                }
+            }
+
+            // Load remaining levels concurrently (but after first level is done)
+            if (cascadePromises.length > 0) {
+                await Promise.allSettled(cascadePromises);
+            }
+        } catch (error) {
+            console.warn("Error during priority navigation loading:", error);
+        }
+    }
     function toggleDropdown(type: string) {
         const openRef = getOpenRef(type);
         if (!openRef) {
@@ -402,6 +440,7 @@ export function useNavigationState() {
         openRefs: readonly(openRefs),
         loadDropdownData,
         loadDropdownCascade,
+        loadNavigationWithPriority,
         toggleDropdown,
         closeAllDropdowns,
         clearDropdownData,

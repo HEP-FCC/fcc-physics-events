@@ -85,6 +85,7 @@ const {
     navigationOrder,
     loadDropdownData,
     loadDropdownCascade,
+    loadNavigationWithPriority,
     toggleDropdown,
     closeAllDropdowns,
     clearDependentDropdowns,
@@ -109,9 +110,9 @@ watchEffect(() => {
     try {
         currentPath.value = parseRouteToPath(params);
 
-        // Trigger optimized cascade loading when path changes
+        // Trigger priority loading: navigation dropdowns first
         if (isNavigationReady.value) {
-            loadDropdownCascade(currentPath.value);
+            loadNavigationWithPriority(currentPath.value);
         }
     } catch (error) {
         console.error("Error parsing route to path:", error);

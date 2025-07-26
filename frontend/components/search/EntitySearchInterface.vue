@@ -233,12 +233,8 @@ watchDebounced(
         // Update filters - use the already parsed filters from props
         search.updateFilters(filters);
 
-        // Run search and navigation loading concurrently for better performance
-        // These are independent operations that can happen in parallel
-        Promise.allSettled([
-            search.performSearch(true), // Main search query
-            // Navigation dropdowns will be loaded by NavigationMenu's watchEffect
-        ]);
+        // Perform search (navigation dropdowns are prioritized separately in NavigationMenu)
+        search.performSearch(true);
     },
     { debounce: 300, immediate: false, flush: "post" },
 );
@@ -288,19 +284,26 @@ useInfiniteScroll(
 // Component lifecycle
 onMounted(async () => {
     if (!isInitialized.value) {
-        // Run independent initialization tasks concurrently
         const { initializeNavigation } = useDynamicNavigation();
 
-        // These can run in parallel since they're independent
-        const [_, __] = await Promise.all([
-            initializeNavigation(), // Initialize navigation configuration
-            search.fetchSortingFields(), // Fetch sorting fields
-        ]);
+        try {
+            // Priority 1: Initialize navigation configuration first (for immediate UI feedback)
+            // This enables dropdown loading and ensures navigation is ready before other operations
+            await initializeNavigation();
 
-        // Mark component as ready for searches
+            // Priority 2: Fetch sorting fields in background (non-blocking for search)
+            // Start this but don't wait for it - it can complete asynchronously
+            search.fetchSortingFields().catch((error) => {
+                console.error("Background sorting fields loading failed:", error);
+            });
+        } catch (error) {
+            console.error("Error during navigation initialization:", error);
+        }
+
+        // Mark component as ready for searches (this will trigger the watcher for entity search)
         search.isComponentReady.value = true;
 
-        // Mark component as initialized
+        // Mark component as initialized (this will trigger the main search watcher)
         isInitialized.value = true;
     }
 
