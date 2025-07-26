@@ -1,4 +1,4 @@
-// Auto-imported: ref, shallowRef, shallowReactive, computed, readonly
+// Auto-imported: ref, shallowRef, shallowReactive, computed, readonly, nextTick
 import type { Entity, SearchState, ScrollState, SortState, PaginatedResponse } from "~/types/entity";
 
 /**
@@ -43,10 +43,16 @@ export function useEntitySearch() {
     // Loading lock to prevent concurrent requests
     let isLoadingLock = false;
 
+    // Track when initial search has completed and stabilized
+    let hasCompletedInitialSearch = false;
+
+    // Track when infinite scroll should be active (delayed after initial search)
+    const isInfiniteScrollActive = ref(false);
+
     // Infinite scroll state management
     const scrollState = shallowReactive<ScrollState>({
         currentPage: 1,
-        pageSize: 20,
+        pageSize: 25,
         totalEntities: 0,
         loadedPages: new Set<number>(),
     });
@@ -100,7 +106,9 @@ export function useEntitySearch() {
     );
 
     const canLoadMore = computed(() => {
-        return searchState.hasMore && !searchState.isLoading && !searchState.isLoadingMore;
+        return (
+            searchState.hasMore && !searchState.isLoading && !searchState.isLoadingMore && isInfiniteScrollActive.value
+        );
     });
 
     const sortingFieldOptions = computed(() => {
@@ -160,6 +168,7 @@ export function useEntitySearch() {
             entities.value = [];
             scrollState.loadedPages.clear();
             scrollState.currentPage = 1; // Always start from page 1 for new searches
+            isInfiniteScrollActive.value = false; // Disable infinite scroll during new search
         } else {
             searchState.isLoadingMore = true;
         }
@@ -221,6 +230,13 @@ export function useEntitySearch() {
             if (!currentRequestController?.signal.aborted) {
                 if (isInitialLoad) {
                     searchState.isLoading = false;
+                    hasCompletedInitialSearch = true;
+                    // Enable infinite scroll when initial search has results
+                    if (entities.value.length > 0) {
+                        // Use nextTick to ensure DOM is updated before enabling infinite scroll
+                        await nextTick();
+                        isInfiniteScrollActive.value = true;
+                    }
                 } else {
                     searchState.isLoadingMore = false;
                 }
@@ -274,6 +290,11 @@ export function useEntitySearch() {
     async function loadMoreData(): Promise<void> {
         // Check loading lock first
         if (isLoadingLock) {
+            return;
+        }
+
+        // Prevent loading more data before initial search has been performed
+        if (entities.value.length === 0) {
             return;
         }
 
@@ -404,6 +425,7 @@ export function useEntitySearch() {
         sortState,
         apiAvailable,
         isComponentReady, // Export this so components can control it
+        isInfiniteScrollActive, // Export infinite scroll state
 
         // Computed
         urlFilterQuery,

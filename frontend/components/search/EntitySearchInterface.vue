@@ -270,14 +270,15 @@ watch(
 useInfiniteScroll(
     window,
     () => {
-        // Guard against infinite scroll triggers before component is ready
-        if (search.isComponentReady.value) {
+        // Guard against infinite scroll triggers before component is ready AND before infinite scroll is active
+        if (search.isComponentReady.value && search.isInfiniteScrollActive.value) {
             search.loadMoreData();
         }
     },
     {
-        distance: 600,
-        canLoadMore: () => search.canLoadMore.value && search.isComponentReady.value,
+        distance: 500, // Increased from 600px to 1000px to be less aggressive
+        canLoadMore: () =>
+            search.canLoadMore.value && search.isComponentReady.value && search.isInfiniteScrollActive.value,
     },
 );
 

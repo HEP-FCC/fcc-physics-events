@@ -67,7 +67,7 @@ class EntityRequest(BaseModel):
     search: str = ""
     sort: str = "id"
     page: int = 1
-    limit: int = 20
+    limit: int = 25
 
 
 class EntityIdsRequest(BaseModel):
@@ -109,7 +109,7 @@ async def upload_fcc_dict(
 @router.get("/query/", response_model=dict[str, Any])
 async def execute_gclql_query(
     q: str,
-    limit: int = Query(20, ge=20, le=1000),
+    limit: int = Query(25, ge=20, le=1000),
     offset: int = Query(0, ge=0),
     sort_by: str = Query("last_edited_at", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort order: 'asc' or 'desc'"),

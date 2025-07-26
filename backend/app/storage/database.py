@@ -868,7 +868,6 @@ class Database:
                 WHERE metadata IS NOT NULL
                 AND metadata != 'null'::jsonb
                 ORDER BY metadata_key
-                LIMIT 50
             """
             metadata_keys = await conn.fetch(metadata_fields_query)
 
@@ -891,7 +890,6 @@ class Database:
                     ) nested_objects
                 ) nested_keys
                 ORDER BY nested_key
-                LIMIT 50
             """
             nested_metadata_keys = await conn.fetch(nested_metadata_query)
 
@@ -1305,7 +1303,7 @@ class Database:
         filters: dict[str, str] = None,
         search: str = "",
         page: int = 1,
-        limit: int = 20,
+        limit: int = 25,
     ) -> dict[str, Any]:
         """
         Generic search endpoint that works with any database schema.

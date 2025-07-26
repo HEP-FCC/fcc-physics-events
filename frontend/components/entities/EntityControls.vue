@@ -109,8 +109,8 @@
                     <UInput
                         :model-value="pageSize"
                         type="number"
-                        min="20"
-                        max="100"
+                        min="25"
+                        max="1000"
                         size="xs"
                         class="w-16"
                         @update:model-value="$emit('updatePageSize', Number($event))"

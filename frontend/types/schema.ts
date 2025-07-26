@@ -229,7 +229,6 @@ export interface AppConfig {
     search: {
         defaultPageSize: number;
         maxPageSize: number;
-        debounceMs: number;
     };
     navigation: {
         enableBreadcrumbs: boolean;

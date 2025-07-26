@@ -19,50 +19,89 @@
                             :color="currentPath[type] ? 'primary' : 'neutral'"
                             :variant="currentPath[type] ? 'solid' : 'ghost'"
                             trailing-icon="i-heroicons-chevron-down-20-solid"
-                            :loading="dropdowns[type].isLoading"
                             @click="handleToggleDropdown(type)"
+                            class="transition-all duration-150"
                         >
-                            <UIcon :name="'i-heroicons-folder'" class="mr-2" />
+                            <!-- Conditional icon: loading spinner or folder -->
+                            <UIcon
+                                v-if="dropdowns[type]?.isLoading && !dropdowns[type]?.items?.length"
+                                name="i-heroicons-arrow-path"
+                                class="mr-2 animate-spin"
+                            />
+                            <UIcon v-else name="i-heroicons-folder" class="mr-2" />
                             {{ currentPath[type] || dropdowns[type]?.label || type }}
                         </UButton>
 
-                        <div
-                            v-if="dropdowns[type]?.isOpen"
-                            class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
+                        <transition
+                            enter-active-class="transition ease-out duration-100"
+                            enter-from-class="transform opacity-0 scale-95"
+                            enter-to-class="transform opacity-100 scale-100"
+                            leave-active-class="transition ease-in duration-75"
+                            leave-from-class="transform opacity-100 scale-100"
+                            leave-to-class="transform opacity-0 scale-95"
                         >
-                            <div class="p-2">
-                                <div v-if="currentPath[type]" class="mb-2">
-                                    <button
-                                        class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
-                                        @click="handleClearSelection(type)"
-                                    >
-                                        <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                        {{ dropdowns[type]?.clearLabel || `Clear ${type}` }}
-                                    </button>
-                                </div>
+                            <div
+                                v-if="dropdowns[type]?.isOpen"
+                                class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
+                            >
+                                <div class="p-2">
+                                    <div v-if="currentPath[type]" class="mb-2">
+                                        <button
+                                            class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
+                                            @click="handleClearSelection(type)"
+                                        >
+                                            <UIcon name="i-heroicons-x-mark" class="mr-2" />
+                                            {{ dropdowns[type]?.clearLabel || `Clear ${type}` }}
+                                        </button>
+                                    </div>
 
-                                <div v-if="dropdowns[type]?.isLoading" class="p-2">
-                                    <USkeleton class="h-4 w-24" />
-                                </div>
-
-                                <div v-else class="space-y-1">
-                                    <button
-                                        v-for="item in dropdowns[type]?.items || []"
-                                        :key="item.dataset_id"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap"
-                                        :class="{
-                                            'bg-primary-50 text-primary-700': currentPath[type] === item.name,
-                                        }"
-                                        @click="handleNavigate(type, item.name)"
+                                    <!-- Show loading only if no items AND currently loading -->
+                                    <div
+                                        v-if="!dropdowns[type]?.items?.length && dropdowns[type]?.isLoading"
+                                        class="p-2"
                                     >
-                                        {{ item.name }}
-                                    </button>
-                                    <div v-if="!dropdowns[type]?.items?.length" class="px-3 py-2 text-sm text-gray-500">
-                                        No options available.
+                                        <USkeleton class="h-4 w-24" />
+                                        <USkeleton class="h-4 w-32 mt-1" />
+                                        <USkeleton class="h-4 w-28 mt-1" />
+                                    </div>
+
+                                    <!-- Show items if available (even while loading more) -->
+                                    <div v-else class="space-y-1">
+                                        <button
+                                            v-for="item in dropdowns[type]?.items || []"
+                                            :key="item.dataset_id"
+                                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap transition-colors duration-150"
+                                            :class="{
+                                                'bg-primary-50 text-primary-700': currentPath[type] === item.name,
+                                            }"
+                                            @click="handleNavigate(type, item.name)"
+                                        >
+                                            {{ item.name }}
+                                        </button>
+
+                                        <!-- Show a subtle loading indicator at the bottom if still loading but have items -->
+                                        <div
+                                            v-if="dropdowns[type]?.items?.length && dropdowns[type]?.isLoading"
+                                            class="px-3 py-1"
+                                        >
+                                            <div class="flex items-center text-xs text-gray-400">
+                                                <div
+                                                    class="animate-spin rounded-full h-3 w-3 border border-gray-300 border-t-transparent mr-2"
+                                                ></div>
+                                                Loading...
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            v-if="!dropdowns[type]?.items?.length && !dropdowns[type]?.isLoading"
+                                            class="px-3 py-2 text-sm text-gray-500"
+                                        >
+                                            No options available.
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </transition>
                     </div>
                 </template>
             </nav>
@@ -122,15 +161,21 @@ watchEffect(() => {
 
 // Methods
 function handleToggleDropdown(type: string) {
+    // Always toggle the dropdown first for immediate visual feedback
     toggleDropdown(type);
 
-    // Only load data if dropdown is now open and has no data yet
+    // Only proceed with loading if dropdown is now open
     if (!isOpen(type)) {
         return;
     }
 
-    // Check if data is already loaded or currently loading
-    if (getItems(type).length > 0 || isLoading(type)) {
+    // Check if data is already loaded - if so, no need to load
+    if (getItems(type).length > 0) {
+        return;
+    }
+
+    // Check if currently loading - if so, let it finish
+    if (isLoading(type)) {
         return;
     }
 
@@ -148,7 +193,7 @@ function handleToggleDropdown(type: string) {
         }
     }
 
-    // Load data with appropriate filters
+    // Load data with appropriate filters (only if really needed)
     loadDropdownData(type, filters);
 }
 

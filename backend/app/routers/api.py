@@ -63,7 +63,7 @@ class SearchRequest(BaseModel):
     filters: dict[str, str] = {}
     search: str = ""
     page: int = 1
-    limit: int = 20
+    limit: int = 25
 
 
 @router.get("/schema")
