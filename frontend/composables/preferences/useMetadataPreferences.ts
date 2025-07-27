@@ -155,7 +155,7 @@ export const useMetadataPreferences = () => {
                 key: `metadata_${fieldName}`,
                 label: formatFieldName(fieldName),
                 value: displayValue,
-                color: displayValue === "NONE" ? ("neutral" as const) : ("info" as const),
+                color: displayValue === "NONE" ? ("info" as const) : ("info" as const),
             };
         });
     };

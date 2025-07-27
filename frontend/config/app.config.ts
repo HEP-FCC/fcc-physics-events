@@ -73,7 +73,7 @@ export const APP_CONFIG = {
      * UI configuration
      */
     ui: {
-        defaultBadgeColors: ["primary", "neutral", "success", "warning", "info", "error"] as const,
+        defaultBadgeColors: ["warning"] as const,
         // Use folder icon for all navigation items
         defaultIcon: "i-heroicons-folder" as const,
     },

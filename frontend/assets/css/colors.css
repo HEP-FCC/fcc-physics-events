@@ -235,7 +235,7 @@
 
     --theme-light-text-primary: var(--color-deep-blue-500);
     --theme-light-text-secondary: var(--color-deep-blue-400);
-    --theme-light-text-tertiary: var(--color-earth-600);
+    --theme-light-text-tertiary: var(--color-eco-600);
     --theme-light-text-inverse: var(--color-white);
 
     --theme-light-border-primary: var(--color-space-300);
@@ -338,7 +338,7 @@
     border-color: var(--color-accent);
 }
 .border-success {
-    border-color: var(--color-success);
+    border-color: var(--color-e);
 }
 .border-warning {
     border-color: var(--color-warning);

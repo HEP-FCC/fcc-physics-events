@@ -1,6 +1,7 @@
 <template>
     <div
-        class="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
+        class="flex text-white flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700 dark:bg-gray-800"
+        style="background-color: var(--color-deep-blue-main)"
     >
         <!-- Entity Controls -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -40,7 +41,7 @@
                 class="cursor-pointer"
                 @click="$emit('toggleAllMetadata')"
             >
-                {{ allMetadataExpanded ? "All Metadata" : "All Metadata" }}
+                {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
             </UButton>
 
             <!-- Metadata Tags Dropdown -->
@@ -50,7 +51,7 @@
 
             <!-- Sorting controls -->
             <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Sort by:</span>
+                <span class="text-sm font-medium">Sort by:</span>
                 <USelectMenu
                     :model-value="sortBy"
                     :items="sortingFieldOptions"
@@ -78,13 +79,13 @@
             <!-- Left side: Results count and page size control -->
             <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <!-- Results count -->
-                <div class="text-sm text-gray-600 dark:text-gray-300">
+                <div class="text-sm">
                     Showing
-                    <strong class="text-gray-900 dark:text-white">
+                    <strong>
                         {{ displayRange.start }}-{{ displayRange.end }}
                     </strong>
                     of
-                    <strong class="text-gray-900 dark:text-white">
+                    <strong>
                         {{ displayRange.total }}
                     </strong>
                 </div>

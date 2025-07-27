@@ -8,7 +8,7 @@
         @update:open="handleDropdownToggle"
     >
         <UButton icon="i-heroicons-tag" color="neutral" variant="outline" size="sm" class="cursor-pointer">
-            Tags
+            Display Tags
             <template v-if="selectedFields.length > 0"> ({{ selectedFields.length }}) </template>
         </UButton>
 

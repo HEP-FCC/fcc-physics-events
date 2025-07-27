@@ -3,10 +3,7 @@
     <!-- v-memo to prevent unnecessary re-renders when props haven't changed -->
     <div
         class="rounded border-t"
-        style="
-            background-color: var(--theme-light-background-secondary);
-            border-color: var(--theme-light-border-primary);
-        "
+        style="background-color: var(--color-white); border-color: var(--theme-light-border-primary)"
         v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing]"
     >
         <!-- Editing Mode -->
@@ -14,7 +11,7 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h4 style="color: var(--color-primary-900)" class="text-lg font-semibold">Edit Metadata</h4>
-                    <p style="color: var(--color-earth-500)" class="text-sm mt-1">
+                    <p style="color: var(--color-primary-main)" class="text-sm mt-1">
                         Modify the JSON metadata for this {{ mainTableDisplayName.toLowerCase().slice(0, -1) }}
                     </p>
                 </div>
@@ -49,7 +46,7 @@
                 </div>
             </div>
 
-            <div style="background-color: var(--color-earth-50)" class="rounded-lg p-4">
+            <div style="background-color: var(--color-space-50)" class="rounded-lg p-4">
                 <UTextarea
                     v-model="localEditJson"
                     :rows="getTextareaRows()"
@@ -58,7 +55,7 @@
                     class="font-mono text-sm w-full"
                     autofocus
                 />
-                <div style="color: var(--color-earth-500)" class="flex items-center justify-between mt-3 text-xs">
+                <div style="color: var(--color-primary-main)" class="flex items-center justify-between mt-3 text-xs">
                     <span>{{ getJsonStats(localEditJson) }}</span>
                     <div class="flex items-center gap-2">
                         <UButton icon="i-heroicons-arrow-path" variant="ghost" size="xs" @click="formatJson">
@@ -82,7 +79,7 @@
             <!-- Header -->
             <div
                 style="border-color: var(--theme-light-border-primary)"
-                class="flex items-center justify-between px-2 py-1 border-b"
+                class="flex items-center justify-between px-2 py-1"
             >
                 <div>
                     <h4 style="color: var(--color-primary-900)" class="text-xs font-medium">
@@ -94,7 +91,7 @@
                 </UButton>
             </div>
             <!-- Compact Content -->
-            <div class="p-2">
+            <div class="px-2">
                 <!-- Unified Fields Grid Layout -->
                 <div v-if="getAllFieldsComputed.length > 0" class="space-y-2">
                     <!-- Group fields by display row priority -->
@@ -117,7 +114,7 @@
                                     <!-- Unified Field Header -->
                                     <div
                                         class="relative flex items-center justify-between px-2 py-1 border-b border-opacity-20"
-                                        :style="getUnifiedBorderStyle(field)"
+                                        :style="[getUnifiedBorderStyle(field), getUnifiedFieldStyle(field, true)]"
                                     >
                                         <div class="flex items-center gap-1.5 flex-1 min-w-0">
                                             <!-- Unified icon -->
@@ -125,7 +122,7 @@
                                                 :class="getUnifiedIconContainerClass(field)"
                                                 :style="getUnifiedIconStyle(field)"
                                             >
-                                                <span class="text-[10px]">
+                                                <span class="text-[11px]">
                                                     {{ getUnifiedFieldIcon(field) }}
                                                 </span>
                                             </div>
@@ -222,6 +219,7 @@
 import type { MetadataEditState } from "~/types/api";
 // Auto-imported: useAppConfiguration
 import { getSemanticColor, getThemeColor, type SemanticColorKey } from "~/config/colors";
+import { reduceEachLeadingCommentRange } from "typescript";
 
 interface Props {
     entityId?: number;
@@ -743,7 +741,7 @@ const getUnifiedIconContainerClass = (field: UnifiedField): string => {
     } else if (field.category === "status") {
         return `${baseClass} w-4 h-4 rounded`;
     } else {
-        return `${baseClass} w-3 h-3 rounded-full text-[9px]`;
+        return `${baseClass} w-4 h-4 rounded-full text-[9px]`;
     }
 };
 
@@ -761,16 +759,16 @@ const getUnifiedGradientStyle = (field: UnifiedField): Record<string, string> =>
 const getSemanticColorForFieldType = (fieldType: string): string => {
     const typeMapping: Record<string, string> = {
         // Scientific data types - align with FCC's scientific excellence value
-        number: "info", // Radiant blue for quantitative data
+        number: "space", // Radiant blue for quantitative data
         boolean: "success", // Eco green for binary/environmental states
         vector: "accent", // Energy purple for complex particle data
 
         // Content types - align with FCC's open communication values
-        longString: "warning", // Earth tones for descriptive content
-        shortString: "gray", // Gray for basic textual information
+        longString: "eco", // Earth tones for descriptive content
+        shortString: "earth", // Gray for basic textual information
 
         // Metadata categories - align with FCC's transparency value
-        special: "primary", // Deep blue for special/important metadata
+        special: "radiant-blue",
         status: "secondary", // Radiant blue for status/state information
 
         // Status-specific colors - align with universal status conventions
@@ -778,18 +776,14 @@ const getSemanticColorForFieldType = (fieldType: string): string => {
         warning: "warning",
         error: "error",
         info: "info",
-        neutral: "gray",
+        neutral: "earth",
     };
 
-    return typeMapping[fieldType] || "gray";
+    return typeMapping[fieldType] || "earth";
 };
 
 // Generate CSS variable references for color schemes
 const getCSSVariableForColor = (semantic: string, shade: string | number = "500") => {
-    // Handle gray mapping to earth colors
-    if (semantic === "gray") {
-        return `var(--color-earth-${shade})`;
-    }
     return `var(--color-${semantic}-${shade})`;
 };
 
@@ -810,11 +804,13 @@ const getFieldColorVariables = (field: UnifiedField) => {
     return {
         bg50: getCSSVariableForColor(semanticColor, "50"),
         bg100: getCSSVariableForColor(semanticColor, "100"),
+        bg300: getCSSVariableForColor(semanticColor, "300"),
         border200: getCSSVariableForColor(semanticColor, "200"),
         text600: getCSSVariableForColor(semanticColor, "600"),
         text700: getCSSVariableForColor(semanticColor, "700"),
         grad400: getCSSVariableForColor(semanticColor, "400"),
         grad600: getCSSVariableForColor(semanticColor, "600"),
+        main: getCSSVariableForColor(semanticColor, "main"),
     };
 };
 
@@ -834,10 +830,10 @@ const getUnifiedFieldColorClass = (field: UnifiedField): string => {
     return "group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm";
 };
 
-const getUnifiedFieldStyle = (field: UnifiedField): Record<string, string> => {
+const getUnifiedFieldStyle = (field: UnifiedField, isHeader: Boolean = false): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
     return {
-        backgroundColor: colors.bg50,
+        backgroundColor: isHeader ? colors.bg300 : colors.bg50,
         borderColor: colors.border200,
         "--hover-bg-color": colors.bg100,
     };
@@ -853,7 +849,7 @@ const getUnifiedBorderStyle = (field: UnifiedField): Record<string, string> => {
 const getUnifiedIconStyle = (field: UnifiedField): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
     return {
-        backgroundColor: colors.bg100,
+        backgroundColor: "var(--color-deep-blue-main)",
         color: colors.text600,
     };
 };
@@ -861,7 +857,7 @@ const getUnifiedIconStyle = (field: UnifiedField): Record<string, string> => {
 const getUnifiedHeaderTextStyle = (field: UnifiedField): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
     return {
-        color: colors.text700,
+        color: "var(--color-deep-blue-main)",
     };
 };
 
@@ -911,7 +907,7 @@ const getUnifiedValueDisplayClass = (field: UnifiedField): string => {
     if (field.type === "vector") {
         classes.push("font-mono text-xs");
     } else if (field.type === "number" || field.type === "boolean") {
-        classes.push("text-center font-semibold");
+        classes.push("text-center");
     } else if (field.type === "shortString" || field.type === "longString") {
         classes.push("font-medium");
     }

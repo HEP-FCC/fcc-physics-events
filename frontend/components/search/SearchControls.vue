@@ -13,11 +13,11 @@
                     :placeholder="searchPlaceholderText"
                     size="lg"
                     icon="i-heroicons-magnifying-glass"
-                    class="pr-10 w-full"
+                    class="pr-7 w-full"
                     @keydown.enter="$emit('search')"
                 />
                 <UTooltip
-                    class="absolute right-2 top-1/2 transform -translate-y-1/2 z-10"
+                    class="absolute right-1 top-1/2 transform -translate-y-1/2 z-10"
                     :content="{ side: 'top', sideOffset: 8 }"
                 >
                     <template #content>
@@ -108,7 +108,7 @@
                         color="neutral"
                         variant="ghost"
                         size="xl"
-                        class="w-5 h-6 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        class="w-6 h-6 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full flex items-center justify-center"
                         @click="openQueryDocumentation"
                     />
                 </UTooltip>

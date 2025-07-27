@@ -125,7 +125,7 @@
                         color="primary"
                         variant="solid"
                         size="lg"
-                        class="cursor-pointer fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300"
+                        class="cursor-pointer fixed bottom-10 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300"
                         @click="scrollToTop"
                     >
                         <span class="sr-only">Scroll to top</span>
