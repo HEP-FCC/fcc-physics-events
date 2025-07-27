@@ -211,6 +211,114 @@ export function useEntitySelection() {
     }
 
     /**
+     * Delete all filtered entities with confirmation
+     */
+    async function deleteAllFilteredEntities(searchOptions: SearchOptions): Promise<void> {
+        const { deleteEntities } = useApiClient();
+        const { isAuthenticated, login } = useAuth();
+        const toast = useToast();
+
+        // Check if user is authenticated
+        if (!isAuthenticated.value) {
+            toast.add({
+                title: "Authentication Required",
+                description: "Please login to delete entities.",
+                color: "warning",
+            });
+            login();
+            return;
+        }
+
+        try {
+            isDownloadingFiltered.value = true; // Reuse this for loading state
+
+            // First, get all filtered entities to find their IDs
+            const filteredEntities = await downloadFilteredEntities(searchOptions);
+
+            if (filteredEntities.length === 0) {
+                toast.add({
+                    title: "No Entities to Delete",
+                    description: "No entities match the current filters.",
+                    color: "info",
+                });
+                return;
+            }
+
+            // Show confirmation dialog
+            const confirmed = window.confirm(
+                `Are you sure you want to delete all ${filteredEntities.length} filtered entities? This action cannot be undone.`,
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            // Extract entity IDs
+            const entityIds = extractEntityIds(filteredEntities);
+
+            if (entityIds.length === 0) {
+                toast.add({
+                    title: "Error",
+                    description: "Could not extract entity IDs for deletion.",
+                    color: "error",
+                });
+                return;
+            }
+
+            const result = await deleteEntities(entityIds);
+
+            if (result.success) {
+                toast.add({
+                    title: "Deletion Successful",
+                    description: `Successfully deleted ${result.deleted_count} entities.${
+                        result.not_found_count > 0 ? ` ${result.not_found_count} entities were not found.` : ""
+                    }`,
+                    color: "success",
+                });
+
+                // Clear selection for deleted entities
+                if (result.deleted_ids) {
+                    result.deleted_ids.forEach((id) => {
+                        selectionState.selectedEntities.delete(id);
+                        selectionState.expandedMetadata.delete(id);
+                    });
+                    selectedEntitiesVersion.value++;
+                    expandedMetadataVersion.value++;
+                }
+
+                // Trigger a page refresh or emit an event to refresh the entity list
+                // This will be handled by the parent component
+                return;
+            } else {
+                throw new Error(result.message || "Deletion failed");
+            }
+        } catch (error: unknown) {
+            console.error("Failed to delete filtered entities:", error);
+
+            // Check if it's an authentication error
+            if (error instanceof Error && (error.message.includes("401") || error.message.includes("403"))) {
+                toast.add({
+                    title: "Authorization Required",
+                    description: "You don't have permission to delete entities. Please contact an administrator.",
+                    color: "error",
+                });
+            } else {
+                const errorMessage =
+                    error instanceof Error
+                        ? error.message
+                        : "An unknown error occurred while deleting filtered entities.";
+                toast.add({
+                    title: "Deletion Failed",
+                    description: errorMessage,
+                    color: "error",
+                });
+            }
+        } finally {
+            isDownloadingFiltered.value = false;
+        }
+    }
+
+    /**
      * Handle row click for metadata toggle
      */
     function handleRowClick(event: MouseEvent, entityId: number): void {
@@ -379,6 +487,93 @@ export function useEntitySelection() {
         selectedEntitiesVersion.value++;
     }
 
+    /**
+     * Delete selected entities with confirmation
+     */
+    async function deleteSelectedEntities(): Promise<void> {
+        const selectedEntityIds = Array.from(selectionState.selectedEntities);
+        if (selectedEntityIds.length === 0) {
+            return;
+        }
+
+        const { deleteEntities } = useApiClient();
+        const { isAuthenticated, login } = useAuth();
+        const toast = useToast();
+
+        // Check if user is authenticated
+        if (!isAuthenticated.value) {
+            toast.add({
+                title: "Authentication Required",
+                description: "Please login to delete entities.",
+                color: "warning",
+            });
+            login();
+            return;
+        }
+
+        // Show confirmation dialog
+        const confirmed = window.confirm(
+            `Are you sure you want to delete ${selectedEntityIds.length} selected entities? This action cannot be undone.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            selectionState.isDownloading = true; // Reuse this for delete loading state
+
+            const result = await deleteEntities(selectedEntityIds);
+
+            if (result.success) {
+                toast.add({
+                    title: "Deletion Successful",
+                    description: `Successfully deleted ${result.deleted_count} entities.${
+                        result.not_found_count > 0 ? ` ${result.not_found_count} entities were not found.` : ""
+                    }`,
+                    color: "success",
+                });
+
+                // Clear selection for deleted entities
+                if (result.deleted_ids) {
+                    result.deleted_ids.forEach((id) => {
+                        selectionState.selectedEntities.delete(id);
+                        selectionState.expandedMetadata.delete(id);
+                    });
+                    selectedEntitiesVersion.value++;
+                    expandedMetadataVersion.value++;
+                }
+
+                // Trigger a page refresh or emit an event to refresh the entity list
+                // This will be handled by the parent component
+                return;
+            } else {
+                throw new Error(result.message || "Deletion failed");
+            }
+        } catch (error: unknown) {
+            console.error("Failed to delete entities:", error);
+
+            // Check if it's an authentication error
+            if (error instanceof Error && (error.message.includes("401") || error.message.includes("403"))) {
+                toast.add({
+                    title: "Authorization Required",
+                    description: "You don't have permission to delete entities. Please contact an administrator.",
+                    color: "error",
+                });
+            } else {
+                const errorMessage =
+                    error instanceof Error ? error.message : "An unknown error occurred while deleting entities.";
+                toast.add({
+                    title: "Deletion Failed",
+                    description: errorMessage,
+                    color: "error",
+                });
+            }
+        } finally {
+            selectionState.isDownloading = false;
+        }
+    }
+
     return {
         // State
         selectionState,
@@ -412,5 +607,7 @@ export function useEntitySelection() {
         getSelectedEntitiesAsObjects,
         clearAllSelections,
         selectEntitiesByIds,
+        deleteSelectedEntities,
+        deleteAllFilteredEntities,
     };
 }

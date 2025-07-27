@@ -48,6 +48,8 @@
                         sortOrder: search.sortState.sortOrder,
                     })
                 "
+                @delete-selected="handleDeleteSelected"
+                @delete-filtered="handleDeleteFiltered"
                 @toggle-all-metadata="selection.toggleAllMetadata(search.entities.value as Entity[])"
                 @update-sort-by="search.updateSortBy"
                 @toggle-sort-order="search.toggleSortOrder"
@@ -234,6 +236,38 @@ const handleRefreshEntity = async (entityId: number): Promise<void> => {
         }
     } catch (error) {
         console.error("Failed to refresh entity:", error);
+    }
+};
+
+// Handle entity deletion
+const handleDeleteSelected = async (): Promise<void> => {
+    try {
+        // Call the delete function from the selection composable
+        await selection.deleteSelectedEntities();
+
+        // After successful deletion, refresh the entity list by re-running the search
+        search.executeSearch();
+    } catch (error) {
+        console.error("Error during entity deletion:", error);
+        // Error handling is already done in the selection composable
+    }
+};
+
+// Handle filtered entities deletion
+const handleDeleteFiltered = async (): Promise<void> => {
+    try {
+        // Call the delete filtered entities function from the selection composable
+        await selection.deleteAllFilteredEntities({
+            query: search.combinedSearchQuery.value,
+            sortBy: search.sortState.sortBy,
+            sortOrder: search.sortState.sortOrder,
+        });
+
+        // After successful deletion, refresh the entity list by re-running the search
+        search.executeSearch();
+    } catch (error) {
+        console.error("Error during filtered entity deletion:", error);
+        // Error handling is already done in the selection composable
     }
 };
 

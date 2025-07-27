@@ -823,6 +823,96 @@ class Database:
 
                 return updated_entity
 
+    async def delete_entities_by_ids(self, entity_ids: list[int]) -> dict[str, Any]:
+        """
+        Delete entities by their IDs from the database.
+        Returns a summary of the deletion operation.
+        """
+        if not entity_ids:
+            return {
+                "success": True,
+                "deleted_count": 0,
+                "not_found_count": 0,
+                "message": "No entity IDs provided for deletion",
+            }
+
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
+        async with self.session() as conn:
+            # Get the primary key column dynamically
+            primary_key_column = await self._get_main_table_primary_key(
+                conn, main_table
+            )
+
+            async with conn.transaction():
+                # First, check which entities exist
+                placeholders = ",".join(f"${i+1}" for i in range(len(entity_ids)))
+                check_query = f"""
+                    SELECT {primary_key_column}
+                    FROM {main_table}
+                    WHERE {primary_key_column} IN ({placeholders})
+                """
+
+                existing_entities = await conn.fetch(check_query, *entity_ids)
+                existing_ids = {row[primary_key_column] for row in existing_entities}
+
+                not_found_ids = set(entity_ids) - existing_ids
+                not_found_count = len(not_found_ids)
+
+                if not existing_ids:
+                    return {
+                        "success": True,
+                        "deleted_count": 0,
+                        "not_found_count": not_found_count,
+                        "message": "No entities found with the provided IDs",
+                        "not_found_ids": list(not_found_ids),
+                    }
+
+                # Delete the entities
+                existing_ids_list = list(existing_ids)
+                delete_placeholders = ",".join(
+                    f"${i+1}" for i in range(len(existing_ids_list))
+                )
+                delete_query = f"""
+                    DELETE FROM {main_table}
+                    WHERE {primary_key_column} IN ({delete_placeholders})
+                """
+
+                try:
+                    result = await conn.execute(delete_query, *existing_ids_list)
+                    # Extract the count from the result (e.g., "DELETE 3")
+                    deleted_count = (
+                        int(result.split()[-1])
+                        if result.split()[-1].isdigit()
+                        else len(existing_ids_list)
+                    )
+
+                    logger.info(
+                        f"Successfully deleted {deleted_count} entities: {existing_ids_list}"
+                    )
+
+                    return {
+                        "success": True,
+                        "deleted_count": deleted_count,
+                        "not_found_count": not_found_count,
+                        "message": f"Successfully deleted {deleted_count} entities",
+                        "deleted_ids": existing_ids_list,
+                        "not_found_ids": list(not_found_ids) if not_found_ids else None,
+                    }
+
+                except asyncpg.ForeignKeyViolationError as e:
+                    logger.error(
+                        f"Cannot delete entities due to foreign key constraints: {e}"
+                    )
+                    raise ValueError(
+                        "Cannot delete entities as they are referenced by other records. "
+                        "Please remove related records first."
+                    )
+                except Exception as e:
+                    logger.error(f"Error deleting entities: {e}")
+                    raise RuntimeError(f"Failed to delete entities: {str(e)}")
+
     async def get_sorting_fields(self) -> dict[str, Any]:
         """
         Dynamically fetch available sorting fields from the database schema.

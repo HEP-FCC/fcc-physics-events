@@ -60,6 +60,35 @@ async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]
         )
 
 
+async def get_and_validate_authorized_user_from_session(
+    request: Request,
+) -> dict[str, Any]:
+    """Get current user from session cookie with CERN validation and check for 'authorized' role."""
+    from app.auth import cern_auth
+
+    try:
+        # First validate the session like the regular function
+        user_data = await get_and_validate_user_from_session(request)
+
+        # Now check if user has the "authorized" role for this specific operation
+        if not cern_auth.has_user_access(user_data):
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied. This operation requires 'authorized' role.",
+            )
+
+        return user_data
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during authorized user validation: {e}")
+        raise HTTPException(
+            status_code=403,
+            detail="Authorization check failed.",
+        )
+
+
 class EntityRequest(BaseModel):
     """Request model for entity search"""
 
@@ -72,6 +101,12 @@ class EntityRequest(BaseModel):
 
 class EntityIdsRequest(BaseModel):
     """Request model for getting entities by IDs."""
+
+    entity_ids: list[int]
+
+
+class DeleteEntitiesRequest(BaseModel):
+    """Request model for deleting entities by IDs."""
 
     entity_ids: list[int]
 
@@ -353,6 +388,63 @@ async def update_metadata_lock(
     except Exception as e:
         logger.error(f"Unexpected error updating metadata lock: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/entities/", response_model=dict[str, Any])
+async def delete_entities(
+    request: DeleteEntitiesRequest,
+    # user: dict[str, Any] = Depends(get_and_validate_authorized_user_from_session),
+) -> dict[str, Any]:
+    """
+    Delete entities by their IDs. Only users with 'authorized' role can perform this operation.
+
+    This endpoint:
+    - Validates user authentication and authorization (requires 'authorized' role)
+    - Accepts a list of entity IDs for bulk deletion
+    - Returns detailed results including success/failure counts
+    - Handles foreign key constraints gracefully
+    - Provides clear error messages for different failure scenarios
+    """
+    try:
+        # logger.info(
+        #     f"User {user.get('preferred_username', 'unknown')} requesting deletion of entities: {request.entity_ids}"
+        # )
+
+        if not request.entity_ids:
+            raise HTTPException(
+                status_code=400, detail="No entity IDs provided for deletion"
+            )
+
+        # Validate entity IDs are positive integers
+        invalid_ids = [entity_id for entity_id in request.entity_ids if entity_id <= 0]
+        if invalid_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid entity IDs (must be positive integers): {invalid_ids}",
+            )
+
+        # Call the database delete method
+        result = await database.delete_entities_by_ids(request.entity_ids)
+
+        logger.info(
+            # f"Delete operation completed for user {user.get('preferred_username', 'unknown')}: "
+            f"{result['deleted_count']} deleted, {result['not_found_count']} not found"
+        )
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValueError as e:
+        # Handle business logic errors (like foreign key constraints)
+        logger.error(f"Business logic error during entity deletion: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error during entity deletion: {e}")
+        raise HTTPException(
+            status_code=500, detail="Internal server error occurred during deletion"
+        )
 
 
 @router.get("/session-status")

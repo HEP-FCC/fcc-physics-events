@@ -107,8 +107,7 @@
                         icon="i-heroicons-information-circle"
                         color="neutral"
                         variant="ghost"
-                        size="xs"
-                        :padded="false"
+                        size="xl"
                         class="w-5 h-6 hover:bg-gray-100 dark:hover:bg-gray-800"
                         @click="openQueryDocumentation"
                     />

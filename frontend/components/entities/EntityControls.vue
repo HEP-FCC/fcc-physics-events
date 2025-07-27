@@ -12,33 +12,23 @@
                     @change="$emit('toggleSelectAll')"
                 />
                 <label class="text-sm font-medium cursor-pointer" @click="$emit('toggleSelectAll')">Select All</label>
+
+                <!-- Selection counter -->
+                <span
+                    v-if="selectedCount > 0"
+                    class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full"
+                >
+                    {{ selectedCount }} selected
+                </span>
             </div>
 
-            <UButton
-                icon="i-heroicons-arrow-down-tray"
-                color="primary"
-                variant="solid"
-                size="sm"
-                class="cursor-pointer"
-                :disabled="selectedCount === 0"
-                :loading="isDownloading"
-                @click="$emit('downloadSelected')"
-            >
-                Selected ({{ selectedCount }})
-            </UButton>
-
-            <UButton
-                icon="i-heroicons-arrow-down-tray"
-                color="neutral"
-                variant="solid"
-                size="sm"
-                class="cursor-pointer"
-                :disabled="displayRange.total === 0"
-                :loading="isDownloadingFiltered"
-                @click="$emit('downloadFiltered')"
-            >
-                Filtered ({{ displayRange.total }})
-            </UButton>
+            <!-- Actions Dropdown -->
+            <UDropdownMenu :items="actionItems" :ui="{ content: 'w-72' }">
+                <UButton icon="i-heroicons-squares-2x2" color="neutral" variant="outline" size="sm" class="gap-2">
+                    Actions
+                    <UIcon name="i-heroicons-chevron-down" class="w-4 h-4 ml-1" />
+                </UButton>
+            </UDropdownMenu>
 
             <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
 
@@ -50,7 +40,7 @@
                 class="cursor-pointer"
                 @click="$emit('toggleAllMetadata')"
             >
-                {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
+                {{ allMetadataExpanded ? "All Metadata" : "All Metadata" }}
             </UButton>
 
             <!-- Metadata Tags Dropdown -->
@@ -127,6 +117,9 @@
 import type { Entity } from "~/types/entity";
 import MetadataTagsDropdown from "./MetadataTagsDropdown.vue";
 
+// Composables
+const { isAuthenticated } = useAuth();
+
 interface Props {
     entities: Entity[];
     allEntitiesSelected: boolean;
@@ -148,6 +141,8 @@ interface Emits {
             | "toggleSelectAll"
             | "downloadSelected"
             | "downloadFiltered"
+            | "deleteSelected"
+            | "deleteFiltered"
             | "toggleAllMetadata"
             | "toggleSortOrder"
             | "handlePageSizeChange",
@@ -185,4 +180,69 @@ const handlePageSizeBlur = (event: Event) => {
         emit("handlePageSizeChange");
     }
 };
+
+// Helper functions for delete confirmations
+const handleDeleteSelected = () => {
+    if (props.selectedCount === 0) return;
+
+    const confirmed = window.confirm(
+        `Are you sure you want to delete ${props.selectedCount} selected ${
+            props.selectedCount === 1 ? "entity" : "entities"
+        }?\n\nThis action cannot be undone.`,
+    );
+
+    if (confirmed) {
+        emit("deleteSelected");
+    }
+};
+
+const handleDeleteFiltered = () => {
+    if (props.displayRange.total === 0) return;
+
+    const confirmed = window.confirm(
+        `⚠️ WARNING: You are about to delete ALL ${props.displayRange.total} filtered ${
+            props.displayRange.total === 1 ? "entity" : "entities"
+        }.\n\nThis will permanently delete all entities that match your current search filters.\n\nThis action cannot be undone.\n\nAre you absolutely sure you want to continue?`,
+    );
+
+    if (confirmed) {
+        emit("deleteFiltered");
+    }
+};
+
+// Clean action items with proper UX design
+const actionItems = computed(() => [
+    [
+        {
+            label: `Download Selected${props.selectedCount > 0 ? ` (${props.selectedCount})` : ""}`,
+            icon: "i-heroicons-arrow-down-tray",
+            disabled: props.selectedCount === 0 || props.isDownloading,
+            class: "hover:bg-green-50 dark:hover:bg-green-900/20",
+            onSelect: () => emit("downloadSelected"),
+        },
+        {
+            label: `Download All Filtered${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
+            icon: "i-heroicons-arrow-down-tray",
+            disabled: props.displayRange.total === 0 || props.isDownloadingFiltered,
+            class: "hover:bg-green-50 dark:hover:bg-green-900/20",
+            onSelect: () => emit("downloadFiltered"),
+        },
+    ],
+    [
+        {
+            label: `Delete Selected${props.selectedCount > 0 ? ` (${props.selectedCount})` : ""}`,
+            icon: "i-heroicons-trash",
+            disabled: props.selectedCount === 0 || !isAuthenticated.value || props.isDownloading,
+            class: "hover:bg-red-50 dark:hover:bg-red-900/20",
+            onSelect: handleDeleteSelected,
+        },
+        {
+            label: `Delete All Filtered${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
+            icon: "i-heroicons-trash",
+            disabled: props.displayRange.total === 0 || !isAuthenticated.value || props.isDownloadingFiltered,
+            class: "hover:bg-red-50 dark:hover:bg-red-900/20",
+            onSelect: handleDeleteFiltered,
+        },
+    ],
+]);
 </script>

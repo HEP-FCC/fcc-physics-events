@@ -154,6 +154,32 @@ export function useApiClient() {
     };
 
     /**
+     * Delete multiple entities by their IDs
+     */
+    const deleteEntities = async (
+        entityIds: number[],
+    ): Promise<{
+        success: boolean;
+        deleted_count: number;
+        not_found_count: number;
+        message: string;
+        deleted_ids?: number[];
+        not_found_ids?: number[];
+    }> => {
+        return typedFetch<{
+            success: boolean;
+            deleted_count: number;
+            not_found_count: number;
+            message: string;
+            deleted_ids?: number[];
+            not_found_ids?: number[];
+        }>("/entities/", {
+            method: "DELETE",
+            body: JSON.stringify({ entity_ids: entityIds }),
+        });
+    };
+
+    /**
      * Get sorting fields
      */
     const getSortingFields = async (): Promise<{ fields: string[]; count: number; info: string }> => {
@@ -237,6 +263,7 @@ export function useApiClient() {
         updateEntity,
         updateMetadataLock,
         deleteEntity,
+        deleteEntities,
 
         // Utility methods
         getSortingFields,

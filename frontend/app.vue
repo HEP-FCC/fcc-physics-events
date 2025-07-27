@@ -9,16 +9,6 @@
                         <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">FCC Physics Events</h1>
                     </div>
 
-                    <!-- Navigation Links -->
-                    <nav class="hidden md:flex space-x-8">
-                        <NuxtLink
-                            to="/"
-                            class="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 px-3 py-2 text-sm font-medium"
-                        >
-                            {{ mainTableDisplayName }}
-                        </NuxtLink>
-                    </nav>
-
                     <!-- Authentication Section -->
                     <AuthSection />
                 </div>
