@@ -7,11 +7,7 @@
                     <!-- Left: Logo -->
                     <div class="flex items-center">
                         <NuxtLink to="/" class="flex items-center">
-                            <NuxtImg
-                                src="/logo.png"
-                                alt="FCC Physics Events"
-                                class="h-8 w-auto"
-                            />
+                            <NuxtImg src="/logo.png" alt="FCC Physics Events" class="h-8 w-auto" />
                         </NuxtLink>
                     </div>
 

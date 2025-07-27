@@ -4,43 +4,44 @@
 
 /* Custom Font Declarations for Local Fonts */
 @font-face {
-    font-family: 'Roobert';
-    src: url('/fonts/roobert-400.woff2') format('woff2'),
-         url('/fonts/roobert-400.woff') format('woff');
+    font-family: "Roobert";
+    src: url("/fonts/roobert-400.woff2") format("woff2"), url("/fonts/roobert-400.woff") format("woff");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 
 @font-face {
-    font-family: 'Roobert';
-    src: url('/fonts/roobert-300.otf') format('opentype');
+    font-family: "Roobert";
+    src: url("/fonts/roobert-300.otf") format("opentype");
     font-weight: 300;
     font-style: normal;
     font-display: swap;
 }
 
 @font-face {
-    font-family: 'Roobert';
-    src: url('/fonts/roobert-500.ttf') format('truetype'),
-         url('/fonts/roobert-500.otf') format('opentype');
+    font-family: "Roobert";
+    src: url("/fonts/roobert-500.ttf") format("truetype"), url("/fonts/roobert-500.otf") format("opentype");
     font-weight: 500;
     font-style: normal;
     font-display: swap;
 }
 
 @font-face {
-    font-family: 'Space Mono';
-    src: url('/fonts/space-mono-400.woff2') format('woff2');
+    font-family: "Space Mono";
+    src: url("/fonts/space-mono-400.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
     font-display: swap;
 }
 
 @layer theme {
-    :root, :host {
-        --font-sans: 'Roobert', 'Inter', ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-        --font-mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    :root,
+    :host {
+        --font-sans: "Roobert", "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+            "Segoe UI Symbol", "Noto Color Emoji";
+        --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+            "Courier New", monospace;
     }
 }
 
