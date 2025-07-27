@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     detector_id INTEGER REFERENCES detectors(detector_id) ON DELETE SET NULL,
     metadata JSONB,
     created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc'),
-    last_edited_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+    last_edited_at TIMESTAMPTZ DEFAULT NULL
 );
 
 

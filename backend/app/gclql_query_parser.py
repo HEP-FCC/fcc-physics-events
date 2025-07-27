@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, cast
 
 from lark import Lark, Token, Transformer, exceptions
@@ -23,7 +24,7 @@ QUERY_LANGUAGE_GRAMMAR = r"""
     ?factor: NOT item | item
     ?item: "(" expr ")" | comparison | global_search
     global_search: simple_value
-    comparison: field OP value
+    comparison: field OP value?
     field: IDENTIFIER ("." IDENTIFIER)*
     value: simple_value
     simple_value: ESCAPED_STRING | SIGNED_NUMBER | IDENTIFIER | ASTERISK
@@ -38,6 +39,36 @@ QUERY_LANGUAGE_GRAMMAR = r"""
     %import common.WS
     %ignore WS
 """
+
+
+def parse_date_string(date_str: str) -> datetime:
+    """
+    Parse a date string in various formats to a datetime object.
+    Supports formats like:
+    - "2025-07-20" (date only)
+    - "2025-07-20 15:30:00" (date and time)
+    - "2025-07-20T15:30:00" (ISO format)
+    """
+    # Remove quotes if present
+    date_str = date_str.strip("\"'")
+
+    # List of supported formats
+    formats = [
+        "%Y-%m-%d",  # "2025-07-20"
+        "%Y-%m-%d %H:%M:%S",  # "2025-07-20 15:30:00"
+        "%Y-%m-%dT%H:%M:%S",  # "2025-07-20T15:30:00"
+        "%Y-%m-%d %H:%M",  # "2025-07-20 15:30"
+        "%Y-%m-%dT%H:%M",  # "2025-07-20T15:30"
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+
+    # If none of the formats work, raise an error
+    raise ValueError(f"Unable to parse date string: {date_str}")
 
 
 @dataclass(frozen=True)
@@ -175,7 +206,13 @@ class AstTransformer(Transformer[Token, AstNode]):
         return i[0]
 
     def comparison(self, i: list[Any]) -> Comparison:
-        return Comparison(field=i[0], op=str(i[1]), value=i[2])
+        # Handle optional value: [field, op] or [field, op, value]
+        if len(i) == 2:
+            # No value provided (e.g., "last_edited_at:")
+            return Comparison(field=i[0], op=str(i[1]), value=None)
+        else:
+            # Value provided (e.g., "last_edited_at: somevalue")
+            return Comparison(field=i[0], op=str(i[1]), value=i[2])
 
     def global_search(self, i: list[Any]) -> GlobalSearch:
         # The value is already processed by simple_value, which is the first item in the list
@@ -271,13 +308,26 @@ class SqlTranslator:
         if op == ":" and value == "*":
             return self._translate_field_exists(node.field, sql_field)
 
+        # Special handling for last_edited_at field
+        is_last_edited_at = node.field.parts[
+            0
+        ] == "last_edited_at" or sql_field.endswith("last_edited_at")
+
         self.param_index += 1
         placeholder = f"${self.param_index}"
 
         if op == ":" or op == "=":
             if op == ":":
-                # Substring match using ILIKE
-                sql_op, param_value = "ILIKE", f"%{value}%"
+                if is_last_edited_at and (value == "" or value is None):
+                    # Special case: last_edited_at: (empty value) means "show only edited entities"
+                    # Don't increment param_index or add to params since we're not using a placeholder
+                    self.param_index -= (
+                        1  # Decrement since we incremented above but won't use it
+                    )
+                    return f"{sql_field} IS NOT NULL"
+                else:
+                    # Substring match using ILIKE
+                    sql_op, param_value = "ILIKE", f"%{value}%"
             else:
                 # Exact match
                 sql_op, param_value = "=", value
@@ -291,8 +341,26 @@ class SqlTranslator:
             # Standard comparison operators: !=, >, <, >=, <=
             sql_op, param_value = op, value
 
+        # Special handling for last_edited_at: parse date strings to datetime objects
+        if (
+            is_last_edited_at
+            and isinstance(param_value, str)
+            and op in ("=", "!=", ">", "<", ">=", "<=")
+        ):
+            try:
+                param_value = parse_date_string(param_value)
+            except ValueError as e:
+                logger.error("Error parsing date string '%s': %s", param_value, e)
+                # If parsing fails, keep as string and let PostgreSQL handle it
+                pass
+
         self.params.append(param_value)
-        return f"{sql_field} {sql_op} {placeholder}"
+
+        # For last_edited_at comparison operations, add NULL check
+        if is_last_edited_at and op in (">", "<", ">=", "<=", "!="):
+            return f"({sql_field} IS NOT NULL AND {sql_field} {sql_op} {placeholder})"
+        else:
+            return f"{sql_field} {sql_op} {placeholder}"
 
     def _translate_field_exists(self, field: Any, sql_field: str) -> str:
         """
