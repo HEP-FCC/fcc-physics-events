@@ -21,6 +21,7 @@ export const APP_CONFIG = {
      */
     branding: {
         title: "FCC Physics Data",
+        appTitle: "FCC Physics Events",
         description: "Search and explore FCC physics simulation data and entities",
         defaultTitle: "FCC Physics Data Search",
     },

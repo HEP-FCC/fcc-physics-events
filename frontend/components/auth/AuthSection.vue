@@ -8,7 +8,7 @@
                 variant="solid"
                 size="sm"
                 icon="i-heroicons-user-circle"
-                class="login-btn"
+                class="login-btn cursor-pointer"
                 @click="handleLogin"
             >
                 {{ isLoading ? "Signing in..." : "Sign in with CERN" }}

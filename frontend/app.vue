@@ -3,14 +3,29 @@
         <!-- Navigation Header -->
         <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
-                    <!-- Logo/Title -->
+                <div class="flex items-center h-16 relative">
+                    <!-- Left: Logo -->
                     <div class="flex items-center">
-                        <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">FCC Physics Events</h1>
+                        <NuxtLink to="/" class="flex items-center">
+                            <NuxtImg
+                                src="/logo.png"
+                                alt="FCC Physics Events"
+                                class="h-8 w-auto"
+                            />
+                        </NuxtLink>
                     </div>
 
-                    <!-- Authentication Section -->
-                    <AuthSection />
+                    <!-- Center: App Title -->
+                    <div class="absolute left-1/2 transform -translate-x-1/2">
+                        <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 font-sans whitespace-nowrap">
+                            {{ appTitle }}
+                        </h1>
+                    </div>
+
+                    <!-- Right: Authentication Section -->
+                    <div class="ml-auto">
+                        <AuthSection />
+                    </div>
                 </div>
             </div>
         </header>
@@ -34,7 +49,7 @@ import AppFooter from "~/components/AppFooter.vue";
 // Check authentication status on app initialization
 const { checkAuthStatus } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
-const { mainTableDisplayName } = useAppConfiguration();
+const { appTitle, mainTableDisplayName } = useAppConfiguration();
 
 onMounted(async () => {
     // Initialize navigation configuration globally (early initialization for better UX)
