@@ -49,7 +49,7 @@ class Field:
         schema_mapping: dict[str, str],
         value: Any = None,
         op: str | None = None,
-        available_metadata_fields: set[str] | None = None
+        available_metadata_fields: set[str] | None = None,
     ) -> str:
         base_field = self.parts[0]
         if base_field[-5:] == "_name":
@@ -84,7 +84,9 @@ class Field:
                     json_field = f"{metadata_column}->>'{json_path_parts[0]}'"
                 else:
                     # Nested metadata field: field.sub -> metadata.field.sub
-                    path_expression = "->".join([f"'{part}'" for part in json_path_parts[:-1]])
+                    path_expression = "->".join(
+                        [f"'{part}'" for part in json_path_parts[:-1]]
+                    )
                     json_field = f"{metadata_column}->{path_expression}->>'{json_path_parts[-1]}'"
 
                 # Handle numeric casting for comparison operators
@@ -225,7 +227,9 @@ class SqlTranslator:
     def __init__(self) -> None:
         self.schema_mapping: dict[str, str] = {}
         self.global_search_fields: list[str] = []  # Will be set dynamically
-        self.available_metadata_fields: set[str] = set()  # Store available metadata fields
+        self.available_metadata_fields: set[str] = (
+            set()
+        )  # Store available metadata fields
         self.params: list[Any] = []
         self.param_index = 0
 
@@ -258,10 +262,7 @@ class SqlTranslator:
 
     def _translate_comparison(self, node: Comparison) -> str:
         sql_field = node.field.to_sql(
-            self.schema_mapping,
-            node.value,
-            node.op,
-            self.available_metadata_fields
+            self.schema_mapping, node.value, node.op, self.available_metadata_fields
         )
         op = node.op
         value = node.value
@@ -300,15 +301,17 @@ class SqlTranslator:
         For JSON fields, checks if the key exists in the JSON object.
         """
         # Check if this is a metadata (JSON) field (explicit or auto-detected)
-        if (field.parts[0] == "metadata" and len(field.parts) > 1) or \
-           (field.parts[0] in self.available_metadata_fields):
-
+        if (field.parts[0] == "metadata" and len(field.parts) > 1) or (
+            field.parts[0] in self.available_metadata_fields
+        ):
             # Handle auto-detected metadata fields
             if field.parts[0] in self.available_metadata_fields:
                 json_path = field.parts  # field.sub becomes ["field", "sub"]
             else:
                 # Handle explicit metadata.field syntax
-                json_path = field.parts[1:]  # metadata.field.sub becomes ["field", "sub"]
+                json_path = field.parts[
+                    1:
+                ]  # metadata.field.sub becomes ["field", "sub"]
 
             if len(json_path) == 1:
                 # Simple JSON key: metadata.key or auto-detected key
@@ -421,7 +424,9 @@ class QueryParser:
     def __init__(self, database: Database):
         self.database = database
         self.schema_mapping: dict[str, str] = {}
-        self.available_metadata_fields: set[str] = set()  # Store available metadata fields
+        self.available_metadata_fields: set[str] = (
+            set()
+        )  # Store available metadata fields
         self.parser = Lark(QUERY_LANGUAGE_GRAMMAR, start="start", parser="lalr")
         self.transformer = AstTransformer()
         self.translator = SqlTranslator()
@@ -493,13 +498,15 @@ class QueryParser:
 
                 # Add top-level fields
                 for row in metadata_keys:
-                    all_fields.add(row['metadata_key'])
+                    all_fields.add(row["metadata_key"])
 
                 # Add nested fields
                 for row in nested_keys:
-                    all_fields.add(row['nested_key'])
+                    all_fields.add(row["nested_key"])
 
-                logger.debug(f"Found {len(all_fields)} available metadata fields: {sorted(all_fields)}")
+                logger.debug(
+                    f"Found {len(all_fields)} available metadata fields: {sorted(all_fields)}"
+                )
                 return all_fields
 
             except Exception as e:
@@ -733,7 +740,7 @@ class QueryParser:
             self.translator.reset(
                 self.schema_mapping,
                 global_search_fields,
-                self.available_metadata_fields
+                self.available_metadata_fields,
             )
             where_clause = self.translator.translate(ast)
 
@@ -814,7 +821,10 @@ class QueryParser:
         # Handle regular fields using the schema mapping
         field_obj = Field((sort_by,))
         try:
-            sql_field = field_obj.to_sql(self.schema_mapping)
+            sql_field = field_obj.to_sql(
+                self.schema_mapping,
+                available_metadata_fields=self.available_metadata_fields,
+            )
             # Add secondary sort by primary key to ensure deterministic ordering
             # This prevents the same entity from appearing on multiple pages when there are ties
             primary_key_field = (

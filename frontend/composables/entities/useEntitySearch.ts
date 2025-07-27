@@ -116,10 +116,37 @@ export function useEntitySearch() {
     });
 
     const sortingFieldOptions = computed(() => {
-        return sortState.availableFields.map((field) => ({
-            label: formatFieldLabel(field),
-            value: field,
-        }));
+        // Create a map to deduplicate fields based on their labels
+        const fieldMap = new Map<string, { label: string; value: string }>();
+
+        sortState.availableFields.forEach((field) => {
+            // Use the original field name as the label (without normalization)
+            let label: string;
+            if (field.startsWith("metadata.")) {
+                // For metadata fields, just remove the "metadata." prefix but keep original formatting
+                label = field.replace("metadata.", "");
+            } else {
+                // For regular fields, use as-is
+                label = field;
+            }
+
+            // Replace _name with empty string, then replace remaining underscores with spaces, and capitalize the first letter for consistency
+            label = label.replace("_name", "");
+            label = label.replace(/_/g, " ");
+            label = label.charAt(0).toUpperCase() + label.slice(1);
+
+            // Keep the original field name as the value for the backend
+            // If we already have this label, keep the first one (arbitrary choice since they're equivalent)
+            if (!fieldMap.has(label)) {
+                fieldMap.set(label, {
+                    label,
+                    value: field, // Use original field name for backend
+                });
+            }
+        });
+
+        // Convert map to array and sort alphabetically
+        return Array.from(fieldMap.values()).sort((a, b) => a.label.localeCompare(b.label));
     });
 
     const showLoadingSkeleton = computed(() => {

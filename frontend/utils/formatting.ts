@@ -9,7 +9,7 @@
 export function formatFieldLabel(field: string): string {
     if (field.startsWith("metadata.")) {
         const metadataKey = field.replace("metadata.", "");
-        return `Metadata: ${metadataKey.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}`;
+        return metadataKey.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
     }
     return field
         .replace(/_/g, " ")
@@ -30,7 +30,6 @@ export const createEntityDownloadFilename = (entityCount: number): string => {
     const multipleEntities = entityCount > 1 ? "entities" : "entity";
     return `fcc_physics_entities-${entityCount}-${multipleEntities}-${timestamp}.json`;
 };
-
 
 /**
  * Download data as JSON file to user's computer
