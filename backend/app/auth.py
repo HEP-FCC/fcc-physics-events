@@ -90,7 +90,9 @@ class CERNAuthenticator:
             username = user_data.get("preferred_username", "unknown")
             if not user_data["active"]:
                 # When CERN tokens become inactive, it's typically due to expiration
-                raise jwt.ExpiredSignatureError(f"Auth token for user {username} has expired.")
+                raise jwt.ExpiredSignatureError(
+                    f"Auth token for user {username} has expired."
+                )
 
             logger.info(f"Successfully introspected token for user: {username}")
             return user_data
