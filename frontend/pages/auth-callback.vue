@@ -1,22 +1,22 @@
 <template>
-    <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div class="min-h-screen flex items-center justify-center bg-space-50 px-4">
         <div class="max-w-md w-full">
             <!-- Loading state -->
             <UCard v-if="isLoading" class="text-center">
                 <template #header>
                     <div class="flex items-center justify-center gap-3">
-                        <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin text-primary-500" />
-                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Authenticating</h2>
+                        <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin text-eco-500" />
+                        <h2 class="text-xl font-semibold">Authenticating</h2>
                     </div>
                 </template>
 
-                <p class="text-gray-600 dark:text-gray-400">
+                <p>
                     Please wait while we complete your login with CERN SSO...
                 </p>
 
                 <div class="mt-4">
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-primary-500 h-2 rounded-full animate-pulse" style="width: 60%" />
+                    <div class="w-full bg-space-200ounded-full h-2">
+                        <div class="bg-eco-500 h-2 rounded-full animate-pulse" style="width: 60%" />
                     </div>
                 </div>
             </UCard>
@@ -25,12 +25,12 @@
             <UCard v-else-if="error" class="text-center">
                 <template #header>
                     <div class="flex items-center justify-center gap-3">
-                        <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-red-500" />
-                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Authentication Failed</h2>
+                        <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-earth" />
+                        <h2 class="text-xl font-semibold ">Authentication Failed</h2>
                     </div>
                 </template>
 
-                <p class="text-gray-600 dark:text-gray-400 mb-6">
+                <p class="mb-6">
                     {{ error }}
                 </p>
 
@@ -43,20 +43,20 @@
             <UCard v-else class="text-center">
                 <template #header>
                     <div class="flex items-center justify-center gap-3">
-                        <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-500" />
-                        <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                            Authentication Successful!
-                        </h2>
+                        <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-eco-500" />
+                        <h2 class="text-xl font-semibold">Authentication Successful!</h2>
                     </div>
                 </template>
 
-                <p class="text-gray-600 dark:text-gray-400 mb-4">You have been successfully logged in with CERN SSO.</p>
+                <p>
+                    You have been successfully logged in with CERN SSO.
+                </p>
 
-                <p class="text-sm text-gray-500 dark:text-gray-400">Redirecting you to the main application...</p>
+                <p>Redirecting you to the main application...</p>
 
                 <div class="mt-4">
-                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div class="bg-green-500 h-2 rounded-full transition-all duration-1000" style="width: 100%" />
+                    <div class="w-full bg-space-200  rounded-full h-2">
+                        <div class="bg-eco-500 h-2 rounded-full transition-all duration-1000" style="width: 100%" />
                     </div>
                 </div>
             </UCard>

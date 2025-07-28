@@ -1,8 +1,8 @@
 <template>
     <div class="space-y-2">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label class="block text-sm font-medium">
             Search Query
-            <span v-if="showFilterNote" class="text-xs text-gray-600 dark:text-gray-400 ml-1">
+            <span v-if="showFilterNote" class="text-xs ml-1">
                 (Additional filters from navigation applied automatically)
             </span>
         </label>
@@ -21,17 +21,11 @@
                     :content="{ side: 'top', sideOffset: 8 }"
                 >
                     <template #content>
-                        <div
-                            class="max-w-md p-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg"
-                        >
-                            <div class="font-semibold text-sm mb-3 text-gray-900 dark:text-gray-100">
-                                Query Language Help
-                            </div>
-                            <div class="text-xs text-gray-700 dark:text-gray-300 space-y-3">
+                        <div class="max-w-md p-4 bg-white  rounded-lg shadow-lg">
+                            <div class="font-semibold text-sm mb-3">Query Language Help</div>
+                            <div class="text-xs space-y-3">
                                 <div>
-                                    <div class="font-medium mb-2 text-gray-800 dark:text-gray-200">
-                                        Example search queries:
-                                    </div>
+                                    <div class="font-medium mb-2">Example search queries:</div>
                                     <div class="space-y-1.5">
                                         <div>
                                             <code :class="codeClass">"H to cu"</code>
@@ -48,9 +42,7 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="font-medium mb-2 text-gray-800 dark:text-gray-200">
-                                        Boolean Operators:
-                                    </div>
+                                    <div class="font-medium mb-2">Boolean Operators:</div>
                                     <div class="flex flex-wrap gap-1">
                                         <code :class="codeClass">AND</code>
                                         <code :class="codeClass">OR</code>
@@ -58,9 +50,7 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="font-medium mb-2 text-gray-800 dark:text-gray-200">
-                                        Comparison Operators:
-                                    </div>
+                                    <div class="font-medium mb-2">Comparison Operators:</div>
                                     <div class="flex flex-wrap gap-1">
                                         <code :class="codeClass">=</code>
                                         <code :class="codeClass">!=</code>
@@ -69,7 +59,7 @@
                                         <code :class="codeClass">&gt;=</code>
                                         <code :class="codeClass">&lt;=</code>
                                     </div>
-                                    <div class="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                                    <div class="text-xs mt-2">
                                         <div>
                                             <code :class="codeClass">:</code>
                                             substring,
@@ -82,12 +72,12 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="pt-2 border-t border-gray-200 dark:border-gray-600 text-center">
+                                <div class="pt-2 border-t border-gray-200  text-center">
                                     <a
                                         href="https://cloud.google.com/logging/docs/view/logging-query-language"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer hover:underline text-xs font-medium transition-colors inline-flex items-center gap-1"
+                                        class="hover:text-secondary-700  cursor-pointer hover:underline text-xs font-medium transition-colors inline-flex items-center gap-1"
                                     >
                                         View Full Documentation
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,8 +98,7 @@
                         color="neutral"
                         variant="ghost"
                         size="xl"
-                        class="w-6 h-6 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full flex items-center justify-center"
-                        @click="openQueryDocumentation"
+                        class="w-6 h-6 p-1 hover:bg-gray-100  rounded-full flex items-center justify-center"
                     />
                 </UTooltip>
             </div>
@@ -195,17 +184,10 @@ const searchQuery = computed({
 // UI state for permalink functionality
 const isPermalinkCopyInProgress = ref(false);
 const showLinkCopiedFeedback = ref(false);
-const codeClass = "bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-xs font-mono";
+const codeClass = "bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono";
 
 // Utility functions
 const { copyToClipboard } = useUtils();
-
-/**
- * Open external query documentation
- */
-function openQueryDocumentation(): void {
-    window.open("https://cloud.google.com/logging/docs/view/logging-query-language", "_blank");
-}
 
 /**
  * Show success notification for link copied

@@ -22,7 +22,7 @@
                                     @click.stop
                                     @change="toggleEntitySelection(getEntityId(entity))"
                                 />
-                                <h3 class="text-base font-semibold text-gray-900 dark:text-gray-100 truncate flex-1">
+                                <h3 class="text-base font-semibold truncate flex-1">
                                     {{ entity.name }}
                                 </h3>
                             </div>
@@ -46,15 +46,13 @@
                                 </div>
 
                                 <!-- Right side: Timestamps -->
-                                <div
-                                    class="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400 flex-shrink-0"
-                                >
+                                <div class="flex flex-col items-end text-xs flex-shrink-0">
                                     <span v-if="entity.created_at">
                                         Created: {{ formatTimestamp(entity.created_at) }}
                                     </span>
                                     <span
                                         v-if="wasEntityEdited(entity)"
-                                        class="text-orange-600 dark:text-orange-400"
+                                        class="text-earth-600"
                                         :title="
                                             entity.last_edited_at
                                                 ? `Last edited: ${formatTimestamp(entity.last_edited_at)}`
@@ -83,11 +81,7 @@
                 </div>
 
                 <!-- Metadata component (inline) -->
-                <div
-                    v-if="isMetadataExpanded(getEntityId(entity))"
-                    class="bg-gray-50 cursor-default my-1"
-                    @click.stop
-                >
+                <div v-if="isMetadataExpanded(getEntityId(entity))" class="bg-space-50 cursor-default my-1" @click.stop>
                     <EntityMetadata
                         :entity-id="getEntityId(entity)"
                         :metadata="entity.metadata || {}"

@@ -15,7 +15,7 @@
         <template #item="{ item }">
             <div
                 v-if="item.type === 'checkbox'"
-                class="flex items-center w-full py-1 px-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded cursor-pointer"
+                class="flex items-center w-full py-1 px-2 hover:bg-space-50  rounded cursor-pointer"
                 @click.stop="handleFieldToggle(item.field)"
             >
                 <UCheckbox
@@ -26,28 +26,23 @@
                     @click.stop
                 />
                 <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <div class="text-sm font-medium truncate">
                         {{ item.label }}
                     </div>
-                    <!-- <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {{ item.field }}
-                    </div> -->
                 </div>
             </div>
             <div
                 v-else-if="item.type === 'label'"
-                class="flex items-center w-full py-2 px-3 text-sm text-gray-500 dark:text-gray-400"
+                class="flex items-center w-full py-2 px-3 text-sm"
             >
                 {{ item.label }}
             </div>
         </template>
 
         <template #content-top>
-            <div class="p-3 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-3 border-b border-space-200 ">
                 <div class="flex items-start justify-between mb-2">
-                    <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        Select Metadata to Show as Tags
-                    </h3>
+                    <h3 class="text-sm font-semibold">Select Metadata to Show as Tags</h3>
                     <UButton
                         icon="i-heroicons-x-mark"
                         color="neutral"
@@ -57,7 +52,7 @@
                         @click="closeDropdown"
                     />
                 </div>
-                <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                <p class="text-xs mb-3">
                     Choose which metadata fields to display as tags on all entities. Fields without data will show
                     "NONE" as the value.
                 </p>
@@ -66,7 +61,7 @@
                 <div class="relative">
                     <UIcon
                         name="i-heroicons-magnifying-glass"
-                        class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"
+                        class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
                     />
                     <UInput v-model="searchQuery" placeholder="Search fields..." size="sm" class="pl-10" />
                 </div>
@@ -74,11 +69,9 @@
         </template>
 
         <template #content-bottom>
-            <div class="p-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <div class="p-3 border-t border-space-200 bg-space-50">
                 <div class="flex items-center justify-between gap-2">
-                    <div class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ selectedFields.length }} of {{ availableFields.length }} selected
-                    </div>
+                    <div class="text-xs">{{ selectedFields.length }} of {{ availableFields.length }} selected</div>
                     <div class="flex gap-2">
                         <UButton
                             v-if="selectedFields.length > 0"

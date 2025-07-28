@@ -146,6 +146,36 @@ export const PRIMITIVE_COLORS = {
 export const SEMANTIC_COLORS = {
     // Primary brand colors
     primary: {
+        50: PRIMITIVE_COLORS.deepBlue[50],
+        100: PRIMITIVE_COLORS.deepBlue[100],
+        200: PRIMITIVE_COLORS.deepBlue[200],
+        300: PRIMITIVE_COLORS.deepBlue[300],
+        400: PRIMITIVE_COLORS.deepBlue[400],
+        500: PRIMITIVE_COLORS.deepBlue[500],
+        600: PRIMITIVE_COLORS.deepBlue[600],
+        700: PRIMITIVE_COLORS.deepBlue[700],
+        800: PRIMITIVE_COLORS.deepBlue[800],
+        900: PRIMITIVE_COLORS.deepBlue[900],
+        DEFAULT: PRIMITIVE_COLORS.deepBlue.main,
+    },
+
+    // Secondary colors for supporting elements
+    secondary: {
+        50: PRIMITIVE_COLORS.radiantBlue[50],
+        100: PRIMITIVE_COLORS.radiantBlue[100],
+        200: PRIMITIVE_COLORS.radiantBlue[200],
+        300: PRIMITIVE_COLORS.radiantBlue[300],
+        400: PRIMITIVE_COLORS.radiantBlue[400],
+        500: PRIMITIVE_COLORS.radiantBlue[500],
+        600: PRIMITIVE_COLORS.radiantBlue[600],
+        700: PRIMITIVE_COLORS.radiantBlue[700],
+        800: PRIMITIVE_COLORS.radiantBlue[800],
+        900: PRIMITIVE_COLORS.radiantBlue[900],
+        DEFAULT: PRIMITIVE_COLORS.radiantBlue.main,
+    },
+
+    // Accent colors for highlights and calls-to-action
+    accent: {
         50: PRIMITIVE_COLORS.energy[50],
         100: PRIMITIVE_COLORS.energy[100],
         200: PRIMITIVE_COLORS.energy[200],
@@ -157,36 +187,6 @@ export const SEMANTIC_COLORS = {
         800: PRIMITIVE_COLORS.energy[800],
         900: PRIMITIVE_COLORS.energy[900],
         DEFAULT: PRIMITIVE_COLORS.energy.main,
-    },
-
-    // Secondary colors for supporting elements
-    secondary: {
-        50: PRIMITIVE_COLORS.space[50],
-        100: PRIMITIVE_COLORS.space[100],
-        200: PRIMITIVE_COLORS.space[200],
-        300: PRIMITIVE_COLORS.space[300],
-        400: PRIMITIVE_COLORS.space[400],
-        500: PRIMITIVE_COLORS.space[500],
-        600: PRIMITIVE_COLORS.space[600],
-        700: PRIMITIVE_COLORS.space[700],
-        800: PRIMITIVE_COLORS.space[800],
-        900: PRIMITIVE_COLORS.space[900],
-        DEFAULT: PRIMITIVE_COLORS.space.main,
-    },
-
-    // Accent colors for highlights and calls-to-action
-    accent: {
-        50: PRIMITIVE_COLORS.flash[50],
-        100: PRIMITIVE_COLORS.flash[100],
-        200: PRIMITIVE_COLORS.flash[200],
-        300: PRIMITIVE_COLORS.flash[300],
-        400: PRIMITIVE_COLORS.flash[400],
-        500: PRIMITIVE_COLORS.flash[500],
-        600: PRIMITIVE_COLORS.flash[600],
-        700: PRIMITIVE_COLORS.flash[700],
-        800: PRIMITIVE_COLORS.flash[800],
-        900: PRIMITIVE_COLORS.flash[900],
-        DEFAULT: PRIMITIVE_COLORS.flash.main,
     },
 
     // Success states (using ECO palette)
@@ -206,17 +206,17 @@ export const SEMANTIC_COLORS = {
 
     // Warning states (using FLASH palette)
     warning: {
-        50: PRIMITIVE_COLORS.flash[50],
-        100: PRIMITIVE_COLORS.flash[100],
-        200: PRIMITIVE_COLORS.flash[200],
-        300: PRIMITIVE_COLORS.flash[300],
-        400: PRIMITIVE_COLORS.flash[400],
-        500: PRIMITIVE_COLORS.flash[500],
-        600: PRIMITIVE_COLORS.flash[600],
-        700: PRIMITIVE_COLORS.flash[700],
-        800: PRIMITIVE_COLORS.flash[800],
-        900: PRIMITIVE_COLORS.flash[900],
-        DEFAULT: PRIMITIVE_COLORS.flash.main,
+        50: PRIMITIVE_COLORS.earth[50],
+        100: PRIMITIVE_COLORS.earth[100],
+        200: PRIMITIVE_COLORS.earth[200],
+        300: PRIMITIVE_COLORS.earth[300],
+        400: PRIMITIVE_COLORS.earth[400],
+        500: PRIMITIVE_COLORS.earth[500],
+        600: PRIMITIVE_COLORS.earth[600],
+        700: PRIMITIVE_COLORS.earth[700],
+        800: PRIMITIVE_COLORS.earth[800],
+        900: PRIMITIVE_COLORS.earth[900],
+        DEFAULT: PRIMITIVE_COLORS.earth.main,
     },
 
     // Error states (using computed red variants from energy palette)
@@ -251,17 +251,32 @@ export const SEMANTIC_COLORS = {
 
     // Gray scale (using EARTH palette for natural feel)
     gray: {
-        50: PRIMITIVE_COLORS.earth[50],
-        100: PRIMITIVE_COLORS.earth[100],
-        200: PRIMITIVE_COLORS.earth[200],
-        300: PRIMITIVE_COLORS.earth[300],
-        400: PRIMITIVE_COLORS.earth[400],
-        500: PRIMITIVE_COLORS.earth[500],
-        600: PRIMITIVE_COLORS.earth[600],
-        700: PRIMITIVE_COLORS.earth[700],
-        800: PRIMITIVE_COLORS.earth[800],
-        900: PRIMITIVE_COLORS.earth[900],
-        DEFAULT: PRIMITIVE_COLORS.earth.main,
+        50: PRIMITIVE_COLORS.space[50],
+        100: PRIMITIVE_COLORS.space[100],
+        200: PRIMITIVE_COLORS.space[200],
+        300: PRIMITIVE_COLORS.space[300],
+        400: PRIMITIVE_COLORS.space[400],
+        500: PRIMITIVE_COLORS.space[500],
+        600: PRIMITIVE_COLORS.space[600],
+        700: PRIMITIVE_COLORS.space[700],
+        800: PRIMITIVE_COLORS.space[800],
+        900: PRIMITIVE_COLORS.space[900],
+        DEFAULT: PRIMITIVE_COLORS.space.main,
+    },
+
+    // Energy colors for interactive elements and highlights
+    energy: {
+        50: PRIMITIVE_COLORS.energy[50],
+        100: PRIMITIVE_COLORS.energy[100],
+        200: PRIMITIVE_COLORS.energy[200],
+        300: PRIMITIVE_COLORS.energy[300],
+        400: PRIMITIVE_COLORS.energy[400],
+        500: PRIMITIVE_COLORS.energy[500],
+        600: PRIMITIVE_COLORS.energy[600],
+        700: PRIMITIVE_COLORS.energy[700],
+        800: PRIMITIVE_COLORS.energy[800],
+        900: PRIMITIVE_COLORS.energy[900],
+        DEFAULT: PRIMITIVE_COLORS.energy.main,
     },
 
     // Data visualization colors (full spectrum available)

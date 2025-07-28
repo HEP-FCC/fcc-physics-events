@@ -1,11 +1,11 @@
 <template>
-    <div class="mb-6" style="background-color: var(--color-space-50)">
+    <div class="mb-6 bg-space-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-0">
             <nav class="flex space-x-8 py-4">
                 <!-- Loading state while navigation config is not ready -->
                 <div v-if="!isNavigationReady" class="flex space-x-4">
                     <div class="animate-pulse">
-                        <div class="h-10 w-32 bg-gray-200 rounded" />
+                        <div class="h-10 w-32 bg-space-200 rounded" />
                     </div>
                 </div>
 
@@ -42,12 +42,12 @@
                         >
                             <div
                                 v-if="dropdowns[type]?.isOpen"
-                                class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-gray-200 rounded-md shadow-lg z-50 dropdown-menu"
+                                class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-space-200 rounded-md shadow-lg z-50 dropdown-menu"
                             >
                                 <div class="p-2">
                                     <div v-if="currentPath[type]" class="mb-2">
                                         <button
-                                            class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50 rounded flex items-center whitespace-nowrap"
+                                            class="w-full text-left px-3 py-2 text-sm text-earth-600 hover:bg-space-50 rounded flex items-center whitespace-nowrap"
                                             @click="handleClearSelection(type)"
                                         >
                                             <UIcon name="i-heroicons-x-mark" class="mr-2" />
@@ -70,9 +70,9 @@
                                         <button
                                             v-for="item in dropdowns[type]?.items || []"
                                             :key="item.dataset_id"
-                                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 rounded whitespace-nowrap transition-colors duration-150"
+                                            class="w-full text-left px-3 py-2 text-sm hover:bg-deep-blue-50 rounded whitespace-nowrap transition-colors duration-150"
                                             :class="{
-                                                'bg-primary-50 text-primary-700': currentPath[type] === item.name,
+                                                'bg-eco-50 text-eco-700': currentPath[type] === item.name,
                                             }"
                                             @click="handleNavigate(type, item.name)"
                                         >
@@ -84,9 +84,9 @@
                                             v-if="dropdowns[type]?.items?.length && dropdowns[type]?.isLoading"
                                             class="px-3 py-1"
                                         >
-                                            <div class="flex items-center text-xs text-gray-400">
+                                            <div class="flex items-center text-xs">
                                                 <div
-                                                    class="animate-spin rounded-full h-3 w-3 border border-gray-300 border-t-transparent mr-2"
+                                                    class="animate-spin rounded-full h-3 w-3 border border-space-300 border-t-transparent mr-2"
                                                 ></div>
                                                 Loading...
                                             </div>
@@ -94,7 +94,7 @@
 
                                         <div
                                             v-if="!dropdowns[type]?.items?.length && !dropdowns[type]?.isLoading"
-                                            class="px-3 py-2 text-sm text-gray-500"
+                                            class="px-3 py-2 text-sm"
                                         >
                                             No options available.
                                         </div>

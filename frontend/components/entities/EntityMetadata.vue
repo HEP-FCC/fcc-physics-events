@@ -2,23 +2,23 @@
     <!-- v-memo to prevent unnecessary re-renders when props hasn't changed -->
     <!-- v-memo to prevent unnecessary re-renders when props haven't changed -->
     <div
-        class="rounded border-t"
-        style="background-color: var(--color-white); border-color: var(--theme-light-border-primary)"
+        class="rounded border-t bg-white"
+        style="border-color: var(--theme-light-border-primary)"
         v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing]"
     >
         <!-- Editing Mode -->
         <div v-if="editState?.isEditing" class="p-6">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h4 style="color: var(--color-primary-900)" class="text-lg font-semibold">Edit Metadata</h4>
-                    <p style="color: var(--color-primary-main)" class="text-sm mt-1">
+                    <h4 class="text-lg font-semibold">Edit Metadata</h4>
+                    <p class="text-sm mt-1">
                         Modify the JSON metadata for this {{ mainTableDisplayName.toLowerCase().slice(0, -1) }}
                     </p>
                 </div>
                 <div class="flex gap-2">
                     <UButton
                         icon="i-heroicons-check"
-                        color="primary"
+                        class="text-white bg-eco-600 hover:bg-eco-700 border-eco-600 hover:border-eco-700"
                         variant="solid"
                         size="sm"
                         :disabled="!isAuthenticated"
@@ -26,27 +26,19 @@
                     >
                         {{ isAuthenticated ? "Save Changes" : "Login Required" }}
                     </UButton>
-                    <UButton icon="i-heroicons-x-mark" color="neutral" variant="outline" size="sm" @click="cancelEdit">
+                    <UButton
+                        icon="i-heroicons-x-mark"
+                        class="text-neutral-600 bg-neutral-100 hover:bg-neutral-200 border-neutral-300"
+                        variant="outline"
+                        size="sm"
+                        @click="cancelEdit"
+                    >
                         Cancel
                     </UButton>
                 </div>
-
-                <!-- Authentication notice -->
-                <div
-                    v-if="!isAuthenticated"
-                    style="
-                        color: var(--color-warning-600);
-                        background-color: var(--color-warning-50);
-                        border-color: var(--color-warning-200);
-                    "
-                    class="text-xs px-2 py-1 rounded border"
-                >
-                    <UIcon name="i-heroicons-exclamation-triangle" class="w-3 h-3 inline mr-1" />
-                    Authentication required to save metadata changes
-                </div>
             </div>
 
-            <div style="background-color: var(--color-space-50)" class="rounded-lg p-4">
+            <div class="bg-space-50 rounded-lg p-4">
                 <UTextarea
                     v-model="localEditJson"
                     :rows="getTextareaRows()"
@@ -55,14 +47,21 @@
                     class="font-mono text-sm w-full"
                     autofocus
                 />
-                <div style="color: var(--color-primary-main)" class="flex items-center justify-between mt-3 text-xs">
+                <div class="flex items-center justify-between mt-3 text-xs">
                     <span>{{ getJsonStats(localEditJson) }}</span>
                     <div class="flex items-center gap-2">
-                        <UButton icon="i-heroicons-arrow-path" variant="ghost" size="xs" @click="formatJson">
+                        <UButton
+                            icon="i-heroicons-arrow-path"
+                            class="text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100"
+                            variant="ghost"
+                            size="xs"
+                            @click="formatJson"
+                        >
                             Format JSON
                         </UButton>
                         <UButton
                             icon="i-heroicons-clipboard"
+                            class="text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100"
                             variant="ghost"
                             size="xs"
                             @click="copyToClipboard(localEditJson)"
@@ -78,15 +77,19 @@
         <div v-else>
             <!-- Header -->
             <div
+                class="flex items-center justify-between px-2 py-1 border-neutral-200"
                 style="border-color: var(--theme-light-border-primary)"
-                class="flex items-center justify-between px-2 py-1"
             >
                 <div>
-                    <h4 style="color: var(--color-primary-900)" class="text-xs font-medium">
-                        Metadata ({{ visibleFieldCount }} fields)
-                    </h4>
+                    <h4 class="text-xs font-medium">Metadata ({{ visibleFieldCount }} fields)</h4>
                 </div>
-                <UButton icon="i-heroicons-pencil" color="neutral" variant="ghost" size="xs" @click="enterEditMode">
+                <UButton
+                    icon="i-heroicons-pencil"
+                    class="text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100"
+                    variant="ghost"
+                    size="xs"
+                    @click="enterEditMode"
+                >
                     Edit
                 </UButton>
             </div>
@@ -136,7 +139,7 @@
                                             </span>
                                         </div>
 
-                                        <!-- Special badges/indicators -->
+                                        <!-- Special badges/indicators - using :color for dynamic behavior -->
                                         <UBadge
                                             v-if="field.type === 'vector'"
                                             color="primary"
@@ -160,14 +163,14 @@
 
                                         <!-- Action buttons -->
                                         <div class="flex items-center gap-1 shrink-0 ml-2">
-                                            <!-- Lock indicator -->
+                                            <!-- Lock indicator - using :color prop for component behavior -->
                                             <UButton
                                                 :icon="
                                                     isFieldLocked(field.key)
                                                         ? 'i-heroicons-lock-closed'
                                                         : 'i-heroicons-lock-open'
                                                 "
-                                                :color="isFieldLocked(field.key) ? 'warning' : 'neutral'"
+                                                :color="isFieldLocked(field.key) ? 'eco' : 'neutral'"
                                                 variant="ghost"
                                                 size="xs"
                                                 :padded="false"
@@ -179,26 +182,21 @@
                                                         'cursor-not-allowed opacity-50': !isAuthenticated,
                                                     },
                                                 ]"
-                                                :style="{
-                                                    '--hover-color': isFieldLocked(field.key)
-                                                        ? 'var(--color-warning-700)'
-                                                        : 'var(--color-success-500)',
-                                                }"
                                                 class="transition-all duration-200"
                                                 :title="getUnifiedLockTitle(field)"
                                                 @click="isAuthenticated ? toggleFieldLock(field.key) : undefined"
                                             />
 
-                                            <!-- Copy button -->
+                                            <!-- Copy button - using Tailwind classes -->
                                             <UButton
                                                 icon="i-heroicons-clipboard-document"
-                                                color="neutral"
+                                                :class="[
+                                                    getUnifiedLockButtonSize(field),
+                                                    'text-neutral-500 hover:text-info-600 hover:bg-neutral-100 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200',
+                                                ]"
                                                 variant="ghost"
                                                 size="xs"
                                                 :padded="false"
-                                                :class="getUnifiedLockButtonSize(field)"
-                                                :style="{ '--hover-color': 'var(--color-info-500)' }"
-                                                class="cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200"
                                                 :title="`Copy ${field.displayName} value`"
                                                 @click="copyFieldValue(field.key, field.value)"
                                             />
@@ -731,17 +729,38 @@ const getGroupedFieldsComputed = computed(() => {
     return groups;
 });
 
-// UNIFIED STYLING FUNCTIONS - Dynamic color system based on FCC design philosophy
+// UNIFIED STYLING FUNCTIONS - Preference for Tailwind classes over CSS variables
+
+// Helper function to generate Tailwind class names for custom colors
+const getFieldColorClasses = (field: UnifiedField) => {
+    const semanticColor = getSemanticColorForFieldType(resolveFieldSemanticColor(field));
+    return {
+        // Background classes
+        bg50: `bg-${semanticColor}-50`,
+        bg100: `bg-${semanticColor}-100`,
+        bg300: `bg-${semanticColor}-300`,
+        // Border classes
+        border200: `border-${semanticColor}-200`,
+        // Text classes
+        text600: `text-${semanticColor}-600`,
+        text700: `text-${semanticColor}-700`,
+        text800: `text-${semanticColor}-800`,
+        // Hover classes
+        hoverBg100: `hover:bg-${semanticColor}-100`,
+        hoverText700: `hover:text-${semanticColor}-700`,
+    };
+};
 
 const getUnifiedIconContainerClass = (field: UnifiedField): string => {
     const baseClass = "flex-shrink-0 flex items-center justify-center";
+    const colorClasses = getFieldColorClasses(field);
 
     if (field.category === "special") {
-        return `${baseClass} w-4 h-4 rounded`;
+        return `${baseClass} w-4 h-4 rounded ${colorClasses.bg300} ${colorClasses.text800}`;
     } else if (field.category === "status") {
-        return `${baseClass} w-4 h-4 rounded`;
+        return `${baseClass} w-4 h-4 rounded ${colorClasses.bg300} ${colorClasses.text800}`;
     } else {
-        return `${baseClass} w-4 h-4 rounded-full text-[9px]`;
+        return `${baseClass} w-4 h-4 rounded-full text-[9px] bg-deep-blue-900 text-white`;
     }
 };
 
@@ -759,20 +778,20 @@ const getUnifiedGradientStyle = (field: UnifiedField): Record<string, string> =>
 const getSemanticColorForFieldType = (fieldType: string): string => {
     const typeMapping: Record<string, string> = {
         // Scientific data types - align with FCC's scientific excellence value
-        number: "space", // Radiant blue for quantitative data
+        number: "gray", // Radiant blue for quantitative data
         boolean: "success", // Eco green for binary/environmental states
         vector: "accent", // Energy purple for complex particle data
 
         // Content types - align with FCC's open communication values
-        longString: "eco", // Earth tones for descriptive content
-        shortString: "earth", // Gray for basic textual information
+        longString: "accent", // Earth tones for descriptive content
+        shortString: "gray", // Gray for basic textual information
 
         // Metadata categories - align with FCC's transparency value
-        special: "radiant-blue",
+        special: "secondary",
         status: "secondary", // Radiant blue for status/state information
 
         // Status-specific colors - align with universal status conventions
-        success: "success",
+        success: "eco",
         warning: "warning",
         error: "error",
         info: "info",
@@ -855,9 +874,10 @@ const getUnifiedIconStyle = (field: UnifiedField): Record<string, string> => {
 };
 
 const getUnifiedHeaderTextStyle = (field: UnifiedField): Record<string, string> => {
-    const colors = getFieldColorsMemoized(field);
+    // Using Tailwind classes is preferred, but this function returns inline styles for dynamic cases
     return {
-        color: "var(--color-deep-blue-main)",
+        // For dynamic colors based on field types, we still need CSS variables
+        // But for static cases, prefer Tailwind classes in the template
     };
 };
 

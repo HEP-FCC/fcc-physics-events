@@ -1,7 +1,7 @@
 <template>
     <UApp>
         <!-- Navigation Header -->
-        <header class="dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50" style="background-color: var(--color-space-50)">
+        <header class="bg-space-50 border-space-200 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center h-16 relative">
                     <!-- Left: Logo -->
@@ -13,7 +13,7 @@
 
                     <!-- Center: App Title -->
                     <div class="absolute left-1/2 transform -translate-x-1/2">
-                        <h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100 font-sans whitespace-nowrap">
+                        <h1 class="text-xl font-semibold font-sans whitespace-nowrap">
                             {{ appTitle }}
                         </h1>
                     </div>
@@ -27,7 +27,7 @@
         </header>
 
         <!-- Main Content -->
-        <main class="pb-10" style="background-color: var(--color-space-50)">
+        <main class="pb-10 bg-space-50">
             <NuxtPage />
         </main>
 

@@ -89,14 +89,14 @@
 
             <!-- Loading States -->
             <div v-if="search.shouldShowLoadingIndicatorEntities.value" class="flex justify-center py-8">
-                <div class="flex items-center space-x-3 text-sm text-gray-600 dark:text-gray-400">
+                <div class="flex items-center space-x-3 text-sm">
                     <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
                     <span>Loading more results...</span>
                 </div>
             </div>
 
             <div v-else-if="search.shouldShowCompletionMessage.value" class="flex justify-center py-6">
-                <div class="text-center text-sm text-gray-500 dark:text-gray-400">
+                <div class="text-center text-sm">
                     <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
                     All {{ search.scrollState.totalEntities }} {{ mainTableDisplayName.toLowerCase() }} loaded
                 </div>
@@ -104,7 +104,7 @@
         </div>
 
         <!-- No Results -->
-        <UCard v-else class="text-center py-12 text-gray-600 dark:text-gray-400">
+        <UCard v-else class="text-center py-12">
             <p class="text-lg font-medium">No {{ mainTableDisplayName }} found.</p>
             <p class="text-sm">Try adjusting your search query or filters. 🔎</p>
         </UCard>

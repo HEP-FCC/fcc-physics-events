@@ -203,7 +203,7 @@
     --color-info: var(--color-radiant-blue-main);
 
     /* Gray scale */
-    /* --color-gray-50: var(--color-space-50);
+    --color-gray-50: var(--color-space-50);
     --color-gray-100: var(--color-space-100);
     --color-gray-200: var(--color-space-200);
     --color-gray-300: var(--color-space-300);
@@ -211,9 +211,9 @@
     --color-gray-500: var(--color-space-500);
     --color-gray-600: var(--color-space-600);
     --color-gray-700: var(--color-space-700);
-    --color-gray-800: var(--color-space-800); */
-    /* --color-gray-900: var(--color-space-900); */
-    /* --color-gray: var(--color-space-main); */
+    --color-gray-800: var(--color-space-800);
+    --color-gray-900: var(--color-space-900);
+    --color-gray: var(--color-space-main);
 
     /* Utility colors */
     --color-white: #ffffff;

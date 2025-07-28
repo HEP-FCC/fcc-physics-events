@@ -1,7 +1,6 @@
 <template>
     <div
-        class="flex text-white flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700 dark:bg-gray-800"
-        style="background-color: var(--color-deep-blue-main)"
+        class="flex text-white flex-wrap items-center justify-between gap-4 rounded-lg border border-deep-blue-200 p-3   bg-deep-blue-900"
     >
         <!-- Entity Controls -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -17,7 +16,7 @@
                 <!-- Selection counter -->
                 <span
                     v-if="selectedCount > 0"
-                    class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full"
+                    class="text-xs text-deep-blue-950 bg-deep-blue-100 px-2 py-1 rounded-full"
                 >
                     {{ selectedCount }} selected
                 </span>
@@ -31,7 +30,7 @@
                 </UButton>
             </UDropdownMenu>
 
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+            <div class="h-6 w-px bg-deep-blue-400"></div>
 
             <UButton
                 :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
@@ -47,7 +46,7 @@
             <!-- Metadata Tags Dropdown -->
             <MetadataTagsDropdown :entities="entities" />
 
-            <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+            <div class="h-6 w-px bg-deep-blue-400" />
 
             <!-- Sorting controls -->
             <div class="flex items-center gap-2">
@@ -81,16 +80,14 @@
                 <!-- Results count -->
                 <div class="text-sm">
                     Showing
-                    <strong>
-                        {{ displayRange.start }}-{{ displayRange.end }}
-                    </strong>
+                    <strong> {{ displayRange.start }}-{{ displayRange.end }} </strong>
                     of
                     <strong>
                         {{ displayRange.total }}
                     </strong>
                 </div>
 
-                <div class="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+                <div class="h-6 w-px bg-deep-blue-400" />
 
                 <!-- Page size control -->
                 <div class="flex items-center gap-1 text-sm">
@@ -218,14 +215,14 @@ const actionItems = computed(() => [
             label: `Download Selected${props.selectedCount > 0 ? ` (${props.selectedCount})` : ""}`,
             icon: "i-heroicons-arrow-down-tray",
             disabled: props.selectedCount === 0 || props.isDownloading,
-            class: "hover:bg-green-50 dark:hover:bg-green-900/20",
+            class: "hover:bg-green-50 ",
             onSelect: () => emit("downloadSelected"),
         },
         {
             label: `Download All Filtered${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
             icon: "i-heroicons-arrow-down-tray",
             disabled: props.displayRange.total === 0 || props.isDownloadingFiltered,
-            class: "hover:bg-green-50 dark:hover:bg-green-900/20",
+            class: "hover:bg-green-50 ",
             onSelect: () => emit("downloadFiltered"),
         },
     ],
@@ -234,14 +231,14 @@ const actionItems = computed(() => [
             label: `Delete Selected${props.selectedCount > 0 ? ` (${props.selectedCount})` : ""}`,
             icon: "i-heroicons-trash",
             disabled: props.selectedCount === 0 || !isAuthenticated.value || props.isDownloading,
-            class: "hover:bg-red-50 dark:hover:bg-red-900/20",
+            class: "hover:bg-earth-50 ",
             onSelect: handleDeleteSelected,
         },
         {
             label: `Delete All Filtered${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
             icon: "i-heroicons-trash",
             disabled: props.displayRange.total === 0 || !isAuthenticated.value || props.isDownloadingFiltered,
-            class: "hover:bg-red-50 dark:hover:bg-red-900/20",
+            class: "hover:bg-earth-50 ",
             onSelect: handleDeleteFiltered,
         },
     ],

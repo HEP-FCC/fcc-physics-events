@@ -56,7 +56,20 @@ export const APP_CONFIG = {
         {
             icon: string;
             label: string;
-            badgeColor: "primary" | "neutral" | "success" | "warning" | "info" | "error";
+            badgeColor:
+                | "primary"
+                | "neutral"
+                | "success"
+                | "warning"
+                | "info"
+                | "error"
+                | "eco"
+                | "earth"
+                | "radiant-blue"
+                | "space"
+                | "flash"
+                | "energy"
+                | "deep-blue";
             description: string;
         }
     >,
@@ -73,7 +86,7 @@ export const APP_CONFIG = {
      * UI configuration
      */
     ui: {
-        defaultBadgeColors: ["warning"] as const,
+        defaultBadgeColors: ["energy"] as const,
         // Use folder icon for all navigation items
         defaultIcon: "i-heroicons-folder" as const,
     },
@@ -88,4 +101,18 @@ export type MainTableType = typeof APP_CONFIG.mainTable;
  * Type for navigation keys that will be dynamically determined
  */
 export type NavigationKey = string;
-export type BadgeColor = (typeof APP_CONFIG.ui.defaultBadgeColors)[number];
+export type BadgeColor =
+    | (typeof APP_CONFIG.ui.defaultBadgeColors)[number]
+    | "primary"
+    | "neutral"
+    | "success"
+    | "warning"
+    | "info"
+    | "error"
+    | "eco"
+    | "earth"
+    | "radiant-blue"
+    | "space"
+    | "flash"
+    | "energy"
+    | "deep-blue";

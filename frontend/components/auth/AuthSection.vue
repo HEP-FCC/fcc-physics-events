@@ -18,10 +18,10 @@
         <div v-else class="user-section">
             <div class="flex items-center gap-3">
                 <div class="text-right">
-                    <div class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <div class="text-sm font-medium">
                         {{ displayName }}
                     </div>
-                    <div v-if="user?.preferred_username" class="text-xs text-gray-500 dark:text-gray-400">
+                    <div v-if="user?.preferred_username" class="text-xs">
                         {{ user.preferred_username }}
                     </div>
                 </div>

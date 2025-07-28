@@ -11,6 +11,29 @@ export default defineNuxtConfig({
     modules: ["@nuxt/eslint", "@nuxt/fonts", "@nuxt/icon", "@nuxt/image", "@nuxt/scripts", "@nuxt/ui"],
     css: ["assets/css/main.css"],
 
+    // Nuxt UI Configuration - Register custom colors
+    ui: {
+        theme: {
+            colors: [
+                "primary",
+                "secondary",
+                "success",
+                "info",
+                "warning",
+                "error",
+                "neutral",
+                // Your custom colors
+                "eco",
+                "earth",
+                "radiant-blue",
+                "space",
+                "flash",
+                "energy",
+                "deep-blue",
+            ],
+        },
+    },
+
     // Ensure components in subdirectories are auto-imported
     components: [
         {
