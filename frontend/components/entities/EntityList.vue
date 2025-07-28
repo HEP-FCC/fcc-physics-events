@@ -46,13 +46,13 @@
                                 </div>
 
                                 <!-- Right side: Timestamps -->
-                                <div class="flex flex-col items-end text-xs flex-shrink-0">
-                                    <span v-if="entity.created_at">
+                                <div class="relative text-xs flex-shrink-0 min-h-[16px] flex items-end">
+                                    <span v-if="entity.created_at" class="whitespace-nowrap">
                                         Created: {{ formatTimestamp(entity.created_at) }}
                                     </span>
                                     <span
                                         v-if="wasEntityEdited(entity)"
-                                        class="text-earth-600"
+                                        class="absolute -top-4 right-0 text-earth-600 text-xs whitespace-nowrap"
                                         :title="
                                             entity.last_edited_at
                                                 ? `Last edited: ${formatTimestamp(entity.last_edited_at)}`
