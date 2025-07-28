@@ -1,8 +1,3 @@
-"""
-Authentication routes for the FCC Physics Events API.
-Handles login, logout, session management, and user authentication.
-"""
-
 from typing import Any
 
 from authlib.integrations.starlette_client import OAuth
@@ -71,7 +66,6 @@ async def auth(request: Request) -> Any:
         "family_name": userinfo["family_name"],
         "preferred_username": userinfo.get("preferred_username"),
     }
-
     # Redirect back to frontend after successful authentication
     frontend_url = config.get("general.FRONTEND_URL", "http://localhost:3000")
     return RedirectResponse(url=frontend_url)
@@ -80,22 +74,16 @@ async def auth(request: Request) -> Any:
 @router.get("/logout")
 async def logout(request: Request) -> JSONResponse:
     """Get CERN SSO logout URL and clear session."""
+
     # Clear the session
     request.session.clear()
 
     # Return CERN SSO logout URL
+    # TODO: FroGet this the well known endpoint
     cern_logout_url = (
         "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/logout"
     )
-    post_logout_redirect_uri = config.get(
-        "general.FRONTEND_URL", "http://localhost:3000"
-    )
-
-    logout_url = (
-        f"{cern_logout_url}?post_logout_redirect_uri={post_logout_redirect_uri}"
-    )
-
-    return JSONResponse(content={"logout_url": logout_url})
+    return JSONResponse(content={"logout_url": cern_logout_url})
 
 
 @router.get("/session-status")
