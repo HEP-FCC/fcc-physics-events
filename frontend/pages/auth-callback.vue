@@ -10,9 +10,7 @@
                     </div>
                 </template>
 
-                <p>
-                    Please wait while we complete your login with CERN SSO...
-                </p>
+                <p>Please wait while we complete your login with CERN SSO...</p>
 
                 <div class="mt-4">
                     <div class="w-full bg-space-200ounded-full h-2">
@@ -26,7 +24,7 @@
                 <template #header>
                     <div class="flex items-center justify-center gap-3">
                         <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-earth" />
-                        <h2 class="text-xl font-semibold ">Authentication Failed</h2>
+                        <h2 class="text-xl font-semibold">Authentication Failed</h2>
                     </div>
                 </template>
 
@@ -48,14 +46,12 @@
                     </div>
                 </template>
 
-                <p>
-                    You have been successfully logged in with CERN SSO.
-                </p>
+                <p>You have been successfully logged in with CERN SSO.</p>
 
                 <p>Redirecting you to the main application...</p>
 
                 <div class="mt-4">
-                    <div class="w-full bg-space-200  rounded-full h-2">
+                    <div class="w-full bg-space-200 rounded-full h-2">
                         <div class="bg-eco-500 h-2 rounded-full transition-all duration-1000" style="width: 100%" />
                     </div>
                 </div>
@@ -65,9 +61,8 @@
 </template>
 
 <script setup lang="ts">
-// Auto-imported: useRoute, useRouter
-// Auto-imported: useAuth
-// Auto-imported: ref
+// This page is now primarily used for handling redirects after backend auth
+// The OAuth flow is handled entirely by the backend
 
 const route = useRoute();
 const router = useRouter();
@@ -78,45 +73,20 @@ const error = ref<string | null>(null);
 
 onMounted(async () => {
     try {
-        // Check for error in query params
+        // Check for error in query params (e.g., access denied)
         const errorParam = route.query.error as string;
         if (errorParam) {
-            error.value = "Authentication failed. Please try again.";
+            if (errorParam === "access_denied") {
+                error.value = "Access denied. You don't have the required permissions.";
+            } else {
+                error.value = "Authentication failed. Please try again.";
+            }
             isLoading.value = false;
             return;
         }
 
-        // Get the authorization code from query params (backend/CERN auth service redirects here after login)
-        const code = route.query.code as string;
-        const state = route.query.state as string;
-
-        // Call your backend /auth endpoint with the code
-        const config = useRuntimeConfig();
-        const response = await fetch(`${config.public.apiBaseUrl}/auth?code=${code}&state=${state}`, {
-            method: "GET",
-            credentials: "include", // Include credentials for auth endpoint
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            error.value = data.error;
-            isLoading.value = false;
-            return;
-        }
-
-        // Save auth data as cookie (the backend already sets a session cookie,
-        // but we also store the auth data for frontend use)
-        const cookie = useCookie(APP_CONFIG.auth.cookieName, {
-            maxAge: 60 * 60 * 24, // 1 day as CERN's tokens also expire in that time
-            httpOnly: false,
-            secure: process.env.NODE_ENV === "production", // Only secure in production
-            sameSite: "lax",
-        });
-
-        cookie.value = data;
-
-        // Update auth state immediately after setting cookie
+        // The backend has already handled the OAuth callback and set the session cookie
+        // Just check auth status to update the frontend state
         await checkAuthStatus();
 
         // Show success message briefly before redirect
@@ -125,11 +95,10 @@ onMounted(async () => {
         // Redirect to home after successful authentication
         setTimeout(() => {
             router.push("/");
-        }, 2000); // Slightly longer delay for better UX
+        }, 2000);
     } catch (err) {
         console.error("Auth callback error:", err);
         error.value = "An error occurred during authentication.";
-    } finally {
         isLoading.value = false;
     }
 });

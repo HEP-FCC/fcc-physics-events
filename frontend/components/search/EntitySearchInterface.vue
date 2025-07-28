@@ -218,6 +218,9 @@ const handleClickOutside = (_event: Event): void => {
 const { getEntityById } = useApiClient();
 const handleRefreshEntity = async (entityId: number): Promise<void> => {
     try {
+        // Add a small delay to ensure the backend has processed the update
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
         // Fetch the updated entity from the backend
         const updatedEntity = await getEntityById(entityId);
 

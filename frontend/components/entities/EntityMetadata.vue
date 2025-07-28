@@ -4,7 +4,7 @@
     <div
         class="rounded border-t bg-white"
         style="border-color: var(--theme-light-border-primary)"
-        v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing]"
+        v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing, lockStatesForTemplate]"
     >
         <!-- Editing Mode -->
         <div v-if="editState?.isEditing" class="p-6">
@@ -88,9 +88,10 @@
                     class="text-neutral-600 hover:text-neutral-800 hover:bg-neutral-100"
                     variant="ghost"
                     size="xs"
+                    :disabled="!isAuthenticated || actualEntityId <= 0"
                     @click="enterEditMode"
                 >
-                    Edit
+                    {{ actualEntityId <= 0 ? "Invalid Entity" : "Edit" }}
                 </UButton>
             </div>
             <!-- Compact Content -->
@@ -164,42 +165,63 @@
                                         <!-- Action buttons -->
                                         <div class="flex items-center gap-1 shrink-0 ml-2">
                                             <!-- Lock indicator - using :color prop for component behavior -->
-                                            <UButton
-                                                :icon="
-                                                    isFieldLocked(field.key)
-                                                        ? 'i-heroicons-lock-closed'
-                                                        : 'i-heroicons-lock-open'
+                                            <UTooltip
+                                                :text="
+                                                    pendingLockChanges.has(field.key)
+                                                        ? 'Updating lock state...'
+                                                        : isFieldLocked(field.key)
+                                                        ? `Unlock ${field.displayName}`
+                                                        : `Lock ${field.displayName}`
                                                 "
-                                                :color="isFieldLocked(field.key) ? 'eco' : 'neutral'"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                :disabled="!isAuthenticated"
-                                                :class="[
-                                                    getUnifiedLockButtonSize(field),
-                                                    {
-                                                        'cursor-pointer opacity-70 hover:opacity-100': isAuthenticated,
-                                                        'cursor-not-allowed opacity-50': !isAuthenticated,
-                                                    },
-                                                ]"
-                                                class="transition-all duration-200"
-                                                :title="getUnifiedLockTitle(field)"
-                                                @click="isAuthenticated ? toggleFieldLock(field.key) : undefined"
-                                            />
+                                                :popper="{ placement: 'top' }"
+                                            >
+                                                <UButton
+                                                    :icon="
+                                                        pendingLockChanges.has(field.key)
+                                                            ? 'i-heroicons-arrow-path'
+                                                            : isFieldLocked(field.key)
+                                                            ? 'i-heroicons-lock-closed'
+                                                            : 'i-heroicons-lock-open'
+                                                    "
+                                                    :color="isFieldLocked(field.key) ? 'eco' : 'neutral'"
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    :padded="false"
+                                                    :disabled="!isAuthenticated || pendingLockChanges.has(field.key)"
+                                                    :class="[
+                                                        'w-4 h-4 p-0.5 transition-all duration-200',
+                                                        {
+                                                            'cursor-pointer opacity-70 hover:opacity-100 hover:bg-gray-100 rounded':
+                                                                isAuthenticated && !pendingLockChanges.has(field.key),
+                                                            'cursor-not-allowed opacity-50': !isAuthenticated,
+                                                            'opacity-60': pendingLockChanges.has(field.key),
+                                                        },
+                                                        pendingLockChanges.has(field.key) ? 'animate-spin' : '',
+                                                    ]"
+                                                    @click="
+                                                        isAuthenticated && !pendingLockChanges.has(field.key)
+                                                            ? toggleFieldLock(field.key)
+                                                            : undefined
+                                                    "
+                                                />
+                                            </UTooltip>
 
                                             <!-- Copy button - using Tailwind classes -->
-                                            <UButton
-                                                icon="i-heroicons-clipboard-document"
-                                                :class="[
-                                                    getUnifiedLockButtonSize(field),
-                                                    'text-neutral-500 hover:text-info-600 hover:bg-neutral-100 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200',
-                                                ]"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                :title="`Copy ${field.displayName} value`"
-                                                @click="copyFieldValue(field.key, field.value)"
-                                            />
+                                            <UTooltip
+                                                :text="`Copy ${field.displayName} value`"
+                                                :popper="{ placement: 'top' }"
+                                            >
+                                                <UButton
+                                                    icon="i-heroicons-clipboard-document"
+                                                    :class="[
+                                                        'w-4 h-4 p-0.5 rounded text-neutral-500 hover:text-info-600 hover:bg-gray-100 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200',
+                                                    ]"
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    :padded="false"
+                                                    @click="copyFieldValue(field.key, field.value)"
+                                                />
+                                            </UTooltip>
                                         </div>
                                     </div>
                                 </div>
@@ -213,8 +235,8 @@
 </template>
 
 <script setup lang="ts">
-// Auto-imported: ref, watch, watchEffect, computed, nextTick
 import type { MetadataEditState } from "~/types/api";
+import { parseApiError } from "~/utils/errorHandling";
 // Auto-imported: useAppConfiguration
 import { getSemanticColor, getThemeColor, type SemanticColorKey } from "~/config/colors";
 import { reduceEachLeadingCommentRange } from "typescript";
@@ -234,8 +256,14 @@ interface Emits {
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
 
-// Use the entityId directly
-const actualEntityId = computed(() => props.entityId ?? 0);
+// Use the entityId directly, but validate it
+const actualEntityId = computed(() => {
+    const id = props.entityId ?? -1;
+    if (id <= 0) {
+        console.warn("EntityMetadata received invalid entity ID:", id);
+    }
+    return id;
+});
 
 // Performance optimizations - applied universally to ALL entity metadata
 // No longer using lazy loading - show all fields by default
@@ -255,6 +283,7 @@ const localEditJson = ref(props.editState?.json || "");
 
 // Local reactive state for lock overrides (immediate UI updates)
 const localLockStates = ref<Record<string, boolean>>({});
+const pendingLockChanges = ref<Set<string>>(new Set());
 
 // Watch for changes to editState prop and update local state
 watch(
@@ -330,16 +359,17 @@ const formatJson = (): void => {
 const { updateMetadataLock } = useApiClient();
 const toast = useToast();
 
-// Optimized lock field handling with memoization
-const lockedFieldsSet = computed(() => {
-    const lockedFields = new Set<string>();
+// Use a simple reactive ref instead of computed for template reactivity
+const lockStatesForTemplate = ref<Record<string, boolean>>({});
+
+// Function to update the template state
+const updateLockStatesForTemplate = () => {
+    const lockStates: Record<string, boolean> = {};
 
     // Process local state first (most up-to-date)
     if (localLockStates.value) {
         Object.entries(localLockStates.value).forEach(([fieldName, isLocked]) => {
-            if (isLocked) {
-                lockedFields.add(fieldName);
-            }
+            lockStates[fieldName] = !!isLocked;
         });
     }
 
@@ -351,9 +381,7 @@ const lockedFieldsSet = computed(() => {
 
             // Only add if not already in local state
             if (!localLockStates.value || !(fieldName in localLockStates.value)) {
-                if (isLocked) {
-                    lockedFields.add(fieldName);
-                }
+                lockStates[fieldName] = isLocked;
                 // Sync to local state
                 if (localLockStates.value) {
                     localLockStates.value[fieldName] = isLocked;
@@ -362,32 +390,26 @@ const lockedFieldsSet = computed(() => {
         }
     });
 
+    lockStatesForTemplate.value = lockStates;
+};
+
+// Watch for changes and update template state
+watch([localLockStates, () => props.metadata], updateLockStatesForTemplate, { deep: true, immediate: true });
+
+// Keep the old computed for backward compatibility but base it on the new one
+const lockedFieldsSet = computed(() => {
+    const lockedFields = new Set<string>();
+    Object.entries(lockStatesForTemplate.value).forEach(([fieldName, isLocked]) => {
+        if (isLocked) {
+            lockedFields.add(fieldName);
+        }
+    });
     return lockedFields;
 });
 
-// Initialize local lock states from props (optimized)
-watchEffect(() => {
-    if (!localLockStates.value) return;
-
-    // Only process lock fields once per metadata change
-    const lockFields = Object.keys(props.metadata).filter((key) => key.includes("__lock__"));
-
-    lockFields.forEach((key) => {
-        const fieldName = key.replace("__", "").replace("__lock__", "");
-        const metadataValue = !!props.metadata[key];
-
-        // Only update if value actually changed
-        if (localLockStates.value[fieldName] !== metadataValue) {
-            localLockStates.value[fieldName] = metadataValue;
-        }
-    });
-});
-
-// Optimized lock checking - O(1) lookup instead of string operations
 const isFieldLocked = (fieldName: string): boolean => {
-    return lockedFieldsSet.value.has(fieldName);
+    return !!lockStatesForTemplate.value[fieldName];
 };
-
 const toggleFieldLock = async (fieldName: string): Promise<void> => {
     if (!isAuthenticated.value || !actualEntityId.value) {
         toast.add({
@@ -402,11 +424,18 @@ const toggleFieldLock = async (fieldName: string): Promise<void> => {
     const newLockState = !currentlyLocked;
 
     try {
+        // Mark this field as having a pending change (for loading state)
+        pendingLockChanges.value.add(fieldName);
+
+        // Make API call FIRST - wait for success before updating UI
         const response = await updateMetadataLock(actualEntityId.value, fieldName, newLockState);
 
         if (response.success) {
-            // Only update local state after successful API response
+            // Only update local state AFTER successful API response
             localLockStates.value[fieldName] = newLockState;
+
+            // Manually trigger template update
+            updateLockStatesForTemplate();
 
             toast.add({
                 title: "Success",
@@ -416,10 +445,14 @@ const toggleFieldLock = async (fieldName: string): Promise<void> => {
                 color: "success",
             });
 
-            // Emit a refresh event so parent can update the entity data
-            emit("refreshEntity", actualEntityId.value);
+            // Clear the pending change
+            pendingLockChanges.value.delete(fieldName);
         } else {
             console.error("Lock operation failed:", response);
+
+            // Clear pending change and show error
+            pendingLockChanges.value.delete(fieldName);
+
             toast.add({
                 title: "Error",
                 description: response.message || "Failed to update field lock.",
@@ -428,11 +461,13 @@ const toggleFieldLock = async (fieldName: string): Promise<void> => {
         }
     } catch (error) {
         console.error("Failed to toggle field lock:", error);
-        toast.add({
-            title: "Error",
-            description: "Failed to update field lock. Please try again.",
-            color: "error",
-        });
+
+        // Clear pending change and show error
+        pendingLockChanges.value.delete(fieldName);
+
+        // Parse the error and show appropriate message
+        const errorToast = parseApiError(error);
+        toast.add(errorToast);
     }
 };
 

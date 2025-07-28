@@ -27,7 +27,7 @@
                 </div>
                 <UButton
                     :loading="isLoading"
-                    color="error"
+                    color="energy"
                     variant="outline"
                     size="sm"
                     icon="i-heroicons-arrow-right-on-rectangle"

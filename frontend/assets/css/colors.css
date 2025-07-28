@@ -151,17 +151,17 @@
     --color-accent: var(--color-energy-main);
 
     /* Success states */
-    --color-success-50: var(--color-flash-50);
-    --color-success-100: var(--color-flash-100);
-    --color-success-200: var(--color-flash-200);
-    --color-success-300: var(--color-flash-300);
-    --color-success-400: var(--color-flash-400);
-    --color-success-500: var(--color-flash-500);
-    --color-success-600: var(--color-flash-600);
-    --color-success-700: var(--color-flash-700);
-    --color-success-800: var(--color-flash-800);
-    --color-success-900: var(--color-flash-900);
-    --color-success: var(--color-flash-main);
+    --color-success-50: var(--color-eco-50);
+    --color-success-100: var(--color-eco-100);
+    --color-success-200: var(--color-eco-200);
+    --color-success-300: var(--color-eco-300);
+    --color-success-400: var(--color-eco-400);
+    --color-success-500: var(--color-eco-500);
+    --color-success-600: var(--color-eco-600);
+    --color-success-700: var(--color-eco-700);
+    --color-success-800: var(--color-eco-800);
+    --color-success-900: var(--color-eco-900);
+    --color-success: var(--color-eco-main);
 
     /* Warning states */
     --color-warning-50: var(--color-earth-50);

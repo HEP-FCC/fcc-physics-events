@@ -97,7 +97,9 @@ export function useApiClient() {
      * Get entity by ID
      */
     const getEntityById = async (id: number): Promise<Entity> => {
-        return typedFetch<Entity>(`/entities/${id}`);
+        // Add cache-busting timestamp to ensure fresh data
+        const timestamp = Date.now();
+        return typedFetch<Entity>(`/entities/${id}?_t=${timestamp}`);
     };
 
     /**

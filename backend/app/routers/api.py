@@ -6,11 +6,14 @@ Handles dynamic schema discovery, dropdown data, search, import, and validation.
 import json
 from typing import Any
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
+from app.auth import cern_auth
+from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
-from app.utils import get_logger
+from app.utils import get_config, get_logger
 
 logger = get_logger(__name__)
 
@@ -28,8 +31,6 @@ def init_dependencies(db: Database) -> None:
 
 async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]:
     """Get current user from session cookie with CERN validation."""
-    from app.auth import cern_auth
-
     try:
         # Check if session has auth info
         token = request.session.get("token")
@@ -38,14 +39,53 @@ async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]
         if not token or not user:
             raise HTTPException(
                 status_code=401,
-                detail="Authentication required. Please login.",
+                detail={
+                    "error": "missing_token",
+                    "message": "Authentication required. Please login.",
+                },
             )
 
         # Validate the token with CERN
-        decoded_token = cern_auth.jwt_decode_token(token)
-        user_data = await cern_auth.validate_user_from_token(decoded_token)
+        try:
+            decoded_token = cern_auth.jwt_decode_token(token)
+            user_data = await cern_auth.validate_user_from_token(decoded_token)
+            return user_data
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "error": "token_expired",
+                    "message": "Your session has expired. Please login again.",
+                },
+            )
+        except jwt.InvalidTokenError:
+            raise HTTPException(
+                status_code=401,
+                detail={
+                    "error": "invalid_token",
+                    "message": "Invalid authentication token. Please login again.",
+                },
+            )
+        except Exception as e:
+            # Handle CERN introspection errors (token no longer active, etc.)
+            if "no longer active" in str(e).lower():
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "error": "token_expired",
+                        "message": "Your session has expired. Please login again.",
+                    },
+                )
+            else:
+                logger.error(f"Token validation error: {e}")
+                raise HTTPException(
+                    status_code=401,
+                    detail={
+                        "error": "validation_failed",
+                        "message": "Session validation failed. Please login again.",
+                    },
+                )
 
-        return user_data
     except HTTPException:
         # Re-raise HTTP exceptions as-is
         raise
@@ -53,7 +93,10 @@ async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]
         logger.error(f"Unexpected error during session validation: {e}")
         raise HTTPException(
             status_code=401,
-            detail="Session validation failed. Please login again.",
+            detail={
+                "error": "session_error",
+                "message": "Session validation failed. Please login again.",
+            },
         )
 
 
@@ -74,8 +117,6 @@ async def get_database_schema() -> Any:
     that allows the frontend to work with any database schema.
     """
     try:
-        from app.utils import get_config
-
         config = get_config()
         main_table = config["application"]["main_table"]
 
@@ -199,15 +240,10 @@ async def get_dropdown_items(
         if filters:
             filter_dict = json.loads(filters)
 
-        # Get schema information to find the appropriate table
-        from app.utils import get_config
-
         config = get_config()
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
-            from app.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
                 main_table
@@ -237,14 +273,10 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
     Automatically handles joins based on schema discovery.
     """
     try:
-        from app.utils import get_config
-
         config = get_config()
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
-            from app.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
                 main_table
@@ -281,8 +313,6 @@ async def import_data_generic(
         )
 
         async with database.session() as conn:
-            from app.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
 
             if table_key == "main":
@@ -294,8 +324,6 @@ async def import_data_generic(
                 )
             else:
                 # Handle navigation table import
-                from app.utils import get_config
-
                 config = get_config()
                 main_table = config["application"]["main_table"]
 
@@ -329,14 +357,10 @@ async def validate_data_generic(table_key: str, data: dict[str, Any]) -> Any:
     Generic data validation endpoint that works with any table based on schema discovery.
     """
     try:
-        from app.utils import get_config
-
         config = get_config()
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
-            from app.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
 
             if table_key == "main":

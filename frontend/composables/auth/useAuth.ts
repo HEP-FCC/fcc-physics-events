@@ -1,5 +1,4 @@
-import { watch } from "vue";
-import { APP_CONFIG } from "~/config/app.config";
+import { onMounted, getCurrentInstance } from "vue";
 
 interface User {
     given_name?: string;
@@ -20,7 +19,7 @@ interface AuthState {
  * Handles login, logout, and user session management
  */
 export function useAuth() {
-    const { initiateLogin, logoutUser } = useApiClient();
+    const { initiateLogin, logoutUser, getSessionStatus } = useApiClient();
 
     // Use global state to ensure consistency across components
     const authState = useState<AuthState>(
@@ -33,46 +32,38 @@ export function useAuth() {
         }),
     );
 
-    // Watch the cookie for changes and update auth state automatically
-    const authCookie = useCookie(APP_CONFIG.auth.cookieName);
-
-    watch(
-        authCookie,
-        (newCookieValue) => {
-            if (newCookieValue) {
-                const cookieData = newCookieValue as unknown as Record<string, unknown>;
-                if (cookieData.token && cookieData.user) {
-                    authState.value.isAuthenticated = true;
-                    authState.value.user = cookieData.user;
-                    authState.value.error = null;
-                } else {
-                    authState.value.isAuthenticated = false;
-                    authState.value.user = null;
-                }
-            } else {
-                authState.value.isAuthenticated = false;
-                authState.value.user = null;
-            }
-        },
-        { immediate: true },
-    );
+    // Check auth status on app startup (only in client-side components)
+    const checkAuthOnMount = () => {
+        if (getCurrentInstance()) {
+            onMounted(async () => {
+                await checkAuthStatus();
+            });
+        }
+    };
 
     /**
-     * Check if user is currently authenticated by checking the frontend cookie
+     * Check if user is currently authenticated by calling the backend session endpoint
      */
     async function checkAuthStatus(): Promise<void> {
-        // The watcher handles most of the work, but we can trigger it manually if needed
         authState.value.isLoading = true;
         authState.value.error = null;
 
         try {
-            const authCookie = useCookie(APP_CONFIG.auth.cookieName);
-            // Trigger watcher by accessing the cookie value
-            const _cookieValue = authCookie.value;
+            const sessionData = await getSessionStatus();
 
-            // The watcher will update the auth state based on the cookie value
-        } catch {
+            if (sessionData.authenticated && sessionData.user) {
+                authState.value.isAuthenticated = true;
+                authState.value.user = sessionData.user as User;
+                authState.value.error = null;
+            } else {
+                authState.value.isAuthenticated = false;
+                authState.value.user = null;
+            }
+        } catch (error) {
+            console.error("Authentication check failed:", error);
             authState.value.error = "Authentication check failed";
+            authState.value.isAuthenticated = false;
+            authState.value.user = null;
         } finally {
             authState.value.isLoading = false;
         }
@@ -97,10 +88,6 @@ export function useAuth() {
             // Get logout URL from backend
             const logoutResponse = await logoutUser();
 
-            // Clear the auth cookie
-            const authCookie = useCookie(APP_CONFIG.auth.cookieName);
-            authCookie.value = null;
-
             authState.value.isAuthenticated = false;
             authState.value.user = null;
 
@@ -108,10 +95,9 @@ export function useAuth() {
             if (logoutResponse?.logout_url) {
                 window.location.href = logoutResponse.logout_url;
             }
-        } catch {
-            // Clear the auth cookie
-            const authCookie = useCookie(APP_CONFIG.auth.cookieName);
-            authCookie.value = null;
+        } catch (error) {
+            console.error("Logout failed:", error);
+            // Still clear auth state even if logout call fails
             authState.value.isAuthenticated = false;
             authState.value.user = null;
         } finally {
@@ -137,17 +123,22 @@ export function useAuth() {
     }
 
     /**
-     * Get access token for API calls from cookie
+     * Get access token for API calls from backend session
      */
     async function getAccessToken(): Promise<string | null> {
-        const authCookie = useCookie(APP_CONFIG.auth.cookieName);
-        const cookieData = authCookie.value as unknown as Record<string, unknown>;
+        try {
+            const sessionData = await getSessionStatus();
 
-        if (cookieData?.token && typeof cookieData.token === "string") {
-            return cookieData.token;
+            if (sessionData.authenticated) {
+                // The token is handled server-side with HttpOnly cookies
+                // For API calls, we rely on the cookie being sent automatically
+                return "session-based"; // Placeholder since we use cookie auth
+            }
+
+            throw new Error("No access token available. Please login.");
+        } catch (error) {
+            throw new Error("No access token available. Please login.");
         }
-
-        throw new Error("No access token available. Please login.");
     }
 
     /**
@@ -168,6 +159,7 @@ export function useAuth() {
 
         // Methods
         checkAuthStatus,
+        checkAuthOnMount,
         login,
         logout,
         handleAuthCallback,

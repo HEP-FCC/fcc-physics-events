@@ -16,7 +16,7 @@ interface SearchPreferences {
 const COOKIE_NAME = "fcc-search-preferences";
 
 // Default values
-const DEFAULT_SORT_BY = "last_created_at";
+const DEFAULT_SORT_BY = "created_at";
 const DEFAULT_SORT_ORDER: "asc" | "desc" = "desc";
 const DEFAULT_PAGE_SIZE = 25;
 

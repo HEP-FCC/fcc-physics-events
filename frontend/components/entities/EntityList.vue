@@ -140,7 +140,12 @@ const { getEntityBadges } = useEntityBadges();
 
 // Helper function to get entity ID
 function getEntityId(entity: Entity): number {
-    return getPrimaryKeyValue(entity) || 0;
+    const id = getPrimaryKeyValue(entity);
+    if (!id || id <= 0) {
+        console.warn("Entity has invalid ID:", { entity, dataset_id: entity.dataset_id });
+        return -1; // Use -1 to indicate invalid ID instead of 0
+    }
+    return id;
 }
 
 // Helper function to check if entity was actually edited

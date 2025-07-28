@@ -295,24 +295,15 @@ export function useEntitySelection() {
         } catch (error: unknown) {
             console.error("Failed to delete filtered entities:", error);
 
-            // Check if it's an authentication error
-            if (error instanceof Error && (error.message.includes("401") || error.message.includes("403"))) {
-                toast.add({
-                    title: "Authorization Required",
-                    description: "You don't have permission to delete entities. Please contact an administrator.",
-                    color: "error",
-                });
-            } else {
-                const errorMessage =
-                    error instanceof Error
-                        ? error.message
-                        : "An unknown error occurred while deleting filtered entities.";
-                toast.add({
-                    title: "Deletion Failed",
-                    description: errorMessage,
-                    color: "error",
-                });
-            }
+            // Use the improved error handling utility
+            const { parseApiError } = await import("~/utils/errorHandling");
+            const errorToast = parseApiError(error);
+            
+            toast.add({
+                title: errorToast.title,
+                description: errorToast.description,
+                color: errorToast.color,
+            });
         } finally {
             isDownloadingFiltered.value = false;
         }
@@ -341,6 +332,12 @@ export function useEntitySelection() {
      * Enter edit mode for entity metadata
      */
     function enterEditMode(entityId: number, metadata: Record<string, unknown>): void {
+        // Validate entity ID
+        if (!entityId || entityId <= 0) {
+            console.warn("Cannot enter edit mode for entity with invalid ID:", entityId);
+            return;
+        }
+
         metadataEditState[entityId] = {
             isEditing: true,
             editingEntityId: entityId,
@@ -369,11 +366,23 @@ export function useEntitySelection() {
     async function saveMetadataChanges(
         entityId: number,
         entities: Entity[],
-        updateEntity: (index: number, entity: Entity) => void,
+        updateEntityInArray: (index: number, entity: Entity) => void,
         editedJson?: string,
     ): Promise<void> {
         const editState = metadataEditState[entityId];
         if (!editState) return;
+
+        // Validate entity ID
+        if (!entityId || entityId <= 0) {
+            const toast = useToast();
+            toast.add({
+                title: "Invalid Entity",
+                description: "Cannot save metadata for entity with invalid ID.",
+                color: "error",
+            });
+            console.error("Attempted to save metadata for invalid entity ID:", entityId);
+            return;
+        }
 
         const toast = useToast();
         const { isAuthenticated, login } = useAuth();
@@ -409,7 +418,7 @@ export function useEntitySelection() {
             // Update the entity in the local state
             const entityIndex = entities.findIndex((entity: Entity) => getPrimaryKeyValue(entity) === entityId);
             if (entityIndex !== -1) {
-                updateEntity(entityIndex, {
+                updateEntityInArray(entityIndex, {
                     ...entities[entityIndex],
                     dataset_id: entityId,
                     metadata: parsedMetadata,
@@ -423,27 +432,24 @@ export function useEntitySelection() {
             }
         } catch (error: unknown) {
             if (apiAvailable.value) {
-                // Check if it's an authentication error
-                if (error instanceof Error && error.message.includes("401")) {
-                    toast.add({
-                        title: "Authentication Required",
-                        description: "Your session has expired. Please login again.",
-                        color: "warning",
-                    });
-                    login();
-                    return;
-                }
-
-                const errorMessage =
-                    error instanceof Error
-                        ? error.message
-                        : "An unknown error occurred. Please check the JSON format and try again.";
+                // Use the improved error handling utility
+                const { parseApiError } = await import("~/utils/errorHandling");
+                const errorToast = parseApiError(error);
+                
                 toast.add({
-                    title: "Error Saving Metadata",
-                    description: errorMessage,
+                    title: errorToast.title,
+                    description: errorToast.description,
+                    color: errorToast.color,
+                });
+                
+                console.error("Failed to save metadata:", error);
+            } else {
+                // API not available
+                toast.add({
+                    title: "API Unavailable",
+                    description: "Cannot save metadata - API server is not responding.",
                     color: "error",
                 });
-                console.error("Failed to save metadata:", error);
             }
         }
     }
@@ -553,22 +559,15 @@ export function useEntitySelection() {
         } catch (error: unknown) {
             console.error("Failed to delete entities:", error);
 
-            // Check if it's an authentication error
-            if (error instanceof Error && (error.message.includes("401") || error.message.includes("403"))) {
-                toast.add({
-                    title: "Authorization Required",
-                    description: "You don't have permission to delete entities. Please contact an administrator.",
-                    color: "error",
-                });
-            } else {
-                const errorMessage =
-                    error instanceof Error ? error.message : "An unknown error occurred while deleting entities.";
-                toast.add({
-                    title: "Deletion Failed",
-                    description: errorMessage,
-                    color: "error",
-                });
-            }
+            // Use the improved error handling utility
+            const { parseApiError } = await import("~/utils/errorHandling");
+            const errorToast = parseApiError(error);
+            
+            toast.add({
+                title: errorToast.title,
+                description: errorToast.description,
+                color: errorToast.color,
+            });
         } finally {
             selectionState.isDownloading = false;
         }

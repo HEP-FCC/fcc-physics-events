@@ -7,7 +7,7 @@ from typing import Any
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 
 from app.auth import cern_auth
 from app.storage.database import Database
@@ -51,18 +51,16 @@ async def login(request: Request) -> Any:
 
 
 @router.get("/auth")
-async def auth(request: Request) -> JSONResponse:
+async def auth(request: Request) -> Any:
     """OAuth callback route for CERN authentication."""
     payload: dict[str, Any] = await oauth.cern.authorize_access_token(request)
 
     userinfo: dict[str, Any] = payload["userinfo"]
-    # TODO: User's can still have up to 1 day after being revoked permissions currently!
+    # NOTE: User's can still have up to 1 day after being revoked permissions currently!
     if not cern_auth.has_user_access(userinfo):
-        return JSONResponse(
-            content={
-                "error": "No bueno. User doesn't have required role to access this resource."
-            }
-        )
+        # Redirect to frontend with error
+        frontend_url = config.get("general.FRONTEND_URL", "http://localhost:3000")
+        return RedirectResponse(url=f"{frontend_url}?error=access_denied")
 
     jwt_encoded_token = cern_auth.jwt_encode_token(payload["access_token"])
 
@@ -74,16 +72,9 @@ async def auth(request: Request) -> JSONResponse:
         "preferred_username": userinfo.get("preferred_username"),
     }
 
-    return JSONResponse(
-        content={
-            "token": jwt_encoded_token,
-            "user": {
-                "given_name": userinfo["given_name"],
-                "family_name": userinfo["family_name"],
-                "preferred_username": userinfo.get("preferred_username"),
-            },
-        }
-    )
+    # Redirect back to frontend after successful authentication
+    frontend_url = config.get("general.FRONTEND_URL", "http://localhost:3000")
+    return RedirectResponse(url=frontend_url)
 
 
 @router.get("/logout")

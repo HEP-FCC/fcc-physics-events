@@ -35,13 +35,6 @@ export const APP_CONFIG = {
     },
 
     /**
-     * Authentication configuration
-     */
-    auth: {
-        cookieName: "fcc-physics-events-web",
-    },
-
-    /**
      * Navigation order - will be fetched dynamically from backend
      * This is just a placeholder for type safety
      */
@@ -56,20 +49,6 @@ export const APP_CONFIG = {
         {
             icon: string;
             label: string;
-            badgeColor:
-                | "primary"
-                | "neutral"
-                | "success"
-                | "warning"
-                | "info"
-                | "error"
-                | "eco"
-                | "earth"
-                | "radiant-blue"
-                | "space"
-                | "flash"
-                | "energy"
-                | "deep-blue";
             description: string;
         }
     >,

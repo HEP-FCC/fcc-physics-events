@@ -50,7 +50,7 @@ app.add_middleware(
     https_only=config.get("general.HTTPS_ONLY", "false").lower() == "true",
     same_site="lax",
     max_age=3600,
-    session_cookie="fcc_physics_events_web",
+    session_cookie="fcc-physics-events-web",
 )
 
 app.add_middleware(
