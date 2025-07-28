@@ -244,14 +244,6 @@ export function useEntitySelection() {
                 return;
             }
 
-            // Show confirmation dialog
-            const confirmed = window.confirm(
-                `Are you sure you want to delete all ${filteredEntities.length} filtered entities? This action cannot be undone.`,
-            );
-
-            if (!confirmed) {
-                return;
-            }
 
             // Extract entity IDs
             const entityIds = extractEntityIds(filteredEntities);
@@ -298,7 +290,7 @@ export function useEntitySelection() {
             // Use the improved error handling utility
             const { parseApiError } = await import("~/utils/errorHandling");
             const errorToast = parseApiError(error);
-            
+
             toast.add({
                 title: errorToast.title,
                 description: errorToast.description,
@@ -435,13 +427,13 @@ export function useEntitySelection() {
                 // Use the improved error handling utility
                 const { parseApiError } = await import("~/utils/errorHandling");
                 const errorToast = parseApiError(error);
-                
+
                 toast.add({
                     title: errorToast.title,
                     description: errorToast.description,
                     color: errorToast.color,
                 });
-                
+
                 console.error("Failed to save metadata:", error);
             } else {
                 // API not available
@@ -517,14 +509,8 @@ export function useEntitySelection() {
             return;
         }
 
-        // Show confirmation dialog
-        const confirmed = window.confirm(
-            `Are you sure you want to delete ${selectedEntityIds.length} selected entities? This action cannot be undone.`,
-        );
-
-        if (!confirmed) {
-            return;
-        }
+        // Confirmation is already handled by the calling component
+        // No need for additional confirmation dialog here
 
         try {
             selectionState.isDownloading = true; // Reuse this for delete loading state
@@ -562,7 +548,7 @@ export function useEntitySelection() {
             // Use the improved error handling utility
             const { parseApiError } = await import("~/utils/errorHandling");
             const errorToast = parseApiError(error);
-            
+
             toast.add({
                 title: errorToast.title,
                 description: errorToast.description,

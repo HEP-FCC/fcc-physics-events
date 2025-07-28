@@ -5,10 +5,12 @@
 export interface ApiError {
     message: string;
     status: number;
-    details?: {
-        error?: string;
-        message?: string;
-    } | any;
+    details?:
+        | {
+              error?: string;
+              message?: string;
+          }
+        | any;
 }
 
 export interface ErrorToastOptions {
@@ -34,7 +36,8 @@ export function parseApiError(error: unknown): ErrorToastOptions {
             case "token_expired":
                 return {
                     title: "Session Expired",
-                    description: "Your login session has expired. Please clear cookies and log in again to refresh your token.",
+                    description:
+                        "Your login session has expired. Please clear cookies and log in again to refresh your token.",
                     color: "warning",
                 };
 
@@ -43,14 +46,16 @@ export function parseApiError(error: unknown): ErrorToastOptions {
             case "session_error":
                 return {
                     title: "Authentication Required",
-                    description: "You need to log in to access this feature. If you were previously logged in, try clearing cookies and logging in again to refresh your token.",
+                    description:
+                        "You need to log in to access this feature. If you were previously logged in, try clearing cookies and logging in again to refresh your token.",
                     color: "warning",
                 };
 
             default:
                 return {
                     title: "Unauthorized",
-                    description: "Authentication failed. Please try clearing your cookies and logging in again to refresh your token. If this does not help, contact website admins for help.",
+                    description:
+                        "Authentication failed. Please try clearing your cookies and logging in again to refresh your token. If this does not help, contact website admins for help.",
                     color: "warning",
                 };
         }
@@ -60,7 +65,8 @@ export function parseApiError(error: unknown): ErrorToastOptions {
     if (status === 403) {
         return {
             title: "Permission Denied",
-            description: "You don't have the required permissions for this action. Please contact the site administrators to request access.",
+            description:
+                "You don't have the required permissions for this action. Please contact the site administrators to request access.",
             color: "error",
         };
     }
@@ -102,11 +108,11 @@ export function parseApiError(error: unknown): ErrorToastOptions {
     }
 
     // Generic error fallback
-    const browserShortcut = navigator.platform.toLowerCase().includes('mac') ? '⌘+⌥+I' : 'F12';
+    const browserShortcut = navigator.platform.toLowerCase().includes("mac") ? "⌘+⌥+I" : "F12";
 
     return {
         title: "Unknown Error",
-        description: `An unexpected error occurred: ${errorMessage || 'Unknown error'}.
+        description: `An unexpected error occurred: ${errorMessage || "Unknown error"}.
 
 For troubleshooting:
 • Check browser console (${browserShortcut}) for details
@@ -120,5 +126,5 @@ For troubleshooting:
  * Get browser shortcut for developer tools based on platform
  */
 export function getDevToolsShortcut(): string {
-    return navigator.platform.toLowerCase().includes('mac') ? '⌘+⌥+I' : 'F12';
+    return navigator.platform.toLowerCase().includes("mac") ? "⌘+⌥+I" : "F12";
 }
