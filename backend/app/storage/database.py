@@ -212,7 +212,7 @@ class Database:
             # Fallback to convention-based naming
             table_singular = main_table.rstrip("s")
             return f"{table_singular}_id"
-        return result
+        return str(result)
 
     async def _get_or_create_entity(
         self, conn: asyncpg.Connection, model: type[T], table_name: str, **kwargs: Any
@@ -369,7 +369,7 @@ class Database:
                         conflict_counter = 1
                         while True:
                             try:
-                                dataset_to_create = GenericEntityCreate(
+                                dataset_to_create = GenericEntityCreate(  # type: ignore[call-arg]
                                     name=final_name,
                                     metadata=metadata_dict,
                                     accelerator_id=accelerator_id,
@@ -658,7 +658,7 @@ class Database:
 
                 # Prepare update fields and values
                 update_fields = []
-                values = []
+                values: list[str | int] = []
                 param_count = 0
 
                 # Always update last_edited_at
@@ -1112,7 +1112,7 @@ class Database:
                 # Use an explicit transaction for all operations
                 async with conn.transaction():
                     # First, import navigation/lookup entities
-                    navigation_id_map = {}
+                    navigation_id_map: dict[str, dict[str, int]] = {}
 
                     for table_name, entities in navigation_entities.items():
                         logger.info(
@@ -1198,7 +1198,7 @@ class Database:
 
         # Check if entity exists
         check_query = f"SELECT {primary_key} FROM {table_name} WHERE name = $1"
-        existing_record = await conn.fetchrow(check_query, name)
+        existing_record: dict[str, int] = await conn.fetchrow(check_query, name)
 
         if existing_record:
             return existing_record[primary_key]
@@ -1220,7 +1220,7 @@ class Database:
             RETURNING {primary_key}
         """
 
-        result = await conn.fetchrow(insert_query, *values)
+        result: dict[str, int] = await conn.fetchrow(insert_query, *values)
         if result:
             return result[primary_key]
 
@@ -1255,7 +1255,7 @@ class Database:
 
         # Prepare the data for insertion
         columns = []
-        values = []
+        values: list[str | int] = []
         placeholders = []
 
         # Process each field in entity_data
@@ -1311,7 +1311,7 @@ class Database:
         table_key: str,
         main_table: str,
         navigation_analysis: dict[str, Any],
-        filter_dict: dict[str, str] = None,
+        filter_dict: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
         Get dropdown items for any navigation table based on schema discovery.
@@ -1388,7 +1388,7 @@ class Database:
         self,
         main_table: str,
         navigation_analysis: dict[str, Any],
-        filters: dict[str, str] = None,
+        filters: dict[str, str] | None = None,
         search: str = "",
         page: int = 1,
         limit: int = 25,

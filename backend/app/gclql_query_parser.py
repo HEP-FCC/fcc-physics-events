@@ -316,6 +316,7 @@ class SqlTranslator:
         self.param_index += 1
         placeholder = f"${self.param_index}"
 
+        param_value: str | datetime
         if op == ":" or op == "=":
             if op == ":":
                 if is_last_edited_at and (value == "" or value is None):
