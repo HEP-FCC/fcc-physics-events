@@ -60,13 +60,9 @@ def setup_logging() -> None:
     )
 
     # Add handler to root logger
-    # handler = logging.StreamHandler()
-    # handler.setLevel(LOG_LEVEL)
-    # formatter = logging.Formatter(
-    #     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    # )
-    # handler.setFormatter(formatter)
-    # root_logger.addHandler(handler)
+    handler = logging.StreamHandler()
+    handler.setLevel(LOG_LEVEL)
+    root_logger.addHandler(handler)
 
     _logging_configured = True
 
