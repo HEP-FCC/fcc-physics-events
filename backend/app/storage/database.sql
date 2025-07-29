@@ -15,26 +15,26 @@ $$;
 CREATE TABLE IF NOT EXISTS accelerators (
     accelerator_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS stages (
     stage_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS campaigns (
     campaign_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS detectors (
     detector_id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
     accelerator_id INTEGER REFERENCES accelerators(accelerator_id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS software_stacks (
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS software_stacks (
     name TEXT UNIQUE NOT NULL,
     file_path TEXT NOT NULL,
     version TEXT,
-    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc')
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS datasets (
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS datasets (
     campaign_id INTEGER REFERENCES campaigns(campaign_id) ON DELETE SET NULL,
     detector_id INTEGER REFERENCES detectors(detector_id) ON DELETE SET NULL,
     metadata JSONB,
-    created_at TIMESTAMPTZ DEFAULT (NOW() AT TIME ZONE 'utc'),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
     last_edited_at TIMESTAMPTZ DEFAULT NULL
 );
 

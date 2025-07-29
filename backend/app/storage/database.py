@@ -450,9 +450,7 @@ class Database:
                                         col != "name"
                                     ):  # Don't update the conflict column
                                         update_clauses.append(f"{col} = EXCLUDED.{col}")
-                                update_clauses.append(
-                                    "last_edited_at = (NOW() AT TIME ZONE 'utc')"
-                                )
+                                update_clauses.append("last_edited_at = NOW()")
 
                                 query = f"""
                                     INSERT INTO {main_table} ({', '.join(columns)})
@@ -664,7 +662,7 @@ class Database:
                 param_count = 0
 
                 # Always update last_edited_at
-                update_fields.append("last_edited_at = (NOW() AT TIME ZONE 'utc')")
+                update_fields.append("last_edited_at = NOW()")
 
                 # Get table columns dynamically to handle any fields
                 table_columns_query = """
@@ -789,7 +787,7 @@ class Database:
                     # Only last_edited_at was updated
                     query = f"""
                         UPDATE {main_table}
-                        SET last_edited_at = (NOW() AT TIME ZONE 'utc')
+                        SET last_edited_at = NOW()
                         WHERE {primary_key_column} = ${param_count + 1}
                     """
                     values.append(entity_id)
@@ -1303,7 +1301,7 @@ class Database:
                 VALUES ({', '.join(placeholders)})
                 ON CONFLICT (name) DO UPDATE SET
                 {', '.join([f"{col} = EXCLUDED.{col}" for col in columns if col != 'name'])},
-                last_edited_at = (NOW() AT TIME ZONE 'utc')
+                last_edited_at = NOW()
             """
 
             await conn.execute(upsert_query, *values)

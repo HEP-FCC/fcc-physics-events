@@ -622,7 +622,19 @@ class QueryParser:
 
     def _build_dynamic_select_fields(self) -> str:
         """Build dynamic SELECT fields for navigation entities."""
-        select_fields = ["d.*"]
+        select_fields: list[str] = []
+
+        # Get main table schema info
+        main_table_schema = self.navigation_analysis.get("main_table_schema", {})
+        main_table_columns = main_table_schema.get("columns", [])
+
+        # Dynamically build main table fields with proper timezone handling for timestamp columns
+        for column_info in main_table_columns:
+            column_name = column_info.get("column_name")
+
+            # Keep all fields as-is since the schema already stores timestamps in UTC
+            # and they contain proper timezone information
+            select_fields.append(f"d.{column_name}")
 
         for entity_key, table_info in self.navigation_analysis[
             "navigation_tables"
