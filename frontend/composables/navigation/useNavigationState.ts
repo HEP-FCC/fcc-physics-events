@@ -6,7 +6,7 @@ import type { DropdownItem } from "~/types/schema";
  * Dynamic navigation state management with schema-driven configuration
  */
 export function useNavigationState() {
-    const { baseUrl } = useApiClient();
+    const { baseUrl, apiGet } = useApiClient();
     const { getNavigationOrder, getNavigationItem, initializeNavigation, isNavigationReady } = useNavigationConfig();
 
     // Dynamic refs based on navigation order
@@ -185,15 +185,10 @@ export function useNavigationState() {
                 }
             }
 
-            const response = await fetch(`${baseUrl}${requestUrl}`);
-
-            if (response.ok) {
-                const data = await response.json();
-                const items = data.data || [];
-                itemsRef.value = items;
-            } else {
-                console.warn(`Failed to load ${type}: ${response.status}`);
-            }
+            // Use the enhanced API client with automatic token refresh
+            const data = await apiGet<{ data: DropdownItem[] }>(requestUrl);
+            const items = data.data || [];
+            itemsRef.value = items;
         } catch (error) {
             console.warn(`Error loading ${type}:`, error);
         } finally {
@@ -278,12 +273,8 @@ export function useNavigationState() {
                 }
             }
 
-            const response = await fetch(`${baseUrl}${requestUrl}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const data = await response.json();
+            // Use the enhanced API client with automatic token refresh
+            const data = await apiGet<{ data: DropdownItem[] }>(requestUrl);
             itemsRef.value = data.data || [];
         } catch (error) {
             console.error(`Error loading ${type}:`, error);

@@ -154,3 +154,7 @@
 code {
     user-select: text;
 }
+
+body {
+    background-color: var(--color-space-50)
+}

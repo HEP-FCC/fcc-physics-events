@@ -37,7 +37,7 @@ def init_dependencies(db: Database) -> None:
 # OAuth setup
 oauth = OAuth()
 oauth.register(
-    name="cern",
+    name="provider",
     server_metadata_url=CERN_OIDC_URL,
     client_id=CERN_CLIENT_ID,
     client_secret=CERN_CLIENT_SECRET,
@@ -53,7 +53,7 @@ redirect_uri = config.get("general.CERN_REDIRECT_URI")
 async def login(request: Request) -> Any:
     """Initiate OAuth login with CERN."""
     request.session.clear()
-    return await oauth.cern.authorize_redirect(request, redirect_uri)
+    return await oauth.provider.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/auth")
@@ -73,12 +73,12 @@ async def auth(request: Request) -> Any:
     }
 
     # Format the params with additional information required for auth service validation
-    state_data = await oauth.cern.framework.get_state_data(request.session, state)
-    await oauth.cern.framework.clear_state_data(request.session, state)
-    params = oauth.cern._format_state_params(state_data, params)
+    state_data = await oauth.provider.framework.get_state_data(request.session, state)
+    await oauth.provider.framework.clear_state_data(request.session, state)
+    params = oauth.provider._format_state_params(state_data, params)
 
     # Get the auth token object from the auth service
-    token_data: dict[str, Any] = await oauth.cern.fetch_access_token(**params)
+    token_data: dict[str, Any] = await oauth.provider.fetch_access_token(**params)
 
     # We redirect user to the frontend's main page after successful login
     response = RedirectResponse(url=FRONTEND_URL)
@@ -131,7 +131,7 @@ async def get_session_status(request: Request) -> JSONResponse:
     try:
         # Validate tokens and get user info
         userinfo = await validate_token_and_get_user(
-            access_token, id_token, nonce, oauth
+            access_token, id_token, oauth
         )
         return JSONResponse(content={"authenticated": True, "user": userinfo})
     except Exception as e:
@@ -152,7 +152,7 @@ async def get_session_status(request: Request) -> JSONResponse:
             # Parse the new token data to get user info using the correct approach
             data = {"token": new_token_data, "nonce": None}
 
-            userinfo = await oauth.cern.parse_id_token(**data)
+            userinfo = await oauth.provider.parse_id_token(**data)
             logger.debug("Received userinfo from refreshed token: %s", userinfo)
 
             # Create the response and set the new cookies

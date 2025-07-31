@@ -3,7 +3,6 @@ Production-ready authentication module for CERN SSO integration.
 Handles JWT token validation, CERN OAuth introspection, and secure token management.
 """
 
-import base64
 import logging
 from typing import Any
 
@@ -11,7 +10,7 @@ import aiohttp
 import httpx
 import jwt
 from authlib.integrations.starlette_client import OAuth
-from fastapi import HTTPException
+from fastapi import HTTPException, Request, Response
 from tenacity import (
     before_sleep_log,
     retry,
@@ -283,7 +282,7 @@ async def validate_token_and_get_user(
         },
         "nonce": None,
     }
-    userinfo = await oauth_client.parse_id_token(**data)
+    userinfo: dict[str, Any] = await oauth_client.parse_id_token(**data)
     logger.debug("Received userinfo: %s", userinfo)
     return userinfo
 
@@ -304,7 +303,7 @@ async def get_logout_url() -> str:
 
 
 def set_auth_cookies(
-    response: Any,
+    response: Response,
     access_token: str,
     refresh_token: str,
     id_token: str,
@@ -421,14 +420,17 @@ async def validate_user_session(
                 oauth_client,
             )
 
-            # Step 6: Update cookies with refreshed tokens
-            set_auth_cookies(
-                response,
-                access_token=new_token_data.get("access_token", ""),
-                refresh_token=new_token_data.get("refresh_token", ""),
-                id_token=new_token_data.get("id_token", ""),
-            )
-            logger.debug("Updated cookies with refreshed tokens")
+            # Step 6: Update cookies with refreshed tokens (if response object is available)
+            if response is not None:
+                set_auth_cookies(
+                    response,
+                    access_token=new_token_data.get("access_token", ""),
+                    refresh_token=new_token_data.get("refresh_token", ""),
+                    id_token=new_token_data.get("id_token", ""),
+                )
+                logger.debug("Updated cookies with refreshed tokens")
+            else:
+                logger.debug("Response object not available, skipping cookie update")
 
             # Step 7: Check if user has required role
             if not cern_auth.has_user_access(userinfo):
@@ -474,20 +476,16 @@ class AuthDependency:
         """
         self.required_role = required_role
 
-    async def __call__(self, request: Any, response: Any) -> dict[str, Any]:
+    async def __call__(self, request: Request) -> dict[str, Any]:
         """
         FastAPI dependency function that validates authentication and authorization.
 
         This method is called by FastAPI when the dependency is injected.
-        It handles the complete authentication flow including:
-        - Cookie extraction and validation
-        - Token validation with automatic refresh
-        - Cookie updates when tokens are refreshed
-        - Role checking and authorization
+        It handles authentication validation and authorization checking.
+        Token refresh is now handled by the dedicated /refresh-auth-token endpoint.
 
         Args:
             request: FastAPI Request object (auto-injected)
-            response: FastAPI Response object (auto-injected)
 
         Returns:
             User information dictionary if authenticated and authorized
@@ -495,29 +493,34 @@ class AuthDependency:
         Raises:
             HTTPException: If authentication or authorization fails
         """
-        # Get configuration and setup OAuth client
-        config = get_config()
-        CERN_CLIENT_ID = config.get("general.CERN_CLIENT_ID")
-        CERN_CLIENT_SECRET = config.get("general.CERN_CLIENT_SECRET")
-        CERN_OIDC_URL = config.get("auth.cern_oidc_url")
-
-        oauth = OAuth()
-        oauth.register(
-            name="cern",
-            server_metadata_url=CERN_OIDC_URL,
-            client_id=CERN_CLIENT_ID,
-            client_secret=CERN_CLIENT_SECRET,
-            client_kwargs={
-                "scope": "openid email profile",
-            },
-        )
-
         try:
-            # Use the centralized authentication function
+            logger.debug(
+                f"AuthDependency called with required_role: {self.required_role}"
+            )
+
+            # Get configuration and setup OAuth client
+            config = get_config()
+            CERN_CLIENT_ID = config.get("general.CERN_CLIENT_ID")
+            CERN_CLIENT_SECRET = config.get("general.CERN_CLIENT_SECRET")
+            CERN_OIDC_URL = config.get("auth.cern_oidc_url")
+
+            oauth = OAuth()
+            oauth.register(
+                name="provider",
+                server_metadata_url=CERN_OIDC_URL,
+                client_id=CERN_CLIENT_ID,
+                client_secret=CERN_CLIENT_SECRET,
+                client_kwargs={
+                    "scope": "openid email profile",
+                },
+            )
+
+            # Use the centralized authentication function without cookie updates
+            # Token refresh and cookie management is handled by dedicated endpoint
             is_authenticated, user_info = await validate_user_session(
                 request=request,
-                response=response,
-                oauth_client=oauth.cern,
+                response=None,  # No cookie updates in dependencies
+                oauth_client=oauth.provider,
                 required_role=self.required_role,
             )
 
@@ -528,19 +531,28 @@ class AuthDependency:
                         "error": "authentication_failed",
                         "message": "Authentication required. Please login.",
                     },
+                    headers={
+                        "WWW-Authenticate": "Bearer",
+                        "X-Token-Expired": "true",  # Signal frontend to try refresh
+                    },
                 )
 
+            logger.debug(
+                f"Authentication successful for user: {user_info.get('preferred_username', 'unknown')}"
+            )
             return user_info
 
         except HTTPException:
             # Re-raise HTTP exceptions as-is
             raise
         except Exception as e:
-            logger.error(f"Unexpected error during session validation: {e}")
+            logger.error(
+                f"Unexpected error during session validation: {e}", exc_info=True
+            )
             raise HTTPException(
-                status_code=401,
+                status_code=500,
                 detail={
                     "error": "session_error",
-                    "message": "Session validation failed. Please login again.",
+                    "message": "Session validation failed due to internal error.",
                 },
             )

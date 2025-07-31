@@ -17,6 +17,7 @@ from app.gclql_query_parser import QueryParser
 from app.routers import api as api_router
 from app.routers import auth as auth_router
 from app.routers import entities as entities_router
+from app.routers import refresh as refresh_router
 from app.routers import utility as utility_router
 from app.storage.database import Database
 from app.utils import get_config, get_logger, setup_logging
@@ -114,5 +115,6 @@ api_router.init_dependencies(database)
 # Include routers
 app.include_router(utility_router.router)
 app.include_router(auth_router.router)
+app.include_router(refresh_router.router)
 app.include_router(entities_router.router)
 app.include_router(api_router.router)

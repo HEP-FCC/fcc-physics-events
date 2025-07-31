@@ -27,7 +27,7 @@
         </header>
 
         <!-- Main Content -->
-        <main class="pb-10 bg-space-50">
+        <main class="pb-10">
             <NuxtPage />
         </main>
 

@@ -38,6 +38,8 @@ def init_dependencies(db: Database, qp: QueryParser) -> None:
     global database, query_parser
     database = db
     query_parser = qp
+
+
 class EntityRequest(BaseModel):
     """Request model for entity search"""
 
@@ -224,9 +226,9 @@ async def update_entity(
     Requires authentication via session cookie.
     """
     try:
-        logger.info(
-            f"User {user.get('preferred_username', 'unknown')} updating entity {entity_id}."
-        )
+        # logger.info(
+        #     f"User {user.get('preferred_username', 'unknown')} updating entity {entity_id}."
+        # )
 
         update_dict = update_data.model_dump(exclude_none=True)
 
@@ -342,7 +344,9 @@ async def update_metadata_lock(
 @router.delete("/entities/", response_model=dict[str, Any])
 async def delete_entities(
     request: DeleteEntitiesRequest,
-    user: dict[str, Any] = Depends(AuthDependency("admin")),  # Require admin role for deletion
+    user: dict[str, Any] = Depends(
+        AuthDependency("admin")
+    ),  # Require admin role for deletion
 ) -> dict[str, Any]:
     """
     Delete entities by their IDs. Only users with 'authorized' role can perform this operation.

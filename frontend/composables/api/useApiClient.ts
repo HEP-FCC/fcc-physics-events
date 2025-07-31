@@ -1,6 +1,6 @@
 /**
- * Typed API client using Nuxt 3's useFetch
- * Provides type-safe API calls with proper error handling
+ * Typed API client using Nuxt 3's $fetch with automatic token refresh
+ * Provides type-safe API calls with proper error handling and automatic token renewal
  */
 
 import type {
@@ -13,52 +13,130 @@ import type {
 } from "~/types/api";
 import type { SearchOptions } from "~/types/composables";
 
+// Global state for tracking refresh operations to prevent concurrent refreshes
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
 /**
- * Composable for typed API client with Nuxt 3's useFetch
+ * Composable for typed API client with automatic token refresh
  */
 export function useApiClient() {
     const config = useRuntimeConfig();
     const baseUrl = config.public.apiBaseUrl || "http://localhost:8000";
 
     /**
-     * Generic typed fetch wrapper - handles direct backend responses
+     * Attempt to refresh the access token using the refresh token endpoint
+     */
+    const refreshToken = async (): Promise<boolean> => {
+        // Prevent concurrent refresh attempts
+        if (isRefreshing && refreshPromise) {
+            return await refreshPromise;
+        }
+
+        isRefreshing = true;
+        refreshPromise = (async (): Promise<boolean> => {
+            try {
+                console.log("Attempting to refresh access token...");
+                
+                const response = await $fetch<{
+                    status: string;
+                    message: string;
+                    expires_in: number;
+                }>(`${baseUrl}/api/refresh-auth-token`, {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                });
+
+                if (response.status === "success") {
+                    console.log("Token refresh successful");
+                    return true;
+                } else {
+                    console.warn("Token refresh failed:", response.message);
+                    return false;
+                }
+            } catch (error: any) {
+                console.error("Token refresh failed:", error);
+                
+                // Check if it's a 401 error indicating refresh token is also expired
+                if (error?.status === 401 || error?.statusCode === 401) {
+                    console.log("Refresh token expired, redirecting to login...");
+                    // Clear any existing auth state and redirect to login
+                    await navigateTo(`${baseUrl}/login`);
+                }
+                
+                return false;
+            } finally {
+                isRefreshing = false;
+                refreshPromise = null;
+            }
+        })();
+
+        return await refreshPromise;
+    };
+
+    /**
+     * Enhanced fetch wrapper with automatic token refresh on 401 errors
      */
     const typedFetch = async <T>(endpoint: string, options: TypedFetchOptions = {}): Promise<T> => {
-        try {
-            let fullUrl = `${baseUrl}${endpoint}`;
+        const executeRequest = async (isRetry = false): Promise<T> => {
+            try {
+                let fullUrl = `${baseUrl}${endpoint}`;
 
-            // Manually construct query string to avoid any $fetch issues
-            if (options.query && Object.keys(options.query).length > 0) {
-                const queryParams = new URLSearchParams();
-                for (const [key, value] of Object.entries(options.query)) {
-                    if (value !== undefined && value !== null) {
-                        queryParams.append(key, String(value));
+                // Manually construct query string to avoid any $fetch issues
+                if (options.query && Object.keys(options.query).length > 0) {
+                    const queryParams = new URLSearchParams();
+                    for (const [key, value] of Object.entries(options.query)) {
+                        if (value !== undefined && value !== null) {
+                            queryParams.append(key, String(value));
+                        }
+                    }
+                    fullUrl += `?${queryParams.toString()}`;
+                }
+
+                const response = await $fetch<T>(fullUrl, {
+                    method: (options.method || "GET") as "GET" | "POST" | "PUT" | "DELETE",
+                    body: options.body as Record<string, unknown> | undefined,
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...options.headers,
+                    },
+                    credentials: "include",
+                });
+
+                return response;
+            } catch (error: unknown) {
+                const errorObj = error as Record<string, unknown>;
+                const status = (errorObj.statusCode as number) || (errorObj.status as number) || 500;
+                
+                // Handle 401 Unauthorized errors with automatic token refresh
+                if (status === 401 && !isRetry) {
+                    console.log("Received 401 error, attempting token refresh...");
+                    
+                    const refreshSuccess = await refreshToken();
+                    if (refreshSuccess) {
+                        console.log("Token refreshed successfully, retrying original request...");
+                        // Retry the original request with the new token
+                        return executeRequest(true);
+                    } else {
+                        console.log("Token refresh failed, throwing original error");
+                        // Token refresh failed, throw the original error
                     }
                 }
-                fullUrl += `?${queryParams.toString()}`;
+
+                console.error(`API Error for ${endpoint}:`, error);
+                const apiError: ApiError = {
+                    message: (errorObj.message as string) || "API request failed",
+                    status,
+                    details: (errorObj.data as Record<string, unknown>) || undefined,
+                };
+                throw apiError;
             }
+        };
 
-            const response = await $fetch<T>(fullUrl, {
-                method: (options.method || "GET") as "GET" | "POST" | "PUT" | "DELETE",
-                body: options.body as Record<string, unknown> | undefined,
-                headers: {
-                    "Content-Type": "application/json",
-                    ...options.headers,
-                },
-                credentials: "include",
-            });
-
-            return response;
-        } catch (error: unknown) {
-            console.error(`API Error for ${endpoint}:`, error);
-            const errorObj = error as Record<string, unknown>;
-            const apiError: ApiError = {
-                message: (errorObj.message as string) || "API request failed",
-                status: (errorObj.statusCode as number) || (errorObj.status as number) || 500,
-                details: (errorObj.data as Record<string, unknown>) || undefined,
-            };
-            throw apiError;
-        }
+        return executeRequest();
     };
 
     /**
@@ -253,9 +331,28 @@ export function useApiClient() {
         });
     };
 
+    /**
+     * Manually refresh authentication tokens
+     * Useful for proactive token refresh or manual retry scenarios
+     */
+    const manualRefreshToken = async (): Promise<boolean> => {
+        return refreshToken();
+    };
+
+    /**
+     * Generic GET method using the enhanced typedFetch with automatic token refresh
+     */
+    const apiGet = async <T>(url: string, query?: Record<string, any>): Promise<T> => {
+        return typedFetch<T>(url, {
+            method: "GET",
+            query,
+        });
+    };
+
     return {
         // Core methods
         typedFetch,
+        apiGet,
 
         // Entity operations
         searchEntities,
@@ -278,6 +375,7 @@ export function useApiClient() {
         initiateLogin,
         logoutUser,
         getSessionStatus,
+        manualRefreshToken,
 
         // Configuration
         baseUrl,

@@ -818,7 +818,7 @@ const getSemanticColorForFieldType = (fieldType: string): string => {
         vector: "accent", // Energy purple for complex particle data
 
         // Content types - align with FCC's open communication values
-        longString: "accent", // Earth tones for descriptive content
+        longString: "secondary", // Earth tones for descriptive content
         shortString: "gray", // Gray for basic textual information
 
         // Metadata categories - align with FCC's transparency value

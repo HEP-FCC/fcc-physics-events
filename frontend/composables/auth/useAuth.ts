@@ -19,7 +19,7 @@ interface AuthState {
  * Handles login, logout, and user session management
  */
 export function useAuth() {
-    const { initiateLogin, logoutUser, getSessionStatus } = useApiClient();
+    const { initiateLogin, logoutUser, getSessionStatus, manualRefreshToken } = useApiClient();
 
     // Use global state to ensure consistency across components
     const authState = useState<AuthState>(
@@ -153,6 +153,38 @@ export function useAuth() {
         await checkAuthStatus();
     }
 
+    /**
+     * Proactively refresh access token
+     * Useful for long-running sessions or before critical operations
+     */
+    async function refreshToken(): Promise<boolean> {
+        authState.value.isLoading = true;
+        authState.value.error = null;
+
+        try {
+            const refreshSuccess = await manualRefreshToken();
+            
+            if (refreshSuccess) {
+                // Token refreshed successfully, update auth state
+                await checkAuthStatus();
+                return true;
+            } else {
+                authState.value.error = "Token refresh failed. Please sign in again.";
+                authState.value.isAuthenticated = false;
+                authState.value.user = null;
+                return false;
+            }
+        } catch (error) {
+            console.error("Token refresh failed:", error);
+            authState.value.error = "Token refresh failed. Please sign in again.";
+            authState.value.isAuthenticated = false;
+            authState.value.user = null;
+            return false;
+        } finally {
+            authState.value.isLoading = false;
+        }
+    }
+
     return {
         // Readonly state
         authState: readonly(authState),
@@ -169,6 +201,7 @@ export function useAuth() {
         handleAuthCallback,
         getAccessToken,
         refreshSession,
+        refreshToken,
         clearError,
     };
 }
