@@ -7,17 +7,16 @@ from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, Response
 
 from app.auth import load_cern_endpoints
 from app.gclql_query_parser import QueryParser
-from app.routers import api as api_router
 from app.routers import auth as auth_router
 from app.routers import entities as entities_router
-from app.routers import refresh as refresh_router
+from app.routers import navigation as navigation_router
 from app.routers import utility as utility_router
 from app.storage.database import Database
 from app.utils import get_config, get_logger, setup_logging
@@ -102,7 +101,7 @@ async def validation_exception_handler(request: Request, _: Exception) -> JSONRe
         f"Unhandled exception for {request.method} {request.url}", exc_info=True
     )
     return JSONResponse(
-        status_code=500,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "An internal server error occurred."},
     )
 
@@ -110,11 +109,10 @@ async def validation_exception_handler(request: Request, _: Exception) -> JSONRe
 # Initialize router dependencies
 auth_router.init_dependencies(database)
 entities_router.init_dependencies(database, query_parser)
-api_router.init_dependencies(database)
+navigation_router.init_dependencies(database)
 
 # Include routers
 app.include_router(utility_router.router)
 app.include_router(auth_router.router)
-app.include_router(refresh_router.router)
 app.include_router(entities_router.router)
-app.include_router(api_router.router)
+app.include_router(navigation_router.router)

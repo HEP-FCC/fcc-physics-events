@@ -37,12 +37,12 @@ export function useApiClient() {
         refreshPromise = (async (): Promise<boolean> => {
             try {
                 console.log("Attempting to refresh access token...");
-                
+
                 const response = await $fetch<{
                     status: string;
                     message: string;
                     expires_in: number;
-                }>(`${baseUrl}/api/refresh-auth-token`, {
+                }>(`${baseUrl}/refresh-auth-token`, {
                     method: "POST",
                     credentials: "include",
                     headers: {
@@ -59,14 +59,14 @@ export function useApiClient() {
                 }
             } catch (error: any) {
                 console.error("Token refresh failed:", error);
-                
+
                 // Check if it's a 401 error indicating refresh token is also expired
                 if (error?.status === 401 || error?.statusCode === 401) {
                     console.log("Refresh token expired, redirecting to login...");
                     // Clear any existing auth state and redirect to login
                     await navigateTo(`${baseUrl}/login`);
                 }
-                
+
                 return false;
             } finally {
                 isRefreshing = false;
@@ -110,11 +110,11 @@ export function useApiClient() {
             } catch (error: unknown) {
                 const errorObj = error as Record<string, unknown>;
                 const status = (errorObj.statusCode as number) || (errorObj.status as number) || 500;
-                
+
                 // Handle 401 Unauthorized errors with automatic token refresh
                 if (status === 401 && !isRetry) {
                     console.log("Received 401 error, attempting token refresh...");
-                    
+
                     const refreshSuccess = await refreshToken();
                     if (refreshSuccess) {
                         console.log("Token refreshed successfully, retrying original request...");
@@ -194,7 +194,7 @@ export function useApiClient() {
      * Create new entity
      */
     const createEntity = async (payload: CreateEntityPayload): Promise<Entity> => {
-        return typedFetch<Entity>("/api/entities", {
+        return typedFetch<Entity>("/entities", {
             method: "POST",
             body: payload,
         });
@@ -270,9 +270,7 @@ export function useApiClient() {
      * Get dropdown options for navigation
      */
     const getDropdownOptions = async (type: string): Promise<Array<{ dataset_id: number; name: string }>> => {
-        const response = await typedFetch<{ data: Array<{ dataset_id: number; name: string }> }>(
-            `/api/dropdown/${type}`,
-        );
+        const response = await typedFetch<{ data: Array<{ dataset_id: number; name: string }> }>(`/dropdown/${type}`);
         return response.data;
     };
 
@@ -280,7 +278,7 @@ export function useApiClient() {
      * Get schema configuration
      */
     const getSchemaConfig = async (): Promise<Record<string, unknown>> => {
-        return typedFetch<Record<string, unknown>>("/api/schema");
+        return typedFetch<Record<string, unknown>>("/schema");
     };
 
     /**

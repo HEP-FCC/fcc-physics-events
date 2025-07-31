@@ -168,7 +168,7 @@ export function useNavigationState() {
             // Fetch from API with appropriate filters
             loadingRef.value = true;
 
-            let requestUrl = `/api/dropdown/${type}`;
+            let requestUrl = `/dropdown/${type}`;
             if (Object.keys(filters).length > 0) {
                 const params = new URLSearchParams();
                 const filterObj: Record<string, string> = {};
@@ -253,7 +253,7 @@ export function useNavigationState() {
 
         try {
             // Use the new generic API endpoint directly
-            let requestUrl = `/api/dropdown/${type}`;
+            let requestUrl = `/dropdown/${type}`;
 
             if (Object.keys(filters).length > 0) {
                 const params = new URLSearchParams();

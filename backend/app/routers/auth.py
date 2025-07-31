@@ -1,8 +1,9 @@
 from typing import Any
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Request
-from starlette.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
+from starlette.responses import RedirectResponse
 
 from app.auth import (
     extract_auth_cookies,
@@ -49,6 +50,132 @@ oauth.register(
 redirect_uri = config.get("general.CERN_REDIRECT_URI")
 
 
+class TokenRefreshError(Exception):
+    """Custom exception for token refresh failures."""
+
+    pass
+
+
+@router.post("/refresh-auth-token")
+async def refresh_auth_token(request: Request, response: Response) -> JSONResponse:
+    """
+    Dedicated endpoint for OAuth 2.0 token refresh with cookie management.
+
+    Implements refresh token rotation as per RFC 9700 OAuth 2.0 Security Best Practices:
+    - Validates refresh token from secure httpOnly cookie
+    - Performs token refresh with automatic rotation
+    - Updates all authentication cookies (access_token, refresh_token, id_token)
+    - Provides clear error responses for frontend handling
+
+    Returns:
+        Success response with token metadata, or 401 if refresh fails
+
+    Raises:
+        HTTPException: 401 if no refresh token or refresh fails
+    """
+    try:
+        logger.debug("Processing token refresh request")
+
+        # Step 1: Extract refresh token from secure cookies
+        try:
+            auth_data = extract_auth_cookies(request.cookies)
+            refresh_token = auth_data["refresh_token"]
+            logger.debug("Successfully extracted refresh token from cookies")
+        except Exception as e:
+            logger.info(f"No valid refresh token found in cookies: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "error": "no_refresh_token",
+                    "message": "No refresh token available. Please re-authenticate.",
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Step 2: Attempt token refresh with CERN OIDC
+        try:
+            new_token_data = await try_refresh_token(refresh_token)
+
+            if new_token_data is None:
+                # Refresh token is inactive/invalid
+                logger.info("Refresh token is inactive or invalid")
+                raise TokenRefreshError("Refresh token is no longer valid")
+
+            logger.debug("Successfully refreshed tokens from CERN OIDC")
+
+        except TokenRefreshError:
+            raise  # Re-raise our custom exception
+        except Exception as e:
+            logger.error(f"Unexpected error during token refresh: {e}", exc_info=True)
+            raise TokenRefreshError(f"Token refresh failed: {str(e)}")
+
+        # Step 3: Update cookies with new tokens (including id_token)
+        try:
+            set_auth_cookies(
+                response=response,
+                access_token=new_token_data["access_token"],
+                refresh_token=new_token_data["refresh_token"],
+                id_token=new_token_data["id_token"],
+                max_age=new_token_data["expires_in"],
+            )
+
+            logger.info(
+                "Successfully updated authentication cookies with refreshed tokens"
+            )
+
+            # Step 4: Return success response with token metadata
+            return JSONResponse(
+                content={
+                    "status": "success",
+                    "message": "Tokens refreshed successfully",
+                },
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to set authentication cookies: {e}", exc_info=True)
+            raise TokenRefreshError(
+                f"Failed to update authentication cookies: {str(e)}"
+            )
+
+    except TokenRefreshError as e:
+        # Clear all authentication cookies on refresh failure
+        logger.info(f"Token refresh failed, clearing cookies: {e}")
+
+        response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-access-token")
+        response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-refresh-token")
+        response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-id-token")
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "error": "refresh_failed",
+                "message": "Token refresh failed. Please re-authenticate.",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+
+    except Exception as e:
+        # Handle any other unexpected errors
+        logger.error(f"Unexpected error in refresh endpoint: {e}", exc_info=True)
+
+        # Clear cookies on unexpected errors too
+        response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-access-token")
+        response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-refresh-token")
+        response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-id-token")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "error": "internal_error",
+                "message": "An unexpected error occurred during token refresh.",
+            },
+        )
+
+
 @router.get("/login")
 async def login(request: Request) -> Any:
     """Initiate OAuth login with CERN."""
@@ -63,7 +190,9 @@ async def auth(request: Request) -> Any:
     if request.query_params.get("error"):
         error_description = request.query_params.get("error_description")
         logger.error(f"Error authenticating user: {error_description}")
-        return JSONResponse(content={"error": error_description}, status_code=403)
+        return JSONResponse(
+            content={"error": error_description}, status_code=status.HTTP_403_FORBIDDEN
+        )
 
     # Get required information from auth service callback URL
     state = request.query_params.get("state")
@@ -125,14 +254,13 @@ async def get_session_status(request: Request) -> JSONResponse:
             Most likely user is not authenticated so we are returning status code 200: {e}"""
         logger.error(error_message)
         return JSONResponse(
-            content={"authenticated": False, "user": None}, status_code=200
+            content={"authenticated": False, "user": None},
+            status_code=status.HTTP_200_OK,
         )
 
     try:
         # Validate tokens and get user info
-        userinfo = await validate_token_and_get_user(
-            access_token, id_token, oauth
-        )
+        userinfo = await validate_token_and_get_user(access_token, id_token, oauth)
         return JSONResponse(content={"authenticated": True, "user": userinfo})
     except Exception as e:
         logger.info(
@@ -146,7 +274,7 @@ async def get_session_status(request: Request) -> JSONResponse:
                 # Token refresh failed due to inactive/invalid token
                 return JSONResponse(
                     content={"authenticated": False, "user": None},
-                    status_code=401,
+                    status_code=status.HTTP_401_UNAUTHORIZED,
                 )
 
             # Parse the new token data to get user info using the correct approach
@@ -172,5 +300,6 @@ async def get_session_status(request: Request) -> JSONResponse:
                 f"Failed to refresh auth token, user is not authenticated. Error: {e}"
             )
             return JSONResponse(
-                content={"authenticated": False, "user": None}, status_code=403
+                content={"authenticated": False, "user": None},
+                status_code=status.HTTP_403_FORBIDDEN,
             )

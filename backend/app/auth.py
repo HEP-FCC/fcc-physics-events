@@ -10,7 +10,7 @@ import aiohttp
 import httpx
 import jwt
 from authlib.integrations.starlette_client import OAuth
-from fastapi import HTTPException, Request, Response
+from fastapi import HTTPException, Request, Response, status
 from tenacity import (
     before_sleep_log,
     retry,
@@ -526,7 +526,7 @@ class AuthDependency:
 
             if not is_authenticated or user_info is None:
                 raise HTTPException(
-                    status_code=401,
+                    status_code=status.HTTP_401_UNAUTHORIZED,
                     detail={
                         "error": "authentication_failed",
                         "message": "Authentication required. Please login.",
@@ -550,7 +550,7 @@ class AuthDependency:
                 f"Unexpected error during session validation: {e}", exc_info=True
             )
             raise HTTPException(
-                status_code=500,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail={
                     "error": "session_error",
                     "message": "Session validation failed due to internal error.",

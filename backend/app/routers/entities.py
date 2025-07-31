@@ -13,12 +13,14 @@ from fastapi import (
     Query,
     Request,
     UploadFile,
+    status,
 )
 from pydantic import BaseModel
 
 from app.auth import AuthDependency
 from app.gclql_query_parser import QueryParser
 from app.models.generic import GenericEntityUpdate
+from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
 from app.utils import get_config, get_logger
 
@@ -62,7 +64,16 @@ class DeleteEntitiesRequest(BaseModel):
     entity_ids: list[int]
 
 
-@router.post("/upload-fcc-dict/", status_code=202)
+class SearchRequest(BaseModel):
+    """Request model for generic search"""
+
+    filters: dict[str, str] = {}
+    search: str = ""
+    page: int = 1
+    limit: int = 25
+
+
+@router.post("/upload-fcc-dict/", status_code=status.HTTP_202_ACCEPTED)
 async def upload_fcc_dict(
     file: UploadFile = File(...),
     user: dict[str, Any] = Depends(AuthDependency("authorized")),
@@ -87,7 +98,8 @@ async def upload_fcc_dict(
     except Exception as e:
         logger.error(f"Failed to upload FCC dictionary: {e}")
         raise HTTPException(
-            status_code=500, detail=f"Failed to import FCC dictionary: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to import FCC dictionary: {str(e)}",
         )
 
 
@@ -110,7 +122,8 @@ async def execute_gclql_query(
         # Validate sort_order parameter
         if sort_order.lower() not in ["asc", "desc"]:
             raise HTTPException(
-                status_code=400, detail="sort_order must be 'asc' or 'desc'"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be 'asc' or 'desc'",
             )
 
         logger.debug("QUERY_STRING: %s", q)
@@ -129,7 +142,9 @@ async def execute_gclql_query(
 
     except ValueError as e:
         logger.error("Invalid query", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Invalid query: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid query: {e}"
+        )
 
 
 @router.post("/entities/", response_model=list[dict[str, Any]])
@@ -172,7 +187,8 @@ async def download_filtered_entities(
         # Validate sort_order parameter
         if sort_order.lower() not in ["asc", "desc"]:
             raise HTTPException(
-                status_code=400, detail="sort_order must be 'asc' or 'desc'"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="sort_order must be 'asc' or 'desc'",
             )
 
         logger.debug("DOWNLOAD_QUERY_STRING: %s", q)
@@ -195,7 +211,9 @@ async def download_filtered_entities(
 
     except ValueError as e:
         logger.error("Invalid download query", exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Invalid query: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid query: {e}"
+        )
 
 
 @router.get("/entities/{entity_id}", response_model=dict[str, Any])
@@ -207,11 +225,12 @@ async def get_entity_by_id(entity_id: int) -> Any:
         entity = await database.get_entity_by_id(entity_id)
         if not entity:
             raise HTTPException(
-                status_code=404, detail=f"Entity with ID {entity_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Entity with ID {entity_id} not found",
             )
         return entity
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.put("/entities/{entity_id}", response_model=dict[str, Any])
@@ -226,21 +245,22 @@ async def update_entity(
     Requires authentication via session cookie.
     """
     try:
-        # logger.info(
-        #     f"User {user.get('preferred_username', 'unknown')} updating entity {entity_id}."
-        # )
+        logger.info(
+            f"User {user.get('preferred_username', 'unknown')} updating entity {entity_id}."
+        )
 
         update_dict = update_data.model_dump(exclude_none=True)
 
         if not update_dict:
             raise HTTPException(
-                status_code=400, detail="No valid fields provided for update"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No valid fields provided for update",
             )
 
         updated_entity = await database.update_entity(entity_id, update_dict)
         return updated_entity
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 class MetadataLockRequest(BaseModel):
@@ -271,7 +291,8 @@ async def update_metadata_lock(
         current_entity = await database.get_entity_by_id(entity_id)
         if not current_entity:
             raise HTTPException(
-                status_code=404, detail=f"Entity with ID {entity_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Entity with ID {entity_id} not found",
             )
 
         # Get current metadata or initialize empty dict
@@ -335,10 +356,13 @@ async def update_metadata_lock(
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error updating metadata lock: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
 
 
 @router.delete("/entities/", response_model=dict[str, Any])
@@ -365,14 +389,15 @@ async def delete_entities(
 
         if not request.entity_ids:
             raise HTTPException(
-                status_code=400, detail="No entity IDs provided for deletion"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No entity IDs provided for deletion",
             )
 
         # Validate entity IDs are positive integers
         invalid_ids = [entity_id for entity_id in request.entity_ids if entity_id <= 0]
         if invalid_ids:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid entity IDs (must be positive integers): {invalid_ids}",
             )
 
@@ -392,11 +417,46 @@ async def delete_entities(
     except ValueError as e:
         # Handle business logic errors (like foreign key constraints)
         logger.error(f"Business logic error during entity deletion: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error during entity deletion: {e}")
         raise HTTPException(
-            status_code=500, detail="Internal server error occurred during deletion"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error occurred during deletion",
+        )
+
+
+@router.post("/search")
+async def search_datasets_generic(request: SearchRequest) -> Any:
+    """
+    Generic search endpoint that works with any database schema.
+    Automatically handles joins based on schema discovery.
+    """
+    try:
+        config = get_config()
+        main_table = config["application"]["main_table"]
+
+        async with database.session() as conn:
+            schema_discovery = await get_schema_discovery(conn)
+            navigation_analysis = await schema_discovery.analyze_navigation_structure(
+                main_table
+            )
+
+            # Use the database method instead of direct SQL
+            result = await database.search_datasets_generic(
+                main_table,
+                navigation_analysis,
+                request.filters,
+                request.search,
+                request.page,
+                request.limit,
+            )
+            return result
+
+    except Exception as e:
+        logger.error(f"Failed to perform generic search: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Search failed"
         )
 
 

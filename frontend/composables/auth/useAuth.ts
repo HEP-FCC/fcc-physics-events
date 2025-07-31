@@ -48,7 +48,7 @@ export function useAuth() {
         authState.value.isLoading = true;
         authState.value.error = null;
 
-        console.log("TEST:", authState.value)
+        console.log("TEST:", authState.value);
 
         try {
             const sessionData = await getSessionStatus();
@@ -163,7 +163,7 @@ export function useAuth() {
 
         try {
             const refreshSuccess = await manualRefreshToken();
-            
+
             if (refreshSuccess) {
                 // Token refreshed successfully, update auth state
                 await checkAuthStatus();

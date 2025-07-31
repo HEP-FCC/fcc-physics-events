@@ -2,7 +2,7 @@
  * Dynamic App Configuration Composable
  *
  * Fetches and provides dynamic application configuration from the backend
- * /api/schema endpoint, allowing the frontend to adapt to different schemas
+ * /schema endpoint, allowing the frontend to adapt to different schemas
  * and configurations without hardcoding entity names or app titles.
  */
 
