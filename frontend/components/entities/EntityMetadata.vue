@@ -17,14 +17,27 @@
                 </div>
                 <div class="flex gap-2">
                     <UButton
-                        icon="i-heroicons-check"
-                        class="text-white bg-eco-600 hover:bg-eco-700 border-eco-600 hover:border-eco-700"
                         variant="solid"
                         size="sm"
-                        :disabled="!isAuthenticated"
+                        :class="['text-white bg-eco-600 hover:bg-eco-700 border-eco-600 hover:border-eco-700']"
+                        :disabled="!isAuthenticated || props.editState?.isSaving"
                         @click="saveMetadata"
                     >
-                        {{ isAuthenticated ? "Save Changes" : "Login Required" }}
+                        <template #leading>
+                            <UIcon
+                                v-if="props.editState?.isSaving"
+                                name="i-heroicons-arrow-path-20-solid"
+                                class="animate-spin"
+                            />
+                            <UIcon v-else name="i-heroicons-check" />
+                        </template>
+                        {{
+                            props.editState?.isSaving
+                                ? "Saving..."
+                                : isAuthenticated
+                                ? "Save Changes"
+                                : "Login Required"
+                        }}
                     </UButton>
                     <UButton
                         icon="i-heroicons-x-mark"
@@ -236,7 +249,6 @@
 
 <script setup lang="ts">
 import type { MetadataEditState } from "~/types/api";
-import { parseApiError } from "~/utils/errorHandling";
 // Auto-imported: useAppConfiguration
 import { getSemanticColor, getThemeColor, type SemanticColorKey } from "~/config/colors";
 import { reduceEachLeadingCommentRange } from "typescript";
@@ -462,12 +474,11 @@ const toggleFieldLock = async (fieldName: string): Promise<void> => {
     } catch (error) {
         console.error("Failed to toggle field lock:", error);
 
-        // Clear pending change and show error
+        // Clear pending change - error interceptor will handle user notification
         pendingLockChanges.value.delete(fieldName);
 
-        // Parse the error and show appropriate message
-        const errorToast = parseApiError(error);
-        toast.add(errorToast);
+        // Re-throw so error interceptor can handle it
+        throw error;
     }
 };
 

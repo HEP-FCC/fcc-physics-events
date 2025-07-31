@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
 from app.utils import get_config, get_logger
+from app.utils.errors import server_error
 
 logger = get_logger(__name__)
 
@@ -75,7 +76,6 @@ async def get_database_schema() -> Any:
     that allows the frontend to work with any database schema.
     """
     try:
-        config = get_config()
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
@@ -132,9 +132,8 @@ async def get_database_schema() -> Any:
 
     except Exception as e:
         logger.error(f"Failed to get database schema: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve database schema",
+        raise server_error(
+            error_type="schema_error", message="Failed to retrieve database schema"
         )
 
 

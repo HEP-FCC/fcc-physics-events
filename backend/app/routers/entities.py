@@ -23,6 +23,7 @@ from app.models.generic import GenericEntityUpdate
 from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
 from app.utils import get_config, get_logger
+from app.utils.errors import not_found_error, server_error, validation_error
 
 logger = get_logger(__name__)
 
@@ -97,9 +98,9 @@ async def upload_fcc_dict(
 
     except Exception as e:
         logger.error(f"Failed to upload FCC dictionary: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to import FCC dictionary: {str(e)}",
+        raise server_error(
+            error_type="upload_failed",
+            message=f"Failed to import FCC dictionary: {str(e)}",
         )
 
 
@@ -121,9 +122,9 @@ async def execute_gclql_query(
     try:
         # Validate sort_order parameter
         if sort_order.lower() not in ["asc", "desc"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="sort_order must be 'asc' or 'desc'",
+            raise validation_error(
+                error_type="invalid_sort_order",
+                message="sort_order must be 'asc' or 'desc'",
             )
 
         logger.debug("QUERY_STRING: %s", q)
@@ -142,8 +143,8 @@ async def execute_gclql_query(
 
     except ValueError as e:
         logger.error("Invalid query", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid query: {e}"
+        raise validation_error(
+            error_type="invalid_query", message=f"Invalid query: {e}"
         )
 
 
@@ -186,9 +187,9 @@ async def download_filtered_entities(
     try:
         # Validate sort_order parameter
         if sort_order.lower() not in ["asc", "desc"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="sort_order must be 'asc' or 'desc'",
+            raise validation_error(
+                error_type="invalid_sort_order",
+                message="sort_order must be 'asc' or 'desc'",
             )
 
         logger.debug("DOWNLOAD_QUERY_STRING: %s", q)
@@ -211,8 +212,8 @@ async def download_filtered_entities(
 
     except ValueError as e:
         logger.error("Invalid download query", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid query: {e}"
+        raise validation_error(
+            error_type="invalid_query", message=f"Invalid query: {e}"
         )
 
 
@@ -224,13 +225,13 @@ async def get_entity_by_id(entity_id: int) -> Any:
     try:
         entity = await database.get_entity_by_id(entity_id)
         if not entity:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Entity with ID {entity_id} not found",
+            raise not_found_error(
+                error_type="entity_not_found",
+                message=f"Entity with ID {entity_id} not found",
             )
         return entity
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise validation_error(error_type="invalid_entity_id", message=str(e))
 
 
 @router.put("/entities/{entity_id}", response_model=dict[str, Any])

@@ -184,6 +184,7 @@ export interface MetadataEditState {
     json: string;
     editedJson: string;
     originalMetadata?: Record<string, unknown>;
+    isSaving?: boolean;
 }
 
 /**

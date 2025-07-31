@@ -95,14 +95,27 @@ async def log_requests(
 
 
 @app.exception_handler(Exception)
-async def validation_exception_handler(request: Request, _: Exception) -> JSONResponse:
-    """Catch all unhandled exceptions and return a 500 response."""
+async def validation_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """Catch all unhandled exceptions and return a standardized 500 response."""
     logger.error(
         f"Unhandled exception for {request.method} {request.url}", exc_info=True
     )
+
+    # Create standardized error response
+    error_response = {
+        "message": "An internal server error occurred. Please try again later.",
+        "status": 500,
+        "details": {
+            "error": "internal_error",
+            "message": f"Unhandled exception: {str(exc)}",
+        },
+    }
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "An internal server error occurred."},
+        content=error_response,
     )
 
 

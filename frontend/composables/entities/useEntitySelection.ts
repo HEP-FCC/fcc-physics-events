@@ -37,7 +37,7 @@ export function useEntitySelection() {
     const expandedMetadataVersion = ref(0);
 
     // Metadata editing state - per-entity editing context
-    const metadataEditState = shallowReactive<Record<number, MetadataEditState>>({});
+    const metadataEditState = reactive<Record<number, MetadataEditState>>({});
 
     // Computed properties for better reactivity
     const selectedCount = computed(() => {
@@ -186,6 +186,8 @@ export function useEntitySelection() {
             }
         } catch (error) {
             console.error("Failed to download entities:", error);
+            // Error interceptor will handle user notification
+            throw error;
         } finally {
             selectionState.isDownloading = false;
         }
@@ -205,6 +207,8 @@ export function useEntitySelection() {
             }
         } catch (error) {
             console.error("Failed to download filtered entities:", error);
+            // Error interceptor will handle user notification
+            throw error;
         } finally {
             isDownloadingFiltered.value = false;
         }
@@ -243,7 +247,6 @@ export function useEntitySelection() {
                 });
                 return;
             }
-
 
             // Extract entity IDs
             const entityIds = extractEntityIds(filteredEntities);
@@ -286,16 +289,7 @@ export function useEntitySelection() {
             }
         } catch (error: unknown) {
             console.error("Failed to delete filtered entities:", error);
-
-            // Use the improved error handling utility
-            const { parseApiError } = await import("~/utils/errorHandling");
-            const errorToast = parseApiError(error);
-
-            toast.add({
-                title: errorToast.title,
-                description: errorToast.description,
-                color: errorToast.color,
-            });
+            // Error interceptor will handle user notification
         } finally {
             isDownloadingFiltered.value = false;
         }
@@ -338,6 +332,7 @@ export function useEntitySelection() {
             json: JSON.stringify(metadata, null, 2),
             editedJson: JSON.stringify(metadata, null, 2),
             originalMetadata: metadata,
+            isSaving: false,
         };
     }
 
@@ -393,6 +388,9 @@ export function useEntitySelection() {
         }
 
         try {
+            // Set saving state
+            editState.isSaving = true;
+
             // Use the edited JSON if provided, otherwise fall back to the edit state JSON
             const jsonToSave = editedJson || editState.editedJson;
             const parsedMetadata = JSON.parse(jsonToSave);
@@ -424,24 +422,22 @@ export function useEntitySelection() {
             }
         } catch (error: unknown) {
             if (apiAvailable.value) {
-                // Use the improved error handling utility
-                const { parseApiError } = await import("~/utils/errorHandling");
-                const errorToast = parseApiError(error);
-
-                toast.add({
-                    title: errorToast.title,
-                    description: errorToast.description,
-                    color: errorToast.color,
-                });
-
                 console.error("Failed to save metadata:", error);
+
+                // Rethrow the error so error interceptor can handle it
+                throw error;
             } else {
-                // API not available
+                // API not available - show specific error
                 toast.add({
                     title: "API Unavailable",
                     description: "Cannot save metadata - API server is not responding.",
                     color: "error",
                 });
+            }
+        } finally {
+            // Clear saving state
+            if (editState) {
+                editState.isSaving = false;
             }
         }
     }
@@ -544,19 +540,18 @@ export function useEntitySelection() {
             }
         } catch (error: unknown) {
             console.error("Failed to delete entities:", error);
-
-            // Use the improved error handling utility
-            const { parseApiError } = await import("~/utils/errorHandling");
-            const errorToast = parseApiError(error);
-
-            toast.add({
-                title: errorToast.title,
-                description: errorToast.description,
-                color: errorToast.color,
-            });
+            // Error interceptor will handle user notification
         } finally {
             selectionState.isDownloading = false;
         }
+    }
+
+    /**
+     * Check if metadata is currently being saved for an entity
+     */
+    function isMetadataSaving(entityId: number): boolean {
+        const editState = metadataEditState[entityId];
+        return editState?.isSaving ?? false;
     }
 
     return {
@@ -580,6 +575,7 @@ export function useEntitySelection() {
         clearMetadataExpansions,
         isEntitySelected,
         isMetadataExpanded,
+        isMetadataSaving,
         downloadSelectedEntities,
         downloadAllFilteredEntities,
         handleRowClick,

@@ -14,6 +14,7 @@ from app.auth import (
 )
 from app.storage.database import Database
 from app.utils import get_config, get_logger
+from app.utils.errors import ErrorTypes, server_error, unauthenticated_error
 
 logger = get_logger(__name__)
 config = get_config()
@@ -83,13 +84,9 @@ async def refresh_auth_token(request: Request, response: Response) -> JSONRespon
             logger.debug("Successfully extracted refresh token from cookies")
         except Exception as e:
             logger.info(f"No valid refresh token found in cookies: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "error": "no_refresh_token",
-                    "message": "No refresh token available. Please re-authenticate.",
-                },
-                headers={"WWW-Authenticate": "Bearer"},
+            raise unauthenticated_error(
+                error_type=ErrorTypes.NO_REFRESH_TOKEN,
+                message="No refresh token available. Please re-authenticate.",
             )
 
         # Step 2: Attempt token refresh with CERN OIDC
@@ -145,13 +142,9 @@ async def refresh_auth_token(request: Request, response: Response) -> JSONRespon
         response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-refresh-token")
         response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-id-token")
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "error": "refresh_failed",
-                "message": "Token refresh failed. Please re-authenticate.",
-            },
-            headers={"WWW-Authenticate": "Bearer"},
+        raise unauthenticated_error(
+            error_type=ErrorTypes.REFRESH_FAILED,
+            message="Token refresh failed. Please re-authenticate.",
         )
 
     except HTTPException:
@@ -167,12 +160,9 @@ async def refresh_auth_token(request: Request, response: Response) -> JSONRespon
         response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-refresh-token")
         response.delete_cookie(f"{AUTH_COOKIE_PREFIX}-id-token")
 
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={
-                "error": "internal_error",
-                "message": "An unexpected error occurred during token refresh.",
-            },
+        raise server_error(
+            error_type=ErrorTypes.INTERNAL_ERROR,
+            message="An unexpected error occurred during token refresh.",
         )
 
 
