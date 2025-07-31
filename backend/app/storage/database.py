@@ -313,7 +313,15 @@ class Database:
                                     path_parts[8] if len(path_parts) > 8 else None
                                 )
 
-                                # Only create entities if the names are valid (not None or empty)
+                                # Create entities sequentially for better reliability
+
+                                # Initialize result variables
+                                accelerator_id = None
+                                stage_id = None
+                                campaign_id = None
+                                detector_id = None
+
+                                # Create entities sequentially
                                 if accelerator_name and accelerator_name.strip():
                                     accelerator_id = await self._get_or_create_entity(
                                         conn,
@@ -338,6 +346,7 @@ class Database:
                                         name=campaign_name.strip(),
                                     )
 
+                                # Create detector after accelerator (depends on accelerator_id)
                                 if (
                                     detector_name
                                     and detector_name.strip()
@@ -350,7 +359,6 @@ class Database:
                                         name=detector_name.strip(),
                                         accelerator_id=accelerator_id,
                                     )
-
                             except (IndexError, AttributeError) as e:
                                 logger.warning(
                                     f"Could not parse path components for {dataset_name}: {e}. "
@@ -919,140 +927,139 @@ class Database:
         config = get_config()
         main_table = config["application"]["main_table"]
 
+        # Execute all queries sequentially for better reliability
         async with self.session() as conn:
-            # Get dataset table columns
-            dataset_columns_query = f"""
-                SELECT column_name, data_type
-                FROM information_schema.columns
-                WHERE table_name = '{main_table}'
-                AND table_schema = 'public'
-                ORDER BY ordinal_position
-            """
-            dataset_columns = await conn.fetch(dataset_columns_query)
+            try:
+                # Execute queries one by one to avoid connection conflicts
+                dataset_columns = await conn.fetch(f"""
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_name = '{main_table}'
+                    AND table_schema = 'public'
+                    ORDER BY ordinal_position
+                """)
 
-            # Get foreign key relationships from main table
-            foreign_keys_query = f"""
-                SELECT
-                    kcu.column_name,
-                    ccu.table_name AS foreign_table_name,
-                    ccu.column_name AS foreign_column_name
-                FROM information_schema.table_constraints AS tc
-                JOIN information_schema.key_column_usage AS kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                    AND tc.table_schema = kcu.table_schema
-                JOIN information_schema.constraint_column_usage AS ccu
-                    ON ccu.constraint_name = tc.constraint_name
-                    AND ccu.table_schema = tc.table_schema
-                WHERE tc.constraint_type = 'FOREIGN KEY'
-                AND tc.table_name = '{main_table}'
-                AND tc.table_schema = 'public'
-            """
-            foreign_keys = await conn.fetch(foreign_keys_query)
-
-            # Get common metadata fields by analyzing actual data
-            metadata_fields_query = f"""
-                SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
-                FROM {main_table}
-                WHERE metadata IS NOT NULL
-                AND metadata != 'null'::jsonb
-                ORDER BY metadata_key
-            """
-            metadata_keys = await conn.fetch(metadata_fields_query)
-
-            # Get nested metadata fields (one level deep)
-            nested_metadata_query = f"""
-                SELECT DISTINCT
-                    parent_key || '.' || child_key as nested_key
-                FROM (
+                foreign_keys = await conn.fetch(f"""
                     SELECT
-                        parent_key,
-                        jsonb_object_keys(parent_value) as child_key
+                        kcu.column_name,
+                        ccu.table_name AS foreign_table_name,
+                        ccu.column_name AS foreign_column_name
+                    FROM information_schema.table_constraints AS tc
+                    JOIN information_schema.key_column_usage AS kcu
+                        ON tc.constraint_name = kcu.constraint_name
+                        AND tc.table_schema = kcu.table_schema
+                    JOIN information_schema.constraint_column_usage AS ccu
+                        ON ccu.constraint_name = tc.constraint_name
+                        AND ccu.table_schema = tc.table_schema
+                    WHERE tc.constraint_type = 'FOREIGN KEY'
+                    AND tc.table_name = '{main_table}'
+                    AND tc.table_schema = 'public'
+                """)
+
+                metadata_keys = await conn.fetch(f"""
+                    SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
+                    FROM {main_table}
+                    WHERE metadata IS NOT NULL
+                    AND metadata != 'null'::jsonb
+                    ORDER BY metadata_key
+                """)
+
+                nested_metadata_keys = await conn.fetch(f"""
+                    SELECT DISTINCT
+                        parent_key || '.' || child_key as nested_key
                     FROM (
                         SELECT
-                            key as parent_key,
-                            value as parent_value
-                        FROM {main_table}, jsonb_each(metadata)
-                        WHERE metadata IS NOT NULL
-                        AND metadata != 'null'::jsonb
-                        AND jsonb_typeof(value) = 'object'
-                    ) nested_objects
-                ) nested_keys
-                ORDER BY nested_key
-            """
-            nested_metadata_keys = await conn.fetch(nested_metadata_query)
+                            parent_key,
+                            jsonb_object_keys(parent_value) as child_key
+                        FROM (
+                            SELECT
+                                key as parent_key,
+                                value as parent_value
+                            FROM {main_table}, jsonb_each(metadata)
+                            WHERE metadata IS NOT NULL
+                            AND metadata != 'null'::jsonb
+                            AND jsonb_typeof(value) = 'object'
+                        ) nested_objects
+                    ) nested_keys
+                    ORDER BY nested_key
+                """)
 
-            # Build the dataset fields (excluding foreign keys and metadata)
-            dataset_fields = []
-            foreign_key_columns = set()
+            except Exception as e:
+                logger.error(f"Failed to execute schema discovery queries: {e}")
+                raise
 
-            # First, collect all foreign key column names
-            for fk in foreign_keys:
-                foreign_key_columns.add(fk["column_name"])
+        # Build the dataset fields (excluding foreign keys and metadata)
+        dataset_fields = []
+        foreign_key_columns = set()
 
-            # Now filter dataset columns
-            for col in dataset_columns:
-                col_name = col["column_name"]
-                if col_name in foreign_key_columns:
-                    # This is a foreign key column, skip it
-                    continue
-                elif col_name == "metadata":
-                    # Skip metadata column
-                    continue
-                else:
-                    # This is a regular dataset field
-                    dataset_fields.append(col_name)
+        # First, collect all foreign key column names
+        for fk in foreign_keys:
+            foreign_key_columns.add(fk["column_name"])
 
-            # Build joined fields list dynamically from foreign key relationships
-            joined_fields = []
-            for fk in foreign_keys:
-                fk_column = fk["column_name"]
+        # Now filter dataset columns
+        for col in dataset_columns:
+            col_name = col["column_name"]
+            if col_name in foreign_key_columns:
+                # This is a foreign key column, skip it
+                continue
+            elif col_name == "metadata":
+                # Skip metadata column
+                continue
+            else:
+                # This is a regular dataset field
+                dataset_fields.append(col_name)
 
-                # Convert foreign key column name to corresponding joined field name
-                # e.g., accelerator_id -> accelerator_name
-                if fk_column.endswith("_id"):
-                    base_name = fk_column[:-3]  # Remove '_id' suffix
-                    joined_field_name = f"{base_name}_name"
-                    joined_fields.append(joined_field_name)
+        # Build joined fields list dynamically from foreign key relationships
+        joined_fields = []
+        for fk in foreign_keys:
+            fk_column = fk["column_name"]
 
-            # Build metadata fields list - now include both prefixed and non-prefixed versions
-            metadata_fields = []
-            for row in metadata_keys:
-                field_name = row["metadata_key"]
-                # Add both the new simplified syntax and the old explicit syntax for backward compatibility
-                metadata_fields.append(
-                    field_name
-                )  # New: simplified syntax (e.g., "status")
-                metadata_fields.append(
-                    f"metadata.{field_name}"
-                )  # Old: explicit syntax (e.g., "metadata.status")
+            # Convert foreign key column name to corresponding joined field name
+            # e.g., accelerator_id -> accelerator_name
+            if fk_column.endswith("_id"):
+                base_name = fk_column[:-3]  # Remove '_id' suffix
+                joined_field_name = f"{base_name}_name"
+                joined_fields.append(joined_field_name)
 
-            # Build nested metadata fields list - include both prefixed and non-prefixed versions
-            nested_fields = []
-            for row in nested_metadata_keys:
-                field_name = row["nested_key"]
-                # Add both the new simplified syntax and the old explicit syntax for backward compatibility
-                nested_fields.append(
-                    field_name
-                )  # New: simplified syntax (e.g., "config.version")
-                nested_fields.append(
-                    f"metadata.{field_name}"
-                )  # Old: explicit syntax (e.g., "metadata.config.version")
+        # Build metadata fields list - now include both prefixed and non-prefixed versions
+        metadata_fields = []
+        for row in metadata_keys:
+            field_name = row["metadata_key"]
+            # Add both the new simplified syntax and the old explicit syntax for backward compatibility
+            metadata_fields.append(
+                field_name
+            )  # New: simplified syntax (e.g., "status")
+            metadata_fields.append(
+                f"metadata.{field_name}"
+            )  # Old: explicit syntax (e.g., "metadata.status")
 
-            # Combine all fields into a single flat list
-            all_fields = []
-            all_fields.extend(dataset_fields)
-            all_fields.extend(joined_fields)
-            all_fields.extend(metadata_fields)
-            all_fields.extend(nested_fields)
+        # Build nested metadata fields list - include both prefixed and non-prefixed versions
+        nested_fields = []
+        for row in nested_metadata_keys:
+            field_name = row["nested_key"]
+            # Add both the new simplified syntax and the old explicit syntax for backward compatibility
+            nested_fields.append(
+                field_name
+            )  # New: simplified syntax (e.g., "config.version")
+            nested_fields.append(
+                f"metadata.{field_name}"
+            )  # Old: explicit syntax (e.g., "metadata.config.version")
 
-            # Sort alphabetically for better UX
-            all_fields.sort()
+        # Combine all fields into a single flat list
+        all_fields = []
+        all_fields.extend(dataset_fields)
+        all_fields.extend(joined_fields)
+        all_fields.extend(metadata_fields)
+        all_fields.extend(nested_fields)
 
-            return {
-                "fields": all_fields,
-                "count": len(all_fields),
-                "info": "All available fields for sorting. Metadata fields can be used with or without 'metadata.' prefix (e.g., 'status' or 'metadata.status').",
-            }
+        # Sort alphabetically for better UX
+        all_fields.sort()
+
+        return {
+            "fields": all_fields,
+            "count": len(all_fields),
+            "info": "All available fields for sorting. Metadata fields can be used with or without 'metadata.' prefix (e.g., 'status' or 'metadata.status').",
+        }
 
     async def perform_search(
         self,
@@ -1063,13 +1070,22 @@ class Database:
         offset: int,
     ) -> dict[str, Any]:
         async with self.session() as conn:
-            total_records = await conn.fetchval(count_query, *params) or 0
+            # Execute count and records queries sequentially to avoid connection conflicts
+            # The performance difference is minimal for these quick queries
+            try:
+                # Get total count first
+                total_records_result = await conn.fetchval(count_query, *params)
+                total_records = total_records_result or 0
 
-            # Get the batch of results for infinite scroll
-            batch_query = (
-                f"{search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
-            )
-            records = await conn.fetch(batch_query, *params, limit, offset)
+                # Then get the records
+                records = await conn.fetch(
+                    f"{search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}",
+                    *params, limit, offset
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to execute search queries: {e}")
+                raise
 
             # Convert records to dictionaries and parse JSON metadata
             items = []

@@ -61,6 +61,7 @@ class CERNAuthenticator:
             return result
 
     async def get_jwks_keys(self) -> dict[str, Any]:
+        # First fetch OIDC config, then use it to fetch JWKS keys
         oidc_config = await self._fetch_with_retry(CERN_OIDC_URL)
         return await self._fetch_with_retry(oidc_config["jwks_uri"])
 
@@ -330,18 +331,21 @@ def set_auth_cookies(
         key=f"{AUTH_COOKIE_PREFIX}-access-token",
         value=access_token_jwt,
         max_age=max_age,
+        httponly=True,
     )
 
     response.set_cookie(
         key=f"{AUTH_COOKIE_PREFIX}-refresh-token",
         value=refresh_token_jwt,
         max_age=max_age,
+        httponly=True,
     )
 
     response.set_cookie(
         key=f"{AUTH_COOKIE_PREFIX}-id-token",
         value=id_token_jwt,
         max_age=max_age,
+        httponly=True,
     )
 
 

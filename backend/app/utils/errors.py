@@ -3,6 +3,8 @@ Standardized Error Handling for FCC Physics Events Backend
 Provides consistent error response formats matching frontend expectations
 """
 
+from typing import Any
+
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 
@@ -88,7 +90,7 @@ def create_standard_http_exception(
     Returns:
         HTTPException with standardized error format
     """
-    detail = {
+    detail: dict[str, Any] = {
         "message": user_message,
         "status": status_code,
         "details": {
@@ -98,14 +100,15 @@ def create_standard_http_exception(
     }
 
     # Add optional fields if provided
+    details: dict[str, Any] = detail["details"]
     if code:
-        detail["details"]["code"] = code
+        details["code"] = code
     if retry_after:
-        detail["details"]["retry_after"] = retry_after
+        details["retry_after"] = retry_after
     if required_role:
-        detail["details"]["required_role"] = required_role
+        details["required_role"] = required_role
     if validation_errors:
-        detail["details"]["validation_errors"] = validation_errors
+        details["validation_errors"] = validation_errors
 
     return HTTPException(status_code=status_code, detail=detail, headers=headers)
 

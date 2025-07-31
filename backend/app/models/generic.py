@@ -112,13 +112,13 @@ def create_dynamic_entity_model(
     """
 
     # Start with base fields
-    fields = {
+    fields: dict[str, Any] = {
         primary_key: (int, ...),  # Primary key is required
         "name": (str, ...),  # Name is required for all entities
     }
 
     # Add optional fields for common columns
-    common_optional_fields = {
+    common_optional_fields: dict[str, Any] = {
         "created_at": (datetime.datetime | None, None),
         "updated_at": (datetime.datetime | None, None),
         "last_edited_at": (datetime.datetime | None, None),
@@ -169,7 +169,7 @@ def create_dynamic_entity_with_details_model(
     base_model = create_dynamic_entity_model(table_name, primary_key, columns)
 
     # Add navigation entity name fields
-    navigation_fields = {}
+    navigation_fields: dict[str, Any] = {}
     for entity_type in navigation_tables:
         field_name = f"{entity_type}_name"
         navigation_fields[field_name] = (str | None, None)

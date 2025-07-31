@@ -32,11 +32,13 @@ query_parser = QueryParser(database=database)
 async def lifespan(_: FastAPI) -> Any:
     """Handles application startup and shutdown events."""
     setup_logging()
-    await database.setup(config.get("database"))
-    await query_parser.setup()
 
-    # Load CERN OIDC endpoints at startup
+    # Run startup tasks sequentially for better reliability
+    await database.setup(config.get("database"))
     await load_cern_endpoints()
+
+    # Query parser setup depends on database being ready
+    await query_parser.setup()
 
     yield
     await database.aclose()

@@ -242,7 +242,7 @@ async def get_session_status(request: Request) -> JSONResponse:
     except Exception as e:
         error_message = f"""Failed to parse and validate required auth cookies.
             Most likely user is not authenticated so we are returning status code 200: {e}"""
-        logger.error(error_message)
+        logger.warning(error_message)
         return JSONResponse(
             content={"authenticated": False, "user": None},
             status_code=status.HTTP_200_OK,

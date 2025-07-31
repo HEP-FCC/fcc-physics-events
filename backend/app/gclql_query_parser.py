@@ -506,8 +506,19 @@ class QueryParser:
         self.entity_aliases: dict[str, str] = {}  # Store entity_key -> alias mapping
 
     async def setup(self) -> None:
-        self.schema_mapping = await self.database.generate_schema_mapping()
-        self.available_metadata_fields = await self._fetch_available_metadata_fields()
+        # Execute setup tasks sequentially for better reliability
+        try:
+            # Get schema mapping first
+            self.schema_mapping = await self.database.generate_schema_mapping()
+
+            # Then get metadata fields
+            self.available_metadata_fields = (
+                await self._fetch_available_metadata_fields()
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to setup query parser: {e}")
+            raise
 
         # Get navigation structure analysis to build dynamic JOINs
         from app.schema_discovery import get_schema_discovery
@@ -525,9 +536,10 @@ class QueryParser:
 
     async def _fetch_available_metadata_fields(self) -> set[str]:
         """Fetch all available metadata field names from the database."""
+        config = get_config()
         main_table = config["application"]["main_table"]
 
-        async with self.database.session() as conn:
+        try:
             # Get top-level metadata fields
             metadata_query = f"""
                 SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
@@ -558,9 +570,16 @@ class QueryParser:
                 ORDER BY nested_key
             """
 
+            # Run both metadata queries concurrently using separate database sessions
+            # We need separate sessions here because we're making independent database calls
             try:
-                metadata_keys = await conn.fetch(metadata_query)
-                nested_keys = await conn.fetch(nested_metadata_query)
+                # Execute queries sequentially using a single session
+                async with self.database.session() as conn:
+                    # Get metadata keys first
+                    metadata_keys = await conn.fetch(metadata_query)
+
+                    # Then get nested keys
+                    nested_keys = await conn.fetch(nested_metadata_query)
 
                 # Combine all metadata field names
                 all_fields = set()
@@ -579,8 +598,16 @@ class QueryParser:
                 return all_fields
 
             except Exception as e:
-                logger.error(f"Failed to fetch metadata fields: {e}")
+                # Handle any errors
+                logger.error(
+                    f"Failed to fetch metadata fields: {type(e).__name__}: {e}"
+                )
                 return set()
+
+        except Exception as e:
+            # Handle regular exceptions
+            logger.error(f"Failed to fetch metadata fields: {e}")
+            return set()
 
     def _build_dynamic_joins(self) -> None:
         """Build FROM and JOIN clauses dynamically based on schema analysis."""
