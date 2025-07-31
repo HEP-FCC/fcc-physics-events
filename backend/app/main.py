@@ -12,6 +12,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, Response
 
+from app.auth import load_cern_endpoints
 from app.gclql_query_parser import QueryParser
 from app.routers import api as api_router
 from app.routers import auth as auth_router
@@ -33,6 +34,10 @@ async def lifespan(_: FastAPI) -> Any:
     setup_logging()
     await database.setup(config.get("database"))
     await query_parser.setup()
+
+    # Load CERN OIDC endpoints at startup
+    await load_cern_endpoints()
+
     yield
     await database.aclose()
 
@@ -51,6 +56,7 @@ app.add_middleware(
     same_site="lax",
     max_age=3600,
     session_cookie="fcc-physics-events-web",
+    domain=None,  # Allow cookies to work on localhost and other domains
 )
 
 app.add_middleware(

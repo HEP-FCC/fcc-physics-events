@@ -6,11 +6,10 @@ Handles dynamic schema discovery, dropdown data, search, import, and validation.
 import json
 from typing import Any
 
-import jwt
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from app.auth import cern_auth
+from app.auth import AuthDependency
 from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
 from app.utils import get_config, get_logger
@@ -22,82 +21,13 @@ router = APIRouter(prefix="/api", tags=["schema-api"])
 # This will be injected from main.py
 database: Database
 
+config = get_config()
+
 
 def init_dependencies(db: Database) -> None:
     """Initialize dependencies for this router."""
     global database
     database = db
-
-
-async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]:
-    """Get current user from session cookie with CERN validation."""
-    try:
-        # Check if session has auth info
-        token = request.session.get("token")
-        user = request.session.get("user")
-
-        if not token or not user:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": "missing_token",
-                    "message": "Authentication required. Please login.",
-                },
-            )
-
-        # Validate the token with CERN
-        try:
-            decoded_token = cern_auth.jwt_decode_token(token)
-            user_data = await cern_auth.validate_user_from_token(decoded_token)
-            return user_data
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": "token_expired",
-                    "message": "Your session has expired. Please login again.",
-                },
-            )
-        except jwt.InvalidTokenError:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": "invalid_token",
-                    "message": "Invalid authentication token. Please login again.",
-                },
-            )
-        except Exception as e:
-            # Handle CERN introspection errors (token no longer active, etc.)
-            if "no longer active" in str(e).lower():
-                raise HTTPException(
-                    status_code=401,
-                    detail={
-                        "error": "token_expired",
-                        "message": "Your session has expired. Please login again.",
-                    },
-                )
-            else:
-                logger.error(f"Token validation error: {e}")
-                raise HTTPException(
-                    status_code=401,
-                    detail={
-                        "error": "validation_failed",
-                        "message": "Session validation failed. Please login again.",
-                    },
-                )
-
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error during session validation: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error": "session_error",
-                "message": "Session validation failed. Please login again.",
-            },
-        )
 
 
 class SearchRequest(BaseModel):
@@ -302,7 +232,7 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
 async def import_data_generic(
     table_key: str,
     _data: dict[str, Any],
-    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+    user: dict[str, Any] = Depends(AuthDependency("authorized")),
 ) -> Any:
     """
     Generic data import endpoint that works with any table based on schema discovery.

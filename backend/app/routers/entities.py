@@ -5,11 +5,18 @@ Handles CRUD operations for datasets and related entities.
 
 from typing import Any
 
-import jwt
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from pydantic import BaseModel
 
-from app.auth import cern_auth
+from app.auth import AuthDependency
 from app.gclql_query_parser import QueryParser
 from app.models.generic import GenericEntityUpdate
 from app.storage.database import Database
@@ -24,7 +31,6 @@ database: Database
 query_parser: QueryParser
 
 config = get_config()
-AUTHORIZED_ROLE = config.get("general.REQUIRED_CERN_ROLE", "authorized")
 
 
 def init_dependencies(db: Database, qp: QueryParser) -> None:
@@ -32,122 +38,6 @@ def init_dependencies(db: Database, qp: QueryParser) -> None:
     global database, query_parser
     database = db
     query_parser = qp
-
-
-async def get_and_validate_user_from_session(request: Request) -> dict[str, Any]:
-    """Get current user from session cookie with CERN validation."""
-
-    try:
-        # Check if session has auth info
-        token = request.session.get("token")
-        user = request.session.get("user")
-
-        if not token or not user:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": "missing_token",
-                    "message": "Authentication required. Please login.",
-                },
-            )
-
-        # Validate the token with CERN
-        try:
-            decoded_token = cern_auth.jwt_decode_token(token)
-            user_data = await cern_auth.validate_user_from_token(decoded_token)
-            return user_data
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": "token_expired",
-                    "message": "Your session has expired. Please login again.",
-                },
-            )
-        except jwt.InvalidTokenError:
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "error": "invalid_token",
-                    "message": "Invalid authentication token. Please login again.",
-                },
-            )
-        except Exception as e:
-            # Handle CERN introspection errors (token no longer active, etc.)
-            if "no longer active" in str(e).lower():
-                raise HTTPException(
-                    status_code=401,
-                    detail={
-                        "error": "token_expired",
-                        "message": "Your session has expired. Please login again.",
-                    },
-                )
-            else:
-                logger.error(f"Token validation error: {e}")
-                raise HTTPException(
-                    status_code=401,
-                    detail={
-                        "error": "validation_failed",
-                        "message": "Session validation failed. Please login again.",
-                    },
-                )
-
-    except HTTPException:
-        # Re-raise HTTP exceptions as-is
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error during session validation: {e}")
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error": "session_error",
-                "message": "Session validation failed. Please login again.",
-            },
-        )
-
-
-# async def get_and_validate_authorized_user_from_session(
-#     request: Request,
-# ) -> dict[str, Any]:
-#     """Get current user from session cookie with CERN validation and check for 'authorized' role."""
-
-#     try:
-#         # First validate the session like the regular function
-#         user_data = await get_and_validate_user_from_session(request)
-
-#         print(user_data)
-
-#         # Now check if user has the "authorized" role for this specific operation
-#         if not cern_auth.has_user_access(user_data):
-#             # Get the required role from config for a more specific error message
-#             required_role = AUTHORIZED_ROLE
-#             user_roles = user_data.get("cern_roles", [])
-
-#             raise HTTPException(
-#                 status_code=403,
-#                 detail={
-#                     "error": "missing_roles",
-#                     "message": f"Access denied. Required role '{required_role}' not found.",
-#                     "required_role": required_role,
-#                     "user_roles": user_roles,
-#                 },
-#             )
-
-#         return user_data
-#     except HTTPException:
-#         # Re-raise HTTP exceptions as-is (including those from get_and_validate_user_from_session)
-#         raise
-#     except Exception as e:
-#         logger.error(f"Unexpected error during authorized user validation: {e}")
-#         raise HTTPException(
-#             status_code=403,
-#             detail={
-#                 "error": "authorization_error",
-#                 "message": "Authorization check failed.",
-#             },
-#         )
-
-
 class EntityRequest(BaseModel):
     """Request model for entity search"""
 
@@ -173,7 +63,7 @@ class DeleteEntitiesRequest(BaseModel):
 @router.post("/upload-fcc-dict/", status_code=202)
 async def upload_fcc_dict(
     file: UploadFile = File(...),
-    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+    user: dict[str, Any] = Depends(AuthDependency("authorized")),
 ) -> dict[str, str]:
     """
     Upload and import FCC dictionary data.
@@ -327,7 +217,7 @@ async def update_entity(
     entity_id: int,
     update_data: GenericEntityUpdate,
     _request: Request,
-    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+    user: dict[str, Any] = Depends(AuthDependency("authorized")),
 ) -> Any:
     """
     Update an entity with the provided data.
@@ -363,7 +253,7 @@ async def update_metadata_lock(
     entity_id: int,
     lock_request: MetadataLockRequest,
     _request: Request,
-    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+    user: dict[str, Any] = Depends(AuthDependency("authorized")),
 ) -> Any:
     """
     Update the lock state of a metadata field.
@@ -452,7 +342,7 @@ async def update_metadata_lock(
 @router.delete("/entities/", response_model=dict[str, Any])
 async def delete_entities(
     request: DeleteEntitiesRequest,
-    user: dict[str, Any] = Depends(get_and_validate_user_from_session),
+    user: dict[str, Any] = Depends(AuthDependency("admin")),  # Require admin role for deletion
 ) -> dict[str, Any]:
     """
     Delete entities by their IDs. Only users with 'authorized' role can perform this operation.
@@ -506,13 +396,15 @@ async def delete_entities(
         )
 
 
-@router.get("/session-status")
-async def get_session_status(request: Request) -> dict[str, Any]:
-    """Get current session authentication status."""
-    token = request.session.get("token")
-    user = request.session.get("user")
+# @router.get("/session-status")
+# async def get_session_status(request: Request) -> dict[str, Any]:
+#     """Get current session authentication status."""
+#     token = request.session.get("token")
+#     user = request.session.get("user")
 
-    if token and user:
-        return {"authenticated": True, "user": user}
-    else:
-        return {"authenticated": False, "user": None}
+#     print("SESSION-STATUS:", request.session)
+
+#     if token and user:
+#         return {"authenticated": True, "user": user}
+#     else:
+#         return {"authenticated": False, "user": None}

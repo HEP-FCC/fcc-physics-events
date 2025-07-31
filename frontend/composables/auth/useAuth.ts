@@ -4,7 +4,7 @@ interface User {
     given_name?: string;
     family_name?: string;
     preferred_username?: string;
-    // [key: string]: any;
+    [key: string]: any;
 }
 
 interface AuthState {
@@ -48,8 +48,12 @@ export function useAuth() {
         authState.value.isLoading = true;
         authState.value.error = null;
 
+        console.log("TEST:", authState.value)
+
         try {
             const sessionData = await getSessionStatus();
+
+            console.log("SESSION_DATA:", sessionData);
 
             if (sessionData.authenticated && sessionData.user) {
                 authState.value.isAuthenticated = true;
@@ -61,7 +65,7 @@ export function useAuth() {
             }
         } catch (error) {
             console.error("Authentication check failed:", error);
-            authState.value.error = "Authentication check failed";
+            authState.value.error = "Authentication check failed. Please try signing in again.";
             authState.value.isAuthenticated = false;
             authState.value.user = null;
         } finally {

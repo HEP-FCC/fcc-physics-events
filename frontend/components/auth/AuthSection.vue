@@ -63,6 +63,7 @@ const error = computed(() => authState.value.error);
 
 // Computed display name
 const displayName = computed(() => {
+    console.log("ROLES:", user.value?.cern_roles)
     if (user.value?.given_name && user.value?.family_name) {
         return `${user.value.given_name} ${user.value.family_name}`;
     }

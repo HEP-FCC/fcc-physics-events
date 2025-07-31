@@ -24,7 +24,7 @@
                 <template #header>
                     <div class="flex items-center justify-center gap-3">
                         <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-earth" />
-                        <h2 class="text-xl font-semibold">Authentication Failed</h2>
+                        <h2 class="text-xl font-semibold">Authentication Failed Please try logging in again.</h2>
                     </div>
                 </template>
 
