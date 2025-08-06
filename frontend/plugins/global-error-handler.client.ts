@@ -48,7 +48,7 @@ export const ERROR_TYPES = {
     DATABASE_ERROR: "database_error",
     EXTERNAL_SERVICE_ERROR: "external_service_error",
     SERVER_UNAVAILABLE: "server_unavailable",
-    
+
     // Network/Connection Errors
     NETWORK_ERROR: "network_error",
     CONNECTION_ERROR: "connection_error",
@@ -219,7 +219,8 @@ function parseApiError(error: unknown): ErrorToastOptions {
                 if (status === 502 || status === 503 || status === 504) {
                     return {
                         title: "Server Temporarily Unavailable",
-                        description: "The server is temporarily unavailable or under maintenance. Please try again in a few minutes.",
+                        description:
+                            "The server is temporarily unavailable or under maintenance. Please try again in a few minutes.",
                         color: "warning",
                     };
                 }
