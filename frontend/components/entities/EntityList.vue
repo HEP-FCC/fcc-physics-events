@@ -53,11 +53,7 @@
                                     <span
                                         v-if="wasEntityEdited(entity)"
                                         class="absolute -top-4 right-0 text-earth-600 text-xs whitespace-nowrap"
-                                        :title="
-                                            entity.last_edited_at
-                                                ? `Last edited: ${formatTimestamp(entity.last_edited_at)}`
-                                                : ''
-                                        "
+                                        :title="getEditedTooltip(entity)"
                                     >
                                         Edited
                                     </span>
@@ -161,6 +157,19 @@ function wasEntityEdited(entity: Entity): boolean {
 
     // Consider edited if there's more than 1 second difference (to account for minor timing differences)
     return Math.abs(edited - created) > 1000;
+}
+
+// Helper function to generate tooltip for edited entities
+function getEditedTooltip(entity: Entity): string {
+    if (!entity.last_edited_at) return "";
+
+    let tooltip = `Last edited: ${formatTimestamp(entity.last_edited_at)}`;
+
+    if (entity.edited_by_name) {
+        tooltip += `\nEdited by: ${entity.edited_by_name}`;
+    }
+
+    return tooltip;
 }
 
 // Methods

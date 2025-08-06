@@ -56,13 +56,14 @@ CREATE TABLE IF NOT EXISTS datasets (
     detector_id INTEGER REFERENCES detectors(detector_id) ON DELETE SET NULL,
     metadata JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    last_edited_at TIMESTAMPTZ DEFAULT NULL
+    last_edited_at TIMESTAMPTZ DEFAULT NULL,
+    edited_by_name TEXT DEFAULT NULL
 );
 
 
 -- Indexes
 -- Standard B-tree indexes for foreign keys to speed up joins
-CREATE INDEX IF NOT EXISTS idx_datasets_acceleratorid ON datasets(accelerator_id);
+CREATE INDEX IF NOT EXISTS idx_datasets_accelerator_id ON datasets(accelerator_id);
 CREATE INDEX IF NOT EXISTS idx_datasets_stage_id ON datasets(stage_id);
 CREATE INDEX IF NOT EXISTS idx_datasets_campaign_id ON datasets(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_datasets_detector_id ON datasets(detector_id);

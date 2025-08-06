@@ -640,7 +640,10 @@ class Database:
         return entities[0] if entities else None
 
     async def update_entity(
-        self, entity_id: int, update_data: dict[str, Any]
+        self,
+        entity_id: int,
+        update_data: dict[str, Any],
+        user_info: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Update an entity with the provided data using full replacement strategy.
@@ -1080,7 +1083,9 @@ class Database:
                 # Then get the records
                 records = await conn.fetch(
                     f"{search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}",
-                    *params, limit, offset
+                    *params,
+                    limit,
+                    offset,
                 )
 
             except Exception as e:

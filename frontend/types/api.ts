@@ -34,6 +34,7 @@ export interface Entity {
     name: string;
     created_at?: string;
     last_edited_at?: string;
+    edited_by_name?: string;
     metadata?: Record<string, unknown>;
     [key: string]: unknown; // Allow any additional fields from dynamic schema
 }

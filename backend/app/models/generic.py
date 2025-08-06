@@ -22,6 +22,7 @@ class DatabaseEntityBase(BaseModel):
     created_at: datetime.datetime | None = None
     updated_at: datetime.datetime | None = None
     last_edited_at: datetime.datetime | None = None
+    edited_by_name: str | None = None
 
     # Metadata field for flexible additional data
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -122,6 +123,7 @@ def create_dynamic_entity_model(
         "created_at": (datetime.datetime | None, None),
         "updated_at": (datetime.datetime | None, None),
         "last_edited_at": (datetime.datetime | None, None),
+        "edited_by_name": (str | None, None),
         "metadata": (dict[str, Any], Field(default_factory=dict)),
         "description": (str | None, None),
     }
