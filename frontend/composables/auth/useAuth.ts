@@ -105,9 +105,22 @@ export function useAuth() {
         authState.value.error = null;
 
         try {
-            // Get logout URL from backend
+            // Get logout URL from backend and clear cookies
             const logoutResponse = await logoutUser();
 
+            // Verify that we are now logged out by checking session status
+            try {
+                const sessionData = await getSessionStatus();
+                if (sessionData.authenticated) {
+                    console.warn("Session still appears authenticated after logout attempt");
+                    authState.value.error = "Logout may not have completed successfully";
+                }
+            } catch (error) {
+                // Expected - session should return 401 or show as not authenticated
+                console.log("Session status check after logout:", error);
+            }
+
+            // Update auth state to reflect logout
             authState.value.isAuthenticated = false;
             authState.value.user = null;
 

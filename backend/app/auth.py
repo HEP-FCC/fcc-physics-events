@@ -326,26 +326,60 @@ def set_auth_cookies(
     refresh_token_jwt = cern_auth.jwt_encode_str(refresh_token)
     id_token_jwt = cern_auth.jwt_encode_str(id_token)
 
+    # Common cookie settings
+    cookie_settings = {
+        "max_age": max_age,
+        "httponly": True,
+        "samesite": "lax",
+        "secure": config.get("general.HTTPS_ONLY", "false").lower() == "true",
+    }
+
     # Set all cookies required for authentication and token management
     response.set_cookie(
         key=f"{AUTH_COOKIE_PREFIX}-access-token",
         value=access_token_jwt,
-        max_age=max_age,
-        httponly=True,
+        **cookie_settings,
     )
 
     response.set_cookie(
         key=f"{AUTH_COOKIE_PREFIX}-refresh-token",
         value=refresh_token_jwt,
-        max_age=max_age,
-        httponly=True,
+        **cookie_settings,
     )
 
     response.set_cookie(
         key=f"{AUTH_COOKIE_PREFIX}-id-token",
         value=id_token_jwt,
-        max_age=max_age,
-        httponly=True,
+        **cookie_settings,
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    """
+    Clear all authentication cookies from the response.
+
+    Args:
+        response: The response object to clear cookies from
+    """
+    # Delete all auth cookies by setting them with past expiration
+    # Must match the exact parameters used when setting the cookies
+    cookie_settings = {
+        "httponly": True,
+        "samesite": "lax",
+        "secure": config.get("general.HTTPS_ONLY", "false").lower() == "true",
+    }
+
+    response.delete_cookie(
+        key=f"{AUTH_COOKIE_PREFIX}-access-token",
+        **cookie_settings,
+    )
+    response.delete_cookie(
+        key=f"{AUTH_COOKIE_PREFIX}-refresh-token",
+        **cookie_settings,
+    )
+    response.delete_cookie(
+        key=f"{AUTH_COOKIE_PREFIX}-id-token",
+        **cookie_settings,
     )
 
 

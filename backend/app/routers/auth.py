@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import RedirectResponse
 
 from app.auth import (
+    clear_auth_cookies,
     extract_auth_cookies,
     get_logout_url,
     set_auth_cookies,
@@ -216,14 +217,21 @@ async def auth(request: Request) -> Any:
 
 @router.get("/logout")
 async def logout(request: Request) -> JSONResponse:
-    """Get CERN SSO logout URL and clear session."""
+    """Clear all authentication cookies, session, and get CERN SSO logout URL."""
 
     # Clear the session
     request.session.clear()
 
     # Get logout URL from well-known endpoints
     cern_logout_url = await get_logout_url()
-    return JSONResponse(content={"logout_url": cern_logout_url})
+
+    # Create response with logout URL
+    response = JSONResponse(content={"logout_url": cern_logout_url})
+
+    # Clear all authentication cookies using helper function
+    clear_auth_cookies(response)
+
+    return response
 
 
 @router.get("/session-status")
