@@ -18,18 +18,31 @@
                 <!-- Help Icons Container -->
                 <div class="absolute right-1 top-1/2 transform -translate-y-1/2 z-10">
                     <!-- Query Language Help Icon -->
-                    <UTooltip :content="{ side: 'top', sideOffset: 8 }">
+                    <UTooltip
+                        v-model:open="showHelpTooltip"
+                        :content="{ side: 'bottom', sideOffset: 20 }"
+                        :delay-duration="200"
+                    >
                         <template #content>
                             <div class="max-w-md p-4 bg-white rounded-lg shadow-lg">
                                 <div class="font-semibold text-sm mb-3">Query Language Help</div>
                                 <div class="text-xs space-y-3">
                                     <div>
-                                        <div class="font-medium mb-2">Example search queries:</div>
+                                        <div class="font-medium mb-2">Global Search:</div>
                                         <div class="space-y-1.5">
                                             <div>
-                                                <code :class="codeClass">"H to cu"</code>
-                                                - Filter by any field containing this string
+                                                <code :class="codeClass">H to cu</code>
+                                                - Substring match across all fields (case-insensitive)
                                             </div>
+                                            <div>
+                                                <code :class="codeClass">"H to cu [0-9]+"</code>
+                                                - Regex pattern match across all fields (case-insensitive)
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium mb-2">Field-specific queries:</div>
+                                        <div class="space-y-1.5">
                                             <div>
                                                 <code :class="codeClass">description:"ee -> Z(nu nu)"</code>
                                                 - Metadata text field
@@ -37,6 +50,10 @@
                                             <div>
                                                 <code :class="codeClass">sum-of-weights>100000</code>
                                                 - Metadata number filter
+                                            </div>
+                                            <div>
+                                                <code :class="codeClass">entity_name # "H to cu"</code>
+                                                - Fuzzy text match (0.7 similarity)
                                             </div>
                                         </div>
                                     </div>
@@ -66,8 +83,20 @@
                                                 regex match,
                                                 <code :class="codeClass">!~</code>
                                                 regex not match,
+                                                <code :class="codeClass">#</code>
+                                                fuzzy match (0.7),
                                                 <code :class="codeClass">:*</code>
                                                 field exists
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium mb-2">Autocomplete:</div>
+                                        <div class="text-xs">
+                                            <div>• Shows automatically when search bar is empty</div>
+                                            <div>
+                                                • Press <code :class="codeClass">Ctrl+Space</code> to show suggestions
+                                                manually
                                             </div>
                                         </div>
                                     </div>
@@ -98,6 +127,7 @@
                             variant="ghost"
                             size="xl"
                             class="w-6 h-6 p-1 hover:bg-gray-100 rounded-full flex items-center justify-center"
+                            @click="toggleHelpTooltip"
                         />
                     </UTooltip>
                 </div>
@@ -187,6 +217,7 @@ const searchQuery = computed({
 // UI state for permalink functionality
 const isPermalinkCopyInProgress = ref(false);
 const showLinkCopiedFeedback = ref(false);
+const showHelpTooltip = ref(false);
 const codeClass = "bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono";
 
 // Utility functions
@@ -200,6 +231,13 @@ function showSuccessNotification(): void {
     setTimeout(() => {
         showLinkCopiedFeedback.value = false;
     }, 2000);
+}
+
+/**
+ * Toggle help tooltip visibility
+ */
+function toggleHelpTooltip(): void {
+    showHelpTooltip.value = !showHelpTooltip.value;
 }
 
 /**

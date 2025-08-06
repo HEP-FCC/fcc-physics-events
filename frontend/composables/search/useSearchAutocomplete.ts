@@ -42,6 +42,7 @@ export const useSearchAutocomplete = () => {
         { value: ":", description: "contains (substring)" },
         { value: "=~", description: "regex match" },
         { value: "!~", description: "regex not match" },
+        { value: "#", description: "fuzzy match (0.7 similarity)" },
         { value: ":*", description: "field exists" },
     ];
 

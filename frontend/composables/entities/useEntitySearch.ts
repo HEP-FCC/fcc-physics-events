@@ -92,7 +92,7 @@ export function useEntitySearch() {
     });
 
     const searchPlaceholderText = computed(() => {
-        return urlFilterQuery.value ? "Add additional search terms..." : 'e.g., entity_name="value" AND status="done"';
+        return urlFilterQuery.value ? "Add additional search terms..." : 'e.g., H to cu OR "H to cu [0-9]+" (regex)';
     });
 
     const showFilterNote = computed(() => !!urlFilterQuery.value);

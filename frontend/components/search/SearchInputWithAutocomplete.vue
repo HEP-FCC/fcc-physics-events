@@ -95,15 +95,23 @@ const handleInput = (event: Event) => {
     const target = event.target as HTMLInputElement;
     cursorPosition.value = target.selectionStart || 0;
 
-    // Show suggestions as user types
-    if (inputValue.value.trim()) {
+    // Only show suggestions automatically when search bar is empty
+    if (!inputValue.value.trim()) {
         autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     } else {
+        // Hide suggestions when user is typing (they can use Ctrl+Space to show them)
         autocomplete.hideSuggestions();
     }
 };
 
 const handleKeyDown = (event: KeyboardEvent) => {
+    // Handle Ctrl+Space to trigger autocomplete
+    if (event.ctrlKey && event.key === " ") {
+        event.preventDefault();
+        triggerAutocomplete();
+        return;
+    }
+
     // Handle autocomplete navigation
     if (autocomplete.state.isVisible) {
         switch (event.key) {
@@ -143,13 +151,6 @@ const handleKeyDown = (event: KeyboardEvent) => {
             case "Enter":
                 emit("enter");
                 break;
-            case " ":
-                // Show suggestions after space (for new field/operator context)
-                if (event.ctrlKey) {
-                    event.preventDefault();
-                    triggerAutocomplete();
-                }
-                break;
         }
     }
 
@@ -163,8 +164,8 @@ const handleFocus = () => {
     emit("focus");
     showAutocompleteOnFocus.value = true;
 
-    // Show suggestions on focus if there's content
-    if (inputValue.value.trim()) {
+    // Only show suggestions on focus if search bar is empty
+    if (!inputValue.value.trim()) {
         nextTick(() => {
             autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
         });
@@ -186,8 +187,8 @@ const handleBlur = () => {
 const handleClick = () => {
     updateCursorPosition();
 
-    // Show suggestions on click if there's content
-    if (inputValue.value.trim()) {
+    // Only show suggestions on click if search bar is empty
+    if (!inputValue.value.trim()) {
         autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     }
 };
