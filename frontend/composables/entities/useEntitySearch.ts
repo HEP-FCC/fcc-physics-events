@@ -161,18 +161,6 @@ export function useEntitySearch() {
         return !searchState.hasMore && entities.value.length > 0 && scrollState.totalEntities > 0;
     });
 
-    // Utility function
-    const formatFieldLabel = (field: string): string => {
-        if (field.startsWith("metadata.")) {
-            const metadataKey = field.replace("metadata.", "");
-            return `${metadataKey.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}`;
-        }
-        return field
-            .replace(/_/g, " ")
-            .replace(/\b\w/g, (l) => l.toUpperCase())
-            .replace(" Name", "");
-    };
-
     /**
      * Main search function with pagination and error handling
      */

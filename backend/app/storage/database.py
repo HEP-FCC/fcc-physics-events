@@ -1029,24 +1029,14 @@ class Database:
         for row in metadata_keys:
             field_name = row["metadata_key"]
             # Add both the new simplified syntax and the old explicit syntax for backward compatibility
-            metadata_fields.append(
-                field_name
-            )  # New: simplified syntax (e.g., "status")
-            metadata_fields.append(
-                f"metadata.{field_name}"
-            )  # Old: explicit syntax (e.g., "metadata.status")
+            metadata_fields.append(field_name)
 
         # Build nested metadata fields list - include both prefixed and non-prefixed versions
         nested_fields = []
         for row in nested_metadata_keys:
             field_name = row["nested_key"]
             # Add both the new simplified syntax and the old explicit syntax for backward compatibility
-            nested_fields.append(
-                field_name
-            )  # New: simplified syntax (e.g., "config.version")
-            nested_fields.append(
-                f"metadata.{field_name}"
-            )  # Old: explicit syntax (e.g., "metadata.config.version")
+            nested_fields.append(field_name)
 
         # Combine all fields into a single flat list
         all_fields = []

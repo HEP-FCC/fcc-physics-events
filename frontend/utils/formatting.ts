@@ -28,7 +28,7 @@ export const createEntityDownloadFilename = (entityCount: number): string => {
         .replace(/[-T:]/g, (match) => (match === "T" ? "_" : "-"));
 
     const multipleEntities = entityCount > 1 ? "entities" : "entity";
-    return `fcc_physics_entities-${entityCount}-${multipleEntities}-${timestamp}.json`;
+    return `fcc_physics_entities-${entityCount}-${multipleEntities}-${timestamp}.json`; // TODO: load the fcc_physics_entities name from config
 };
 
 /**
