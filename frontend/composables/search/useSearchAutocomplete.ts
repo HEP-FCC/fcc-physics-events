@@ -164,8 +164,8 @@ export const useSearchAutocomplete = () => {
     const analyzeContext = (beforeCursor: string): "field" | "operator" | "value" => {
         const trimmed = beforeCursor.trim();
 
-        // If empty or starts with boolean operator, suggest field names
-        if (!trimmed || /\b(AND|OR|NOT)\s*$/i.test(trimmed)) {
+        // If empty, suggest field names
+        if (!trimmed) {
             return "field";
         }
 
@@ -174,81 +174,56 @@ export const useSearchAutocomplete = () => {
             return "field";
         }
 
-        // Check for boolean operators followed by potential field start (including hyphens)
-        if (/\b(AND|OR|NOT)\s+[\w.-]*$/i.test(trimmed)) {
-            return "field";
+        // Split by AND/OR/NOT to get segments, but preserve the operators
+        const segments = trimmed.split(/\b(AND|OR|NOT)\b/i);
+
+        // Get the last segment (what we're currently working on)
+        let currentSegment = segments[segments.length - 1].trim();
+
+        // If the current segment is empty and the previous token was a boolean operator,
+        // suggest field names
+        if (!currentSegment && segments.length >= 2) {
+            const prevToken = segments[segments.length - 2];
+            if (/^(AND|OR|NOT)$/i.test(prevToken.trim())) {
+                return "field";
+            }
         }
 
-        // Split by AND/OR/NOT to get the current segment we're working on
-        const segments = trimmed.split(/\b(AND|OR|NOT)\b/i);
-        const currentSegment = segments[segments.length - 1].trim();
-
-        // If current segment is empty, suggest fields
+        // If currentSegment is empty, suggest fields
         if (!currentSegment) {
             return "field";
         }
 
-        // Check if current segment has field + operator + value pattern
-        const valuePattern = /([\w.-]+)\s*([><=!:~]+)\s*([^)\s]+)$/i;
+        // Check if we're in a value context: field operator "value" or field operator value
+        const valuePattern = /([\w.-]+)\s*([><=!:~]+)\s*(.+)$/i;
         const valueMatch = valuePattern.exec(currentSegment);
-
-        if (valueMatch) {
-            const fieldName = valueMatch[1];
-            const operator = valueMatch[2];
-            const valueStart = valueMatch[3];
-
-            // If we have field + operator + some value content, we're in value context
-            if (operator && valueStart && valueStart.length > 0) {
-                return "value";
-            }
-        }
-
-        // Check if current segment has field + operator but no value yet
-        const fieldOperatorPattern = /([\w.-]+)\s*([><=!:~]+)\s*$/i;
-        const fieldOpMatch = fieldOperatorPattern.exec(currentSegment);
-
-        if (fieldOpMatch) {
-            // We have field + operator but no value yet, ready for value input
+        if (valueMatch && valueMatch[3]) {
             return "value";
         }
 
-        // Check for field name pattern in current segment
-        const fieldOnlyPattern = /([\w.-]+)(\s*)$/i;
-        const fieldMatch = fieldOnlyPattern.exec(currentSegment);
+        // Check if we have field + operator but no value yet: "field ="
+        const fieldOperatorPattern = /([\w.-]+)\s*([><=!:~]+)\s*$/i;
+        const fieldOpMatch = fieldOperatorPattern.exec(currentSegment);
+        if (fieldOpMatch) {
+            return "value";
+        }
+
+        // Check if we have just a field name (possibly with trailing space)
+        const fieldPattern = /^([\w.-]+)(\s*)$/i;
+        const fieldMatch = fieldPattern.exec(currentSegment);
 
         if (fieldMatch) {
             const fieldName = fieldMatch[1];
-            const hasSpaceAfter = fieldMatch[2].length > 0;
+            const hasTrailingSpace = fieldMatch[2].length > 0;
 
-            // Check if the field name exists in our field list (exact match)
-            const exactMatch = fieldNames.value.some((f) => f.toLowerCase() === fieldName.toLowerCase());
+            // Check if this is a valid field name
+            const isValidField = fieldNames.value.some((f) => f.toLowerCase() === fieldName.toLowerCase());
 
-            // Check if it's a close match (for fields like "nevents" vs "n-events")
-            const closeMatches = fieldNames.value.filter((f) => {
-                const fLower = f.toLowerCase();
-                const fieldLower = fieldName.toLowerCase();
-
-                // Check various formats: n-events, nevents, n_events, etc.
-                const normalizedField = fieldLower.replace(/[-_]/g, "");
-                const normalizedAvailable = fLower.replace(/[-_]/g, "");
-
-                return fLower === fieldLower || normalizedField === normalizedAvailable;
-            });
-
-            // Only suggest operators if we have an EXACT match AND space after
-            if (exactMatch && hasSpaceAfter) {
+            if (isValidField) {
+                // If we have a valid field name, suggest operators
                 return "operator";
-            }
-            // If exact match but no space, suggest operators (user just finished typing field name)
-            else if (exactMatch && !hasSpaceAfter) {
-                return "operator";
-            }
-            // If close match and space after, suggest operators
-            else if (closeMatches.length > 0 && hasSpaceAfter) {
-                return "operator";
-            }
-            // Otherwise, suggest field completions (partial typing)
-            else {
+            } else {
+                // If not a valid field name, suggest field completions
                 return "field";
             }
         }
