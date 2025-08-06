@@ -330,16 +330,28 @@ class SqlTranslator:
                     # Substring match using ILIKE
                     sql_op, param_value = "ILIKE", f"%{value}%"
             else:
-                # Exact match
-                sql_op, param_value = "=", value
+                # For string values, use case-insensitive exact match (ILIKE)
+                # For numeric/date values, use exact match (=)
+                if isinstance(value, str) and not is_last_edited_at:
+                    sql_op, param_value = "ILIKE", value
+                else:
+                    sql_op, param_value = "=", value
         elif op == "=~":
             # Case-insensitive regular expression match
             sql_op, param_value = "~*", value
         elif op == "!~":
             # Case-insensitive regular expression NOT match
             sql_op, param_value = "!~*", value
+        elif op == "!=":
+            # For string values, use case-insensitive not equal (NOT ... ILIKE)
+            # For numeric/date values, use exact not equal (!=)
+            if isinstance(value, str) and not is_last_edited_at:
+                # Use NOT (field ILIKE value) for case-insensitive inequality
+                sql_op, param_value = "NOT_ILIKE", value
+            else:
+                sql_op, param_value = "!=", value
         else:
-            # Standard comparison operators: !=, >, <, >=, <=
+            # Standard comparison operators: >, <, >=, <=
             sql_op, param_value = op, value
 
         # Special handling for last_edited_at: parse date strings to datetime objects
@@ -359,9 +371,17 @@ class SqlTranslator:
 
         # For last_edited_at comparison operations, add NULL check
         if is_last_edited_at and op in (">", "<", ">=", "<=", "!="):
-            return f"({sql_field} IS NOT NULL AND {sql_field} {sql_op} {placeholder})"
+            if sql_op == "NOT_ILIKE":
+                return f"({sql_field} IS NOT NULL AND NOT ({sql_field} ILIKE {placeholder}))"
+            else:
+                return (
+                    f"({sql_field} IS NOT NULL AND {sql_field} {sql_op} {placeholder})"
+                )
         else:
-            return f"{sql_field} {sql_op} {placeholder}"
+            if sql_op == "NOT_ILIKE":
+                return f"NOT ({sql_field} ILIKE {placeholder})"
+            else:
+                return f"{sql_field} {sql_op} {placeholder}"
 
     def _translate_field_exists(self, field: Any, sql_field: str) -> str:
         """

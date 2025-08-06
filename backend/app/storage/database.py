@@ -223,7 +223,7 @@ class Database:
             raise ValueError("A 'name' is required to find or create an entity.")
 
         id_column = f"{table_name.rstrip('s')}_id"
-        query = f"SELECT {id_column} FROM {table_name} WHERE name = $1"
+        query = f"SELECT {id_column} FROM {table_name} WHERE name ILIKE $1"
 
         record = await conn.fetchrow(query, name)
         if record:
@@ -399,7 +399,7 @@ class Database:
                                     new_metadata = entity_dict["metadata"]
 
                                     # Check if entity already exists to merge locked fields
-                                    existing_metadata_query = f"SELECT metadata FROM {main_table} WHERE name = $1"
+                                    existing_metadata_query = f"SELECT metadata FROM {main_table} WHERE name ILIKE $1"
                                     existing_metadata_result = await conn.fetchval(
                                         existing_metadata_query, entity_dict["name"]
                                     )
@@ -520,7 +520,7 @@ class Database:
     ) -> int | None:
         """Helper function to get an entity ID by name."""
         id_column = f"{table_name.rstrip('s')}_id"
-        query = f"SELECT {id_column} FROM {table_name} WHERE name = $1"
+        query = f"SELECT {id_column} FROM {table_name} WHERE name ILIKE $1"
 
         record = await conn.fetchrow(query, name)
         return int(record[id_column]) if record else None
@@ -1208,7 +1208,7 @@ class Database:
             raise ValueError(f"No primary key mapping found for table {table_name}")
 
         # Check if entity exists
-        check_query = f"SELECT {primary_key} FROM {table_name} WHERE name = $1"
+        check_query = f"SELECT {primary_key} FROM {table_name} WHERE name ILIKE $1"
         existing_record: dict[str, int] = await conn.fetchrow(check_query, name)
 
         if existing_record:
@@ -1364,9 +1364,9 @@ class Database:
                             filter_name_column = filter_table_info["name_column"]
                             filter_pk = filter_table_info["primary_key"]
 
-                            # Get the ID for this filter value
+                            # Get the ID for this filter value (case-insensitive)
                             id_result = await conn.fetchval(
-                                f"SELECT {filter_pk} FROM {filter_table_name} WHERE {filter_name_column} = $1",
+                                f"SELECT {filter_pk} FROM {filter_table_name} WHERE {filter_name_column} ILIKE $1",
                                 filter_value,
                             )
 
