@@ -289,7 +289,10 @@ async def get_session_status(request: Request) -> JSONResponse:
             logger.info(
                 f"Failed to refresh auth token, user is not authenticated. Error: {e}"
             )
-            return JSONResponse(
-                content={"authenticated": False, "user": None},
-                status_code=status.HTTP_403_FORBIDDEN,
+
+            # Use proper error response for authentication failures
+            raise unauthenticated_error(
+                error_type=ErrorTypes.SESSION_ERROR,
+                message="Session validation failed - unable to refresh expired tokens",
+                user_message="Your session has expired and could not be refreshed. Please log in again.",
             )

@@ -65,7 +65,23 @@ export function useAuth() {
             }
         } catch (error) {
             console.error("Authentication check failed:", error);
-            authState.value.error = "Authentication check failed. Please try signing in again.";
+            
+            // Distinguish between different types of errors
+            const apiError = error as any;
+            const status = apiError?.status || apiError?.statusCode || 500;
+            const errorType = apiError?.details?.error_type;
+            
+            // Only set authentication error for actual auth failures, not server/network issues
+            if (status === 401 || status === 403 || errorType === "authentication_error") {
+                authState.value.error = "Authentication check failed. Please try signing in again.";
+            } else if (status >= 500 || errorType === "server_error") {
+                authState.value.error = "Server is currently unreachable. Please try again later.";
+            } else if (errorType === "network_error") {
+                authState.value.error = "Network connection problem. Please check your internet connection.";
+            } else {
+                authState.value.error = "Unable to verify authentication status. Please try refreshing the page.";
+            }
+            
             authState.value.isAuthenticated = false;
             authState.value.user = null;
         } finally {

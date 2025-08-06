@@ -13,34 +13,37 @@ from pydantic import BaseModel
 class ErrorTypes:
     """Error type constants for consistent error responses."""
 
-    # Authentication (401)
+    # Authentication errors (401)
     AUTHENTICATION_FAILED = "authentication_failed"
     TOKEN_EXPIRED = "token_expired"
     TOKEN_INVALID = "invalid_token"
     TOKEN_MISSING = "missing_token"
+    SESSION_ERROR = "session_error"
     NO_REFRESH_TOKEN = "no_refresh_token"
     REFRESH_FAILED = "refresh_failed"
-    SESSION_ERROR = "session_error"
 
-    # Authorization (403)
+    # Authorization errors (403)
     INSUFFICIENT_PERMISSIONS = "insufficient_permissions"
     ROLE_REQUIRED = "role_required"
 
-    # Validation (400)
+    # Validation errors (400)
     INVALID_INPUT = "invalid_input"
     MISSING_FIELD = "missing_field"
     INVALID_FORMAT = "invalid_format"
 
-    # Not Found (404)
+    # Client errors (4xx)
     NOT_FOUND = "not_found"
+    METHOD_NOT_ALLOWED = "method_not_allowed"
 
-    # Rate Limiting (429)
+    # Rate limiting (429)
     RATE_LIMITED = "rate_limited"
 
-    # Server Errors (500+)
+    # Server errors (5xx)
     INTERNAL_ERROR = "internal_error"
     DATABASE_ERROR = "database_error"
     EXTERNAL_SERVICE_ERROR = "external_service_error"
+    SERVER_UNAVAILABLE = "server_unavailable"
+    SERVICE_TIMEOUT = "service_timeout"
 
 
 class ErrorDetail(BaseModel):
@@ -212,22 +215,6 @@ def not_found_error(
     )
 
 
-def rate_limit_error(
-    retry_after: int = 60,
-    user_message: str = "Too many requests. Please wait before trying again.",
-    technical_message: str = "Rate limit exceeded",
-) -> HTTPException:
-    """Create a standardized 429 rate limiting error."""
-    return create_standard_http_exception(
-        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        error_type=ErrorTypes.RATE_LIMITED,
-        user_message=user_message,
-        technical_message=technical_message,
-        retry_after=retry_after,
-        headers={"Retry-After": str(retry_after)},
-    )
-
-
 def server_error(
     error_type: str = ErrorTypes.INTERNAL_ERROR,
     message: str = "Internal server error",
@@ -263,6 +250,35 @@ def external_service_error(
     return create_standard_http_exception(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         error_type=ErrorTypes.EXTERNAL_SERVICE_ERROR,
+        user_message=user_message,
+        technical_message=technical_message,
+        headers={"Retry-After": "300"},  # Suggest retry after 5 minutes
+    )
+
+
+def service_unavailable_error(
+    user_message: str = "The service is temporarily unavailable. Please try again later.",
+    technical_message: str = "Service is currently unavailable",
+    retry_after: int = 300,
+) -> HTTPException:
+    """Create a standardized 503 service unavailable error."""
+    return create_standard_http_exception(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        error_type=ErrorTypes.SERVER_UNAVAILABLE,
+        user_message=user_message,
+        technical_message=technical_message,
+        headers={"Retry-After": str(retry_after)},
+    )
+
+
+def gateway_timeout_error(
+    user_message: str = "The server took too long to respond. Please try again.",
+    technical_message: str = "Gateway timeout occurred",
+) -> HTTPException:
+    """Create a standardized 504 gateway timeout error."""
+    return create_standard_http_exception(
+        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+        error_type=ErrorTypes.SERVICE_TIMEOUT,
         user_message=user_message,
         technical_message=technical_message,
     )

@@ -47,6 +47,11 @@ export const ERROR_TYPES = {
     INTERNAL_ERROR: "internal_error",
     DATABASE_ERROR: "database_error",
     EXTERNAL_SERVICE_ERROR: "external_service_error",
+    SERVER_UNAVAILABLE: "server_unavailable",
+    
+    // Network/Connection Errors
+    NETWORK_ERROR: "network_error",
+    CONNECTION_ERROR: "connection_error",
 } as const;
 
 export type ErrorType = (typeof ERROR_TYPES)[keyof typeof ERROR_TYPES];
@@ -210,9 +215,17 @@ function parseApiError(error: unknown): ErrorToastOptions {
                     color: "error",
                 };
             default:
+                // For generic server errors, provide more helpful messaging
+                if (status === 502 || status === 503 || status === 504) {
+                    return {
+                        title: "Server Temporarily Unavailable",
+                        description: "The server is temporarily unavailable or under maintenance. Please try again in a few minutes.",
+                        color: "warning",
+                    };
+                }
                 return {
                     title: "Server Error",
-                    description: `A server error occurred. Please try again later or contact administrators if the problem persists. For more details, check the browser console (${browserShortcut}).`,
+                    description: `The server encountered an error (${status}). This is not an authentication issue. Please try again later or contact administrators if the problem persists.`,
                     color: "error",
                 };
         }
@@ -453,8 +466,9 @@ export default defineNuxtPlugin({
                 toast.add({
                     title: "Connection Problem",
                     description:
-                        "Unable to connect to the server. Please check your internet connection and try again.",
+                        "Unable to connect to the server. This is not an authentication issue. Please check your internet connection and try again.",
                     color: "warning",
+                    duration: 10000, // Show longer for network issues
                 });
             }
 

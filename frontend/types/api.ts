@@ -22,7 +22,12 @@ export enum HttpStatusCode {
 export interface ApiError {
     message: string;
     status: HttpStatusCode;
-    details?: Record<string, unknown>;
+    details?: {
+        error?: string;
+        message?: string;
+        error_type?: "network_error" | "server_error" | "authentication_error" | "api_error";
+        [key: string]: unknown;
+    };
     timestamp?: string;
 }
 

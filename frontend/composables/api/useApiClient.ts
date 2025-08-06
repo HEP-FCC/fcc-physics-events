@@ -127,10 +127,25 @@ export function useApiClient() {
                 }
 
                 console.error(`API Error for ${endpoint}:`, error);
+
+                // Determine error type for better error handling
+                const isNetworkError = error instanceof TypeError || 
+                                     (error as any)?.name === "NetworkError" ||
+                                     (error as any)?.code === "NETWORK_ERROR" ||
+                                     navigator.onLine === false;
+
+                const isServerError = status >= 500 && status < 600;
+                const isAuthError = status === 401 || status === 403;
+
                 const apiError: ApiError = {
                     message: (errorObj.message as string) || "API request failed",
                     status,
-                    details: (errorObj.data as Record<string, unknown>) || undefined,
+                    details: {
+                        ...(errorObj.data as Record<string, unknown>) || {},
+                        error_type: isNetworkError ? "network_error" : 
+                                   isServerError ? "server_error" :
+                                   isAuthError ? "authentication_error" : "api_error"
+                    },
                 };
                 throw apiError;
             }
