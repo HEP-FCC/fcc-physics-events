@@ -32,6 +32,7 @@ export const useMetadataPreferences = () => {
         try {
             const preferenceCookie = useCookie<MetadataPreferences>(COOKIE_NAME, {
                 default: () => ({
+                    // TODO: put this into the config
                     selectedFields: ["n-events", "cross-section", "matching-eff"],
                     lastUpdated: Date.now(),
                 }),

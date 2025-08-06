@@ -8,99 +8,99 @@
         </label>
         <div class="flex gap-2 items-center">
             <div class="flex-grow relative">
-                <UInput
+                <SearchInputWithAutocomplete
                     v-model="searchQuery"
                     :placeholder="searchPlaceholderText"
-                    size="lg"
-                    icon="i-heroicons-magnifying-glass"
-                    class="pr-7 w-full"
-                    @keydown.enter="$emit('search')"
+                    input-class="pr-16 w-full"
+                    @enter="$emit('search')"
                 />
-                <UTooltip
-                    class="absolute right-1 top-1/2 transform -translate-y-1/2 z-10"
-                    :content="{ side: 'top', sideOffset: 8 }"
-                >
-                    <template #content>
-                        <div class="max-w-md p-4 bg-white  rounded-lg shadow-lg">
-                            <div class="font-semibold text-sm mb-3">Query Language Help</div>
-                            <div class="text-xs space-y-3">
-                                <div>
-                                    <div class="font-medium mb-2">Example search queries:</div>
-                                    <div class="space-y-1.5">
-                                        <div>
-                                            <code :class="codeClass">"H to cu"</code>
-                                            - Filter by any field containing this string
-                                        </div>
-                                        <div>
-                                            <code :class="codeClass">metadata.description:"ee -> Z(nu nu)"</code>
-                                            - Metadata text field
-                                        </div>
-                                        <div>
-                                            <code :class="codeClass">metadata.sum-of-weights>100000</code>
-                                            - Metadata number filter
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="font-medium mb-2">Boolean Operators:</div>
-                                    <div class="flex flex-wrap gap-1">
-                                        <code :class="codeClass">AND</code>
-                                        <code :class="codeClass">OR</code>
-                                        <code :class="codeClass">NOT</code>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="font-medium mb-2">Comparison Operators:</div>
-                                    <div class="flex flex-wrap gap-1">
-                                        <code :class="codeClass">=</code>
-                                        <code :class="codeClass">!=</code>
-                                        <code :class="codeClass">&gt;</code>
-                                        <code :class="codeClass">&lt;</code>
-                                        <code :class="codeClass">&gt;=</code>
-                                        <code :class="codeClass">&lt;=</code>
-                                    </div>
-                                    <div class="text-xs mt-2">
-                                        <div>
-                                            <code :class="codeClass">:</code>
-                                            substring,
-                                            <code :class="codeClass">=~</code>
-                                            regex match,
-                                            <code :class="codeClass">!~</code>
-                                            regex not match,
-                                            <code :class="codeClass">:*</code>
-                                            field exists
+
+                <!-- Help Icons Container -->
+                <div class="absolute right-1 top-1/2 transform -translate-y-1/2 z-10">
+                    <!-- Query Language Help Icon -->
+                    <UTooltip :content="{ side: 'top', sideOffset: 8 }">
+                        <template #content>
+                            <div class="max-w-md p-4 bg-white rounded-lg shadow-lg">
+                                <div class="font-semibold text-sm mb-3">Query Language Help</div>
+                                <div class="text-xs space-y-3">
+                                    <div>
+                                        <div class="font-medium mb-2">Example search queries:</div>
+                                        <div class="space-y-1.5">
+                                            <div>
+                                                <code :class="codeClass">"H to cu"</code>
+                                                - Filter by any field containing this string
+                                            </div>
+                                            <div>
+                                                <code :class="codeClass">description:"ee -> Z(nu nu)"</code>
+                                                - Metadata text field
+                                            </div>
+                                            <div>
+                                                <code :class="codeClass">sum-of-weights>100000</code>
+                                                - Metadata number filter
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="pt-2 border-t border-gray-200  text-center">
-                                    <a
-                                        href="https://cloud.google.com/logging/docs/view/logging-query-language"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="hover:text-secondary-700  cursor-pointer hover:underline text-xs font-medium transition-colors inline-flex items-center gap-1"
-                                    >
-                                        View Full Documentation
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                                            />
-                                        </svg>
-                                    </a>
+                                    <div>
+                                        <div class="font-medium mb-2">Boolean Operators:</div>
+                                        <div class="flex flex-wrap gap-1">
+                                            <code :class="codeClass">AND</code>
+                                            <code :class="codeClass">OR</code>
+                                            <code :class="codeClass">NOT</code>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium mb-2">Comparison Operators:</div>
+                                        <div class="flex flex-wrap gap-1">
+                                            <code :class="codeClass">=</code>
+                                            <code :class="codeClass">!=</code>
+                                            <code :class="codeClass">&gt;</code>
+                                            <code :class="codeClass">&lt;</code>
+                                            <code :class="codeClass">&gt;=</code>
+                                            <code :class="codeClass">&lt;=</code>
+                                        </div>
+                                        <div class="text-xs mt-2">
+                                            <div>
+                                                <code :class="codeClass">:</code>
+                                                substring,
+                                                <code :class="codeClass">=~</code>
+                                                regex match,
+                                                <code :class="codeClass">!~</code>
+                                                regex not match,
+                                                <code :class="codeClass">:*</code>
+                                                field exists
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="pt-2 border-t border-gray-200 text-center">
+                                        <a
+                                            href="https://cloud.google.com/logging/docs/view/logging-query-language"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="hover:text-secondary-700 cursor-pointer hover:underline text-xs font-medium transition-colors inline-flex items-center gap-1"
+                                        >
+                                            View Full Documentation
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                                />
+                                            </svg>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </template>
-                    <UButton
-                        icon="i-heroicons-information-circle"
-                        color="neutral"
-                        variant="ghost"
-                        size="xl"
-                        class="w-6 h-6 p-1 hover:bg-gray-100  rounded-full flex items-center justify-center"
-                    />
-                </UTooltip>
+                        </template>
+                        <UButton
+                            icon="i-heroicons-information-circle"
+                            color="neutral"
+                            variant="ghost"
+                            size="xl"
+                            class="w-6 h-6 p-1 hover:bg-gray-100 rounded-full flex items-center justify-center"
+                        />
+                    </UTooltip>
+                </div>
             </div>
             <UButton
                 icon="i-heroicons-magnifying-glass"
@@ -174,6 +174,9 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+// Import Schema Viewer component
+import SearchInputWithAutocomplete from "./SearchInputWithAutocomplete.vue";
 
 // Search query model with emit on update
 const searchQuery = computed({
