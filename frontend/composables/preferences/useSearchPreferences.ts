@@ -49,6 +49,7 @@ export const useSearchPreferences = () => {
                 secure: process.env.NODE_ENV === "production",
                 sameSite: "strict",
                 httpOnly: false, // Need client-side access for reactive updates
+                maxAge: 60 * 60 * 24, // 1 day
             });
 
             if (preferenceCookie.value) {

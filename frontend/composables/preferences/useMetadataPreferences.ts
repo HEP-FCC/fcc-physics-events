@@ -31,11 +31,14 @@ export const useMetadataPreferences = () => {
 
         try {
             const preferenceCookie = useCookie<MetadataPreferences>(COOKIE_NAME, {
-                default: () => ({ selectedFields: [], lastUpdated: Date.now() }),
+                default: () => ({
+                    selectedFields: ["n-events", "cross-section", "matching-eff"],
+                    lastUpdated: Date.now(),
+                }),
                 secure: process.env.NODE_ENV === "production",
                 sameSite: "strict",
                 httpOnly: false, // Need client-side access for reactive updates
-                maxAge: 60 * 60 * 24 * 365 * 10, // 10 years
+                maxAge: 60 * 60 * 24, // 1 day
             });
 
             if (preferenceCookie.value?.selectedFields) {
