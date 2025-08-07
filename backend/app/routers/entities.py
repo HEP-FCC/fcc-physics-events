@@ -8,11 +8,9 @@ from typing import Any
 from fastapi import (
     APIRouter,
     Depends,
-    File,
     HTTPException,
     Query,
     Request,
-    UploadFile,
     status,
 )
 from pydantic import BaseModel
@@ -23,7 +21,7 @@ from app.models.generic import GenericEntityUpdate
 from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
 from app.utils import get_config, get_logger
-from app.utils.errors import not_found_error, server_error, validation_error
+from app.utils.errors import not_found_error, validation_error
 
 logger = get_logger(__name__)
 
@@ -72,35 +70,6 @@ class SearchRequest(BaseModel):
     search: str = ""
     page: int = 1
     limit: int = 25
-
-
-@router.post("/upload-fcc-dict/", status_code=status.HTTP_202_ACCEPTED)
-async def upload_fcc_dict(
-    file: UploadFile = File(...),
-    user: dict[str, Any] = Depends(AuthDependency("authorized")),
-) -> dict[str, str]:
-    """
-    This endpoint handles file uploads for FCC dictionary imports.
-    """
-    try:
-        logger.info(
-            f"User {user.get('preferred_username', 'unknown')} uploading FCC dictionary file"
-        )
-
-        # Read file content
-        content = await file.read()
-
-        # Import the data
-        await database.import_fcc_dict(content)
-
-        return {"message": "FCC dictionary imported successfully"}
-
-    except Exception as e:
-        logger.error(f"Failed to upload FCC dictionary: {e}")
-        raise server_error(
-            error_type="upload_failed",
-            message=f"Failed to import FCC dictionary: {str(e)}",
-        )
 
 
 @router.get("/query/", response_model=dict[str, Any])
@@ -182,15 +151,9 @@ async def download_filtered_entities(
                 message="sort_order must be 'asc' or 'desc'",
             )
 
-        logger.debug("DOWNLOAD_QUERY_STRING: %s", q)
-
         count_query, search_query, search_query_params = query_parser.parse_query(
             q, sort_by=sort_by, sort_order=sort_order.lower()
         )
-
-        logger.debug("DOWNLOAD_COUNT_QUERY: %s", count_query)
-        logger.debug("DOWNLOAD_SEARCH_QUERY: %s", search_query)
-        logger.debug("DOWNLOAD_SEARCH_QUERY_PARAMS: %s", search_query_params)
 
         # Get all results by using a very large limit
         result = await database.perform_search(

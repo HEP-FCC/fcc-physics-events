@@ -18,6 +18,7 @@ from app.routers import auth as auth_router
 from app.routers import entities as entities_router
 from app.routers import navigation as navigation_router
 from app.routers import utility as utility_router
+from app.services.file_watcher import FileWatcherService
 from app.storage.database import Database
 from app.utils import get_config, get_logger, setup_logging
 
@@ -26,6 +27,7 @@ config = get_config()
 
 database = Database()
 query_parser = QueryParser(database=database)
+file_watcher = FileWatcherService(database=database)
 
 
 @asynccontextmanager
@@ -40,7 +42,13 @@ async def lifespan(_: FastAPI) -> Any:
     # Query parser setup depends on database being ready
     await query_parser.setup()
 
+    # Start file watcher service
+    await file_watcher.start()
+
     yield
+
+    # Cleanup during shutdown
+    await file_watcher.stop()
     await database.aclose()
 
 
@@ -125,6 +133,7 @@ async def validation_exception_handler(
 auth_router.init_dependencies(database)
 entities_router.init_dependencies(database, query_parser)
 navigation_router.init_dependencies(database)
+utility_router.init_dependencies(file_watcher)
 
 # Include routers
 app.include_router(utility_router.router)
