@@ -61,13 +61,12 @@ class TokenRefreshError(Exception):
 @router.post("/refresh-auth-token")
 async def refresh_auth_token(request: Request, response: Response) -> JSONResponse:
     """
-    Dedicated endpoint for OAuth 2.0 token refresh with cookie management.
+    Dedicated endpoint for OAuth token refresh with cookie management.
 
-    Implements refresh token rotation as per RFC 9700 OAuth 2.0 Security Best Practices:
+    Implements refresh token rotation:
     - Validates refresh token from secure httpOnly cookie
     - Performs token refresh with automatic rotation
     - Updates all authentication cookies (access_token, refresh_token, id_token)
-    - Provides clear error responses for frontend handling
 
     Returns:
         Success response with token metadata, or 401 if refresh fails
@@ -197,7 +196,6 @@ async def auth(request: Request) -> Any:
     await oauth.provider.framework.clear_state_data(request.session, state)
     params = oauth.provider._format_state_params(state_data, params)
 
-    # Get the auth token object from the auth service
     token_data: dict[str, Any] = await oauth.provider.fetch_access_token(**params)
 
     # We redirect user to the frontend's main page after successful login
@@ -209,7 +207,6 @@ async def auth(request: Request) -> Any:
         access_token=token_data["access_token"],
         refresh_token=token_data["refresh_token"],
         id_token=token_data["id_token"],
-        # nonce=state_data["nonce"],
     )
 
     return response
@@ -219,16 +216,9 @@ async def auth(request: Request) -> Any:
 async def logout(request: Request) -> JSONResponse:
     """Clear all authentication cookies, session, and get CERN SSO logout URL."""
 
-    # Clear the session
     request.session.clear()
-
-    # Get logout URL from well-known endpoints
     cern_logout_url = await get_logout_url()
-
-    # Create response with logout URL
     response = JSONResponse(content={"logout_url": cern_logout_url})
-
-    # Clear all authentication cookies using helper function
     clear_auth_cookies(response)
 
     return response
@@ -236,17 +226,18 @@ async def logout(request: Request) -> JSONResponse:
 
 @router.get("/session-status")
 async def get_session_status(request: Request) -> JSONResponse:
-    """Get current session authentication status."""
-
-    logger.debug("Received cookies: %s", request.cookies)
+    """Get current session authentication status.
+    Try to validate the user token from cookies.
+    If that fails, try to refresh the token in case it expired.
+    Return either information about the successfully authenticated user or
+    information that the user is not authenticated.
+    """
 
     try:
-        # Extract and decode authentication cookies
         auth_data = extract_auth_cookies(request.cookies)
         access_token = auth_data["access_token"]
         refresh_token = auth_data["refresh_token"]
         id_token = auth_data["id_token"]
-        # nonce = auth_data["nonce"]
     except Exception as e:
         error_message = f"""Failed to parse and validate required auth cookies.
             Most likely user is not authenticated so we are returning status code 200: {e}"""
@@ -257,7 +248,6 @@ async def get_session_status(request: Request) -> JSONResponse:
         )
 
     try:
-        # Validate tokens and get user info
         userinfo = await validate_token_and_get_user(access_token, id_token, oauth)
         return JSONResponse(content={"authenticated": True, "user": userinfo})
     except Exception as e:
@@ -265,7 +255,6 @@ async def get_session_status(request: Request) -> JSONResponse:
             f"Failed to validate authentication of the user. Going to try refreshing their token now. Error: {e}"
         )
 
-        # Try to refresh the token to see if we might get a valid token first before failing to authenticate
         try:
             new_token_data = await try_refresh_token(refresh_token)
             if new_token_data is None:
@@ -275,20 +264,17 @@ async def get_session_status(request: Request) -> JSONResponse:
                     status_code=status.HTTP_401_UNAUTHORIZED,
                 )
 
-            # Parse the new token data to get user info using the correct approach
             data = {"token": new_token_data, "nonce": None}
 
             userinfo = await oauth.provider.parse_id_token(**data)
             logger.debug("Received userinfo from refreshed token: %s", userinfo)
 
-            # Create the response and set the new cookies
             response = JSONResponse(content={"authenticated": True, "user": userinfo})
             set_auth_cookies(
                 response,
                 access_token=new_token_data["access_token"],
                 refresh_token=new_token_data["refresh_token"],
                 id_token=new_token_data["id_token"],
-                # nonce=nonce,
             )
 
             return response
@@ -297,8 +283,6 @@ async def get_session_status(request: Request) -> JSONResponse:
             logger.info(
                 f"Failed to refresh auth token, user is not authenticated. Error: {e}"
             )
-
-            # Use proper error response for authentication failures
             raise unauthenticated_error(
                 error_type=ErrorTypes.SESSION_ERROR,
                 message="Session validation failed - unable to refresh expired tokens",

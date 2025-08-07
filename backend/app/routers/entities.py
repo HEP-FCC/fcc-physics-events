@@ -80,7 +80,6 @@ async def upload_fcc_dict(
     user: dict[str, Any] = Depends(AuthDependency("authorized")),
 ) -> dict[str, str]:
     """
-    Upload and import FCC dictionary data.
     This endpoint handles file uploads for FCC dictionary imports.
     """
     try:
@@ -116,9 +115,6 @@ async def execute_gclql_query(
     Executes a GCLQL-style query against the database with infinite scroll support and sorting.
     Supports sorting by any entity field or metadata JSON field (e.g., 'metadata.key').
     """
-    logger.info(
-        f"*** /query/ endpoint called with q={q}, limit={limit}, offset={offset}"
-    )
     try:
         # Validate sort_order parameter
         if sort_order.lower() not in ["asc", "desc"]:
@@ -127,15 +123,9 @@ async def execute_gclql_query(
                 message="sort_order must be 'asc' or 'desc'",
             )
 
-        logger.debug("QUERY_STRING: %s", q)
-
         count_query, search_query, search_query_params = query_parser.parse_query(
             q, sort_by=sort_by, sort_order=sort_order.lower()
         )
-
-        logger.debug("COUNT_QUERY: %s", count_query)
-        logger.debug("SEARCH_QUERY: %s", search_query)
-        logger.debug("SEARCH_QUERY_PARAMS: %s", search_query_params)
 
         return await database.perform_search(
             count_query, search_query, search_query_params, limit, offset
@@ -333,7 +323,7 @@ async def update_metadata_lock(
                 f"Locking field '{lock_request.field_name}' by setting {lock_field_name} = True"
             )
         else:
-            # Remove lock field when unlocking (saves storage space)
+            # Remove lock field when unlocking
             if lock_field_name in current_metadata:
                 current_metadata.pop(lock_field_name, None)
                 logger.info(
@@ -392,9 +382,7 @@ async def update_metadata_lock(
 @router.delete("/entities/", response_model=dict[str, Any])
 async def delete_entities(
     request: DeleteEntitiesRequest,
-    user: dict[str, Any] = Depends(
-        AuthDependency("admin")
-    ),  # Require admin role for deletion
+    user: dict[str, Any] = Depends(AuthDependency("admin")),
 ) -> dict[str, Any]:
     """
     Delete entities by their IDs. Only users with 'authorized' role can perform this operation.
@@ -482,17 +470,3 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Search failed"
         )
-
-
-# @router.get("/session-status")
-# async def get_session_status(request: Request) -> dict[str, Any]:
-#     """Get current session authentication status."""
-#     token = request.session.get("token")
-#     user = request.session.get("user")
-
-#     print("SESSION-STATUS:", request.session)
-
-#     if token and user:
-#         return {"authenticated": True, "user": user}
-#     else:
-#         return {"authenticated": False, "user": None}

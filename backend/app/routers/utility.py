@@ -28,4 +28,3 @@ async def read_root() -> dict[str, str]:
 async def health_check() -> dict[str, str]:
     """Health check endpoint for monitoring."""
     return {"status": "healthy", "service": "fcc-physics-events-api"}
-
