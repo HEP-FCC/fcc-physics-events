@@ -57,10 +57,20 @@ export const useEntityBadges = () => {
      * Get all badge information for an entity
      */
     const getEntityBadges = (entity: Entity, activeFilters?: Record<string, string>): BadgeInfo[] => {
-        // Generate navigation badges for any field ending with '_name' that has a value
+        // Get the navigation order to determine which fields are valid navigation fields
+        const navigationOrder = getNavigationOrder();
+        
+        // Generate navigation badges only for fields that are actual navigation fields
         const navigationBadges = Object.entries(entity)
             .filter(([key, value]) => {
-                return key.endsWith("_name") && value && typeof value === "string" && value.trim() !== "";
+                // Check if field ends with '_name' and has a value
+                if (!key.endsWith("_name") || !value || typeof value !== "string" || value.trim() === "") {
+                    return false;
+                }
+                
+                // Check if the navigation type (without '_name') is a valid navigation field
+                const navType = key.replace("_name", "");
+                return navigationOrder.includes(navType);
             })
             .map(([key, value]) => {
                 const navType = key.replace("_name", "");
