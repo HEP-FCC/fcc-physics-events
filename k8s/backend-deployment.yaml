@@ -17,21 +17,29 @@ spec:
       annotations:
         kompose.cmd: kompose convert -f docker-compose.yml -o k8s/
         kompose.version: 1.36.0 (ae2a39403)
+        eos.okd.cern.ch/mount-eos-with-credentials-from-secret: eos-credentials
       labels:
         io.kompose.service: fcc-physics-events-backend
     spec:
       containers:
-        - args:
-            - fastapi
-            - dev
-            - app/main.py
-            - --host
-            - 0.0.0.0
-            - --port
-            - "8000"
-          image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:15
-          name: fcc-phsyics-events-backend
-          ports:
-            - containerPort: 8000
-              protocol: TCP
+      - args:
+        - fastapi
+        - dev
+        - app/main.py
+        - --host
+        - 0.0.0.0
+        - --port
+        - "8000"
+        image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:15
+        name: fcc-phsyics-events-backend
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+        volumeMounts:
+        - name: eos
+          mountPath: /eos
+      volumes:
+      - name: eos
+        persistentVolumeClaim:
+          claimName: "eos-volume"
       restartPolicy: Always
