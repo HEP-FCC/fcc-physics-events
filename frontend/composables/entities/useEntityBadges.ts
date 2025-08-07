@@ -59,7 +59,7 @@ export const useEntityBadges = () => {
     const getEntityBadges = (entity: Entity, activeFilters?: Record<string, string>): BadgeInfo[] => {
         // Get the navigation order to determine which fields are valid navigation fields
         const navigationOrder = getNavigationOrder();
-        
+
         // Generate navigation badges only for fields that are actual navigation fields
         const navigationBadges = Object.entries(entity)
             .filter(([key, value]) => {
@@ -67,7 +67,7 @@ export const useEntityBadges = () => {
                 if (!key.endsWith("_name") || !value || typeof value !== "string" || value.trim() === "") {
                     return false;
                 }
-                
+
                 // Check if the navigation type (without '_name') is a valid navigation field
                 const navType = key.replace("_name", "");
                 return navigationOrder.includes(navType);
