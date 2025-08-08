@@ -16,6 +16,7 @@ export function useNavigationState() {
     const itemsRefs: Record<string, Ref<DropdownItem[]>> = {};
     const loadingRefs: Record<string, Ref<boolean>> = {};
     const openRefs: Record<string, Ref<boolean>> = {};
+    const fetchedRefs: Record<string, Ref<boolean>> = {}; // Track successful fetches (even if empty)
 
     // Initialize navigation and setup refs
     const initializeRefs = () => {
@@ -25,6 +26,7 @@ export function useNavigationState() {
                 itemsRefs[type] = ref<DropdownItem[]>([]);
                 loadingRefs[type] = ref(false);
                 openRefs[type] = ref(false);
+                fetchedRefs[type] = ref(false); // Track if this dropdown has been successfully fetched
             }
         });
     };
@@ -149,9 +151,10 @@ export function useNavigationState() {
     async function loadSingleDropdownLevel(type: string, filters: Record<string, string> = {}) {
         const itemsRef = getItemsRef(type);
         const loadingRef = getLoadingRef(type);
+        const fetchedRef = fetchedRefs[type];
 
-        // Only load if not already loaded or loading
-        if (!itemsRef || !loadingRef || itemsRef.value.length > 0 || loadingRef.value) {
+        // Only load if not already fetched successfully (even if empty) or loading
+        if (!itemsRef || !loadingRef || !fetchedRef || fetchedRef.value || loadingRef.value) {
             return;
         }
 
@@ -161,6 +164,7 @@ export function useNavigationState() {
                 const preloadedData = getPreloadedDropdownData(type);
                 if (preloadedData && preloadedData.length > 0) {
                     itemsRef.value = preloadedData as DropdownItem[];
+                    fetchedRef.value = true; // Mark as successfully fetched
                     return;
                 }
             }
@@ -189,8 +193,10 @@ export function useNavigationState() {
             const data = await apiGet<{ data: DropdownItem[] }>(requestUrl);
             const items = data.data || [];
             itemsRef.value = items;
+            fetchedRef.value = true; // Mark as successfully fetched (even if empty)
         } catch (error) {
             console.warn(`Error loading ${type}:`, error);
+            // Don't mark as fetched on error - allow retry later
         } finally {
             if (loadingRef) {
                 loadingRef.value = false;
@@ -222,9 +228,10 @@ export function useNavigationState() {
 
         const itemsRef = getItemsRef(type);
         const loadingRef = getLoadingRef(type);
+        const fetchedRef = fetchedRefs[type];
 
-        if (!itemsRef || !loadingRef) {
-            console.warn(`Unknown navigation type: ${type}`, { itemsRef, loadingRef });
+        if (!itemsRef || !loadingRef || !fetchedRef) {
+            console.warn(`Unknown navigation type: ${type}`, { itemsRef, loadingRef, fetchedRef });
             return;
         }
 
@@ -240,13 +247,19 @@ export function useNavigationState() {
             const preloadedData = getPreloadedDropdownData(type);
             if (preloadedData && preloadedData.length > 0) {
                 itemsRef.value = preloadedData as DropdownItem[];
+                fetchedRef.value = true; // Mark as successfully fetched
                 return; // Exit early, no need to make API call
             }
 
-            // If no preloaded data but items already loaded, skip API call
-            if (itemsRef.value.length > 0) {
+            // If no preloaded data but already successfully fetched (even if empty), skip API call
+            if (fetchedRef.value) {
                 return;
             }
+        }
+
+        // If force reload, reset the fetched state
+        if (forceReload) {
+            fetchedRef.value = false;
         }
 
         loadingRef.value = true;
@@ -276,9 +289,11 @@ export function useNavigationState() {
             // Use the enhanced API client with automatic token refresh
             const data = await apiGet<{ data: DropdownItem[] }>(requestUrl);
             itemsRef.value = data.data || [];
+            fetchedRef.value = true; // Mark as successfully fetched (even if empty)
         } catch (error) {
             console.error(`Error loading ${type}:`, error);
             itemsRef.value = [];
+            // Don't mark as fetched on error - allow retry later
         } finally {
             loadingRef.value = false;
         }
@@ -388,8 +403,12 @@ export function useNavigationState() {
 
     function clearDropdownData(type: string) {
         const itemsRef = getItemsRef(type);
+        const fetchedRef = fetchedRefs[type];
         if (itemsRef) {
             itemsRef.value = [];
+        }
+        if (fetchedRef) {
+            fetchedRef.value = false; // Reset fetched state to allow new fetch
         }
     }
 
@@ -402,8 +421,12 @@ export function useNavigationState() {
         for (let i = typeIndex + 1; i < order.length; i++) {
             const dependentType = order[i];
             const itemsRef = getItemsRef(dependentType);
+            const fetchedRef = fetchedRefs[dependentType];
             if (itemsRef) {
                 itemsRef.value = [];
+            }
+            if (fetchedRef) {
+                fetchedRef.value = false; // Reset fetched state to allow new fetch with updated filters
             }
         }
     }

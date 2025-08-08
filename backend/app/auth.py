@@ -158,7 +158,6 @@ async def load_cern_endpoints() -> None:
             async with session.get(CERN_OIDC_URL) as response:
                 response.raise_for_status()
                 CERN_ENDPOINTS.update(await response.json())
-                logger.debug("Loaded well-known endpoints: %s", CERN_ENDPOINTS)
 
 
 async def try_refresh_token(refresh_token: str) -> dict[str, Any] | None:

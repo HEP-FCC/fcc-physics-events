@@ -30,10 +30,28 @@ class FccDataset(BaseModel):
     comment: str | None = Field(default=None)
     status: str | None = Field(default=None)
 
+    # Navigation entity fields (new format)
+    accelerator: str | None = Field(default=None)
+    stage: str | None = Field(default=None)
+    campaign: str | None = Field(default=None)
+    detector: str | None = Field(default=None)
+    file_type: str | None = Field(default=None, alias="file-type")
+
     # Store all other fields as metadata
     raw_metadata: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
-    @field_validator("process_name", "description", "comment", "status", mode="before")
+    @field_validator(
+        "process_name",
+        "description",
+        "comment",
+        "status",
+        "accelerator",
+        "stage",
+        "campaign",
+        "detector",
+        "file_type",
+        mode="before",
+    )
     @classmethod
     def handle_string_fields(cls, v: Any) -> str | None:
         """
@@ -92,6 +110,11 @@ class FccDataset(BaseModel):
             "description",
             "comment",
             "status",
+            "accelerator",
+            "stage",
+            "campaign",
+            "detector",
+            "file-type",
         }
 
         # Create a copy of the data for manipulation
@@ -114,10 +137,11 @@ class FccDataset(BaseModel):
         """
         Returns all metadata including both core fields and raw_metadata.
         Excludes None values and the process_name (since it's stored as dataset name).
+        Also excludes navigation entity fields as they are stored in foreign key relationships.
         """
         metadata: dict[str, Any] = {}
 
-        # Add core fields that have values
+        # Add core fields that have values (excluding navigation fields)
         if self.n_events is not None:
             metadata["n-events"] = self.n_events
         if self.path is not None:

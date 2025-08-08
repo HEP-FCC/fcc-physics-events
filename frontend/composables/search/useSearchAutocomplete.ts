@@ -62,48 +62,24 @@ export const useSearchAutocomplete = () => {
         try {
             const response = await getSortingFields();
             if (response.fields && response.fields.length > 0) {
-                fieldNames.value = response.fields;
+                // Process the fields to strip metadata. prefix for display
+                // but keep the original field names for query construction
+                fieldNames.value = response.fields
+                    .map((field: string) => {
+                        if (field.startsWith("metadata.")) {
+                            // Strip the metadata. prefix for display
+                            return field.substring("metadata.".length);
+                        }
+                        // Keep non-metadata fields as they are
+                        return field;
+                    })
+                    .sort();
+
                 fieldsLoaded.value = true;
             }
         } catch (error) {
             console.warn("Failed to load field names for autocomplete:", error);
         }
-    };
-    /**
-     * Analyze the query context at cursor position to determine what to suggest
-     */
-    const analyzeQueryContext = (
-        query: string,
-        cursorPosition: number,
-    ): "field" | "operator" | "value" | "boolean" | null => {
-        const beforeCursor = query.slice(0, cursorPosition);
-        const afterCursor = query.slice(cursorPosition);
-
-        // If we're at the beginning or after AND/OR/NOT, suggest fields
-        if (beforeCursor.trim() === "" || /\b(AND|OR|NOT)\s*$/i.test(beforeCursor)) {
-            return "field";
-        }
-
-        // If we have a field name followed by space, suggest operators
-        const fieldPattern = /\w+\s*$/;
-        if (fieldPattern.test(beforeCursor) && !beforeCursor.includes("=") && !beforeCursor.includes(":")) {
-            return "operator";
-        }
-
-        // If we have field + operator, suggest values (for specific fields) or boolean operators
-        const fieldOperatorPattern = /\w+\s*[=!<>:~]+\s*"?[^"]*"?\s*$/;
-        if (fieldOperatorPattern.test(beforeCursor)) {
-            return "boolean";
-        }
-
-        // If we're in the middle of typing a field name, suggest fields
-        const partialFieldPattern = /(?:^|\s|\()([\w.]+)$/;
-        const match = beforeCursor.match(partialFieldPattern);
-        if (match) {
-            return "field";
-        }
-
-        return null;
     };
 
     /**
@@ -111,7 +87,7 @@ export const useSearchAutocomplete = () => {
      */
     const filterFields = (partial: string): SuggestionItem[] => {
         if (!partial)
-            return fieldNames.value.slice(0, 10).map((field) => ({
+            return fieldNames.value.map((field) => ({
                 value: field,
                 type: "field" as const,
                 description: getFieldDescription(field),
@@ -132,7 +108,7 @@ export const useSearchAutocomplete = () => {
             return 0;
         });
 
-        return filtered.slice(0, 10).map((field) => ({
+        return filtered.map((field) => ({
             value: field,
             type: "field" as const,
             description: getFieldDescription(field),
@@ -143,9 +119,6 @@ export const useSearchAutocomplete = () => {
      * Get a description for a field name
      */
     const getFieldDescription = (field: string): string => {
-        if (field.startsWith("metadata.")) {
-            return "Metadata field";
-        }
         if (field.endsWith("_name")) {
             return "Related entity name";
         }
@@ -155,7 +128,13 @@ export const useSearchAutocomplete = () => {
         if (field.includes("date") || field.includes("time")) {
             return "Date/time field";
         }
-        return "Database field";
+        // Check if this is a known database column vs metadata field
+        const knownDatabaseFields = ["id", "name", "created_at", "last_edited_at"];
+        if (knownDatabaseFields.includes(field)) {
+            return "Database field";
+        }
+        // If not a known database field, it's likely a metadata field
+        return "Metadata field";
     };
 
     /**
@@ -267,7 +246,7 @@ export const useSearchAutocomplete = () => {
             return [];
         }
 
-        return suggestions.slice(0, 10); // Limit to 10 suggestions
+        return suggestions.slice(0, 20); // Limit to 20 suggestions
     };
 
     /**

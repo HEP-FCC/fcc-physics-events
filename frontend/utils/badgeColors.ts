@@ -9,7 +9,8 @@ import { APP_CONFIG } from "~/config/app.config";
 import type { BadgeColor } from "~/config/app.config";
 
 // Common navigation types in expected order
-const COMMON_NAVIGATION_ORDER = ["accelerator", "stage", "campaign", "detector", "software_stack"];
+// TODO: Move to config
+const COMMON_NAVIGATION_ORDER = ["accelerator", "stage", "campaign", "detector", "file_type"];
 
 /**
  * Generate a consistent badge color for a navigation type

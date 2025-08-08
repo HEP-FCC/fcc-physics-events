@@ -45,6 +45,5 @@ node_modules
 
 # Database files
 /database/
-data/
-
+*data*/
 

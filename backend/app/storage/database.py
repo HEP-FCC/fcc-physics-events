@@ -108,7 +108,6 @@ class Database:
 
     async def _apply_database_schema(self, config: Config) -> None:
         """Applies the database schema if not already applied."""
-        logger.info("Applying database schema...")
         schema_file = config.get("schema_file", Path(__file__).parent / "database.sql")
 
         with open(schema_file, encoding="utf-8") as f:
@@ -124,33 +123,13 @@ class Database:
         # Use advisory lock to prevent concurrent schema application from multiple workers
         await conn.execute("SELECT pg_advisory_lock($1)", SCHEMA_ADVISORY_LOCK_ID)
         try:
-            schema_applied = await self._check_schema_applied(conn)
-
-            if not schema_applied:
-                logger.info(
-                    "Application schema not found, applying schema (this worker won the race)..."
-                )
-                async with conn.transaction():
-                    await conn.execute(schema_sql)
-                logger.info("Database schema applied successfully")
-            else:
-                logger.info(
-                    "Application schema already exists, skipping schema application..."
-                )
+            logger.info("Applying database schema...")
+            async with conn.transaction():
+                await conn.execute(schema_sql)
+            logger.info("Database schema applied successfully")
         finally:
             # Release advisory lock
             await conn.execute("SELECT pg_advisory_unlock($1)", SCHEMA_ADVISORY_LOCK_ID)
-
-    async def _check_schema_applied(self, conn: asyncpg.Connection) -> bool:
-        """Check if our application schema has been applied by looking for our custom function."""
-        return await conn.fetchval("""
-            SELECT EXISTS(
-                SELECT 1 FROM pg_proc p
-                JOIN pg_namespace n ON p.pronamespace = n.oid
-                WHERE n.nspname = 'public'
-                AND p.proname = 'jsonb_values_to_text'
-            )
-        """)
 
     def session(self) -> AsyncSessionContextManager:
         """Provides a session context manager for raw database interactions."""
@@ -325,29 +304,78 @@ class Database:
 
     async def import_fcc_dict(self, json_content: bytes) -> None:
         """Parses JSON content and upserts the data into the database with proper transaction handling."""
-        collection = self._parse_json_content(json_content)
+        try:
+            collection = self._parse_json_content(json_content)
+        except ValueError as e:
+            # If the file format is incompatible, log and skip without raising an error
+            if "skipping incompatible format" in str(e):
+                logger.info(f"Skipping incompatible JSON format: {e}")
+                return
+            else:
+                # Re-raise other validation errors
+                raise
+
         config = get_config()
         main_table = config["application"]["main_table"]
 
-        async with self.session() as conn:
-            async with conn.transaction():
-                processed_count, failed_count = await self._process_dataset_collection(
-                    conn, collection, main_table
-                )
-                self._log_import_results(processed_count, failed_count)
-                self._validate_import_success(processed_count, failed_count)
+        # Process each dataset in its own transaction to avoid transaction abort issues
+        (
+            processed_count,
+            failed_count,
+        ) = await self._process_dataset_collection_with_recovery(collection, main_table)
 
-        logger.info("Import transaction completed successfully")
+        self._log_import_results(processed_count, failed_count)
+        self._validate_import_success(processed_count, failed_count)
+
+        logger.info("Import operation completed successfully")
 
     def _parse_json_content(self, json_content: bytes) -> DatasetCollection:
         """Parse and validate JSON content into DatasetCollection."""
         try:
             raw_data = json.loads(json_content)
+
+            # Check if this JSON has the expected "processes" key with a list value
+            if not isinstance(raw_data, dict):
+                raise ValueError("JSON root must be an object")
+
+            if "processes" not in raw_data:
+                raise ValueError(
+                    "JSON does not contain 'processes' key - skipping incompatible format"
+                )
+
+            if not isinstance(raw_data["processes"], list):
+                raise ValueError(
+                    "'processes' value must be a list - skipping incompatible format"
+                )
+
             return DatasetCollection.model_validate(raw_data)
         except json.JSONDecodeError as e:
             raise ValueError("Invalid JSON format") from e
         except Exception as e:
             raise ValueError(f"Invalid data format: {e}") from e
+
+    async def _process_dataset_collection_with_recovery(
+        self, collection: DatasetCollection, main_table: str
+    ) -> tuple[int, int]:
+        """Process all datasets in the collection with individual transaction recovery."""
+        processed_count = 0
+        failed_count = 0
+
+        for idx, dataset_data in enumerate(collection.processes):
+            # Process each dataset in its own session and transaction
+            try:
+                async with self.session() as conn:
+                    async with conn.transaction():
+                        await self._process_single_dataset(
+                            conn, dataset_data, idx, main_table
+                        )
+                        processed_count += 1
+            except Exception as e:
+                failed_count += 1
+                logger.error(f"Failed to process dataset at index {idx}: {e}")
+                # Continue processing other datasets instead of aborting
+
+        return processed_count, failed_count
 
     async def _process_dataset_collection(
         self, conn: asyncpg.Connection, collection: DatasetCollection, main_table: str
@@ -399,104 +427,205 @@ class Database:
     async def _create_navigation_entities(
         self, conn: asyncpg.Connection, dataset_data: Any, dataset_name: str
     ) -> dict[str, int | None]:
-        """Create navigation entities from dataset path and return their IDs."""
-        foreign_key_ids = {
+        """Create navigation entities from direct JSON fields and return their IDs."""
+        foreign_key_ids: dict[str, int | None] = {
             "accelerator_id": None,
             "stage_id": None,
             "campaign_id": None,
             "detector_id": None,
+            "file_type_id": None,
         }
 
-        if not dataset_data.path:
-            logger.warning(
-                f"Dataset {dataset_name} has no path. Will store with null foreign key references."
-            )
-            return foreign_key_ids
-
+        # Use direct field mapping from new JSON format, with path parsing fallback
         try:
-            path_components = self._parse_path_components(dataset_data.path)
-            foreign_key_ids = await self._create_entities_from_path_components(
-                conn, path_components
-            )
-        except (IndexError, AttributeError) as e:
+            # Create accelerator first (try direct field, then path parsing)
+            accelerator_name = None
+            if dataset_data.accelerator and dataset_data.accelerator.strip():
+                accelerator_name = dataset_data.accelerator.strip()
+            elif dataset_data.path:
+                # Fallback: parse from path (/eos/experiment/fcc/hh/ -> fcc-hh)
+                accelerator_name = self._extract_accelerator_from_path(
+                    dataset_data.path
+                )
+
+            if accelerator_name:
+                foreign_key_ids["accelerator_id"] = await self._get_or_create_entity(
+                    conn,
+                    GenericEntityCreate,
+                    "accelerators",
+                    name=accelerator_name,
+                )
+
+            # Create stage (try direct field, then path parsing)
+            stage_name = None
+            if dataset_data.stage and dataset_data.stage.strip():
+                stage_name = dataset_data.stage.strip()
+            elif dataset_data.path:
+                # Fallback: parse from path (DelphesEvents -> sim, LHEevents -> gen)
+                stage_name = self._extract_stage_from_path(dataset_data.path)
+
+            if stage_name:
+                foreign_key_ids["stage_id"] = await self._get_or_create_entity(
+                    conn,
+                    GenericEntityCreate,
+                    "stages",
+                    name=stage_name,
+                )
+
+            # Create campaign (try direct field, then path parsing)
+            campaign_name = None
+            if dataset_data.campaign and dataset_data.campaign.strip():
+                campaign_name = dataset_data.campaign.strip()
+            elif dataset_data.path:
+                # Fallback: parse from path
+                campaign_name = self._extract_campaign_from_path(dataset_data.path)
+
+            if campaign_name:
+                foreign_key_ids["campaign_id"] = await self._get_or_create_entity(
+                    conn,
+                    GenericEntityCreate,
+                    "campaigns",
+                    name=campaign_name,
+                )
+
+            # Create file_type (try direct field, then path parsing)
+            file_type_name = None
+            if dataset_data.file_type and dataset_data.file_type.strip():
+                file_type_name = dataset_data.file_type.strip()
+            elif dataset_data.path:
+                # Fallback: parse from path
+                file_type_name = self._extract_file_type_from_path(dataset_data.path)
+
+            if file_type_name:
+                foreign_key_ids["file_type_id"] = await self._get_or_create_entity(
+                    conn,
+                    GenericEntityCreate,
+                    "file_types",
+                    name=file_type_name,
+                )
+
+            # Create detector (depends on accelerator, try direct field then path parsing)
+            detector_name = None
+            if dataset_data.detector and dataset_data.detector.strip():
+                detector_name = dataset_data.detector.strip()
+            elif dataset_data.path and foreign_key_ids["accelerator_id"]:
+                # Fallback: parse from path or set default
+                detector_name = self._extract_detector_from_path(dataset_data.path)
+
+            if detector_name and foreign_key_ids["accelerator_id"]:
+                foreign_key_ids["detector_id"] = await self._get_or_create_entity(
+                    conn,
+                    GenericEntityCreate,
+                    "detectors",
+                    name=detector_name,
+                    accelerator_id=foreign_key_ids["accelerator_id"],
+                )
+
+        except Exception as e:
             logger.warning(
-                f"Could not parse path components for {dataset_name}: {e}. "
+                f"Could not create navigation entities for {dataset_name}: {e}. "
                 f"Will store dataset with null foreign key references."
             )
 
         return foreign_key_ids
 
-    def _parse_path_components(self, path: str) -> dict[str, str | None]:
-        """Parse path components and extract entity names."""
-        path_parts = Path(path).parts
-        return {
-            "accelerator_name": path_parts[4] if len(path_parts) > 4 else None,
-            "stage_name": (
-                path_parts[6].replace("Events", "") if len(path_parts) > 6 else None
-            ),
-            "campaign_name": path_parts[7] if len(path_parts) > 7 else None,
-            "detector_name": path_parts[8] if len(path_parts) > 8 else None,
-        }
+    def _extract_accelerator_from_path(self, path: str) -> str | None:
+        """Extract accelerator name from file path."""
+        if not path:
+            return None
 
-    async def _create_entities_from_path_components(
-        self, conn: asyncpg.Connection, path_components: dict[str, str | None]
-    ) -> dict[str, int | None]:
-        """Create entities from parsed path components."""
-        foreign_key_ids = {
-            "accelerator_id": None,
-            "stage_id": None,
-            "campaign_id": None,
-            "detector_id": None,
-        }
+        # Pattern: /eos/experiment/fcc/hh/ -> fcc-hh
+        # Pattern: /eos/experiment/fcc/ee/ -> fcc-ee
+        import re
 
-        # Create accelerator first
-        if (
-            path_components["accelerator_name"]
-            and path_components["accelerator_name"].strip()
-        ):
-            foreign_key_ids["accelerator_id"] = await self._get_or_create_entity(
-                conn,
-                GenericEntityCreate,
-                "accelerators",
-                name=path_components["accelerator_name"].strip(),
-            )
+        match = re.search(r"/fcc/(hh|ee)/", path)
+        if match:
+            return f"fcc-{match.group(1)}"
+        return None
 
-        # Create stage
-        if path_components["stage_name"] and path_components["stage_name"].strip():
-            foreign_key_ids["stage_id"] = await self._get_or_create_entity(
-                conn,
-                GenericEntityCreate,
-                "stages",
-                name=path_components["stage_name"].strip(),
-            )
+    def _extract_stage_from_path(self, path: str) -> str | None:
+        """Extract stage name from file path."""
+        if not path:
+            return None
 
-        # Create campaign
-        if (
-            path_components["campaign_name"]
-            and path_components["campaign_name"].strip()
-        ):
-            foreign_key_ids["campaign_id"] = await self._get_or_create_entity(
-                conn,
-                GenericEntityCreate,
-                "campaigns",
-                name=path_components["campaign_name"].strip(),
-            )
+        # DelphesEvents indicates simulation/reconstruction stage
+        if "DelphesEvents" in path:
+            return "sim"
+        # LHEevents indicates generation stage
+        elif "LHEevents" in path:
+            return "gen"
+        # STDHEP indicates generation stage
+        elif "STDHEP" in path:
+            return "gen"
+        return None
 
-        # Create detector (depends on accelerator)
-        if (
-            path_components["detector_name"]
-            and path_components["detector_name"].strip()
-            and foreign_key_ids["accelerator_id"]
-        ):
-            foreign_key_ids["detector_id"] = await self._get_or_create_entity(
-                conn,
-                GenericEntityCreate,
-                "detectors",
-                name=path_components["detector_name"].strip(),
-                accelerator_id=foreign_key_ids["accelerator_id"],
-            )
+    def _extract_campaign_from_path(self, path: str) -> str | None:
+        """Extract campaign name from file path."""
+        if not path:
+            return None
 
-        return foreign_key_ids
+        # Extract campaign from paths like:
+        # /eos/experiment/fcc/hh/generation/DelphesEvents/fcc_v04/ -> fcc_v04
+        # /eos/experiment/fcc/ee/generation/DelphesEvents/winter2023/ -> winter2023
+        import re
+
+        # Try to find campaign patterns
+        patterns = [
+            r"/DelphesEvents/([^/]+)/",  # DelphesEvents/campaign/
+            r"/LHEevents/([^/]+)/",  # LHEevents/campaign/
+            r"/STDHEP[^/]*/([^/]+)/",  # STDHEP_events_campaign/
+            r"/(fcc_v\d+)/",  # fcc_v04, fcc_v05, etc.
+            r"/(winter\d+)/",  # winter2023, etc.
+            r"/(spring\d+)/",  # spring2021, etc.
+            r"/(fall\d+)/",  # fall2022, etc.
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, path)
+            if match:
+                return match.group(1)
+        return None
+
+    def _extract_file_type_from_path(self, path: str) -> str | None:
+        """Extract file type from file path."""
+        if not path:
+            return None
+
+        # DelphesEvents typically contain edm4hep-root files
+        if "DelphesEvents" in path:
+            return "edm4hep-root"
+        # LHEevents contain lhe files
+        elif "LHEevents" in path:
+            return "lhe"
+        # STDHEP events contain stdhep files
+        elif "STDHEP" in path:
+            return "stdhep"
+        return None
+
+    def _extract_detector_from_path(self, path: str) -> str | None:
+        """Extract detector name from file path."""
+        if not path:
+            return None
+
+        # Look for detector names in the path
+        # Common detector names in FCC paths
+        detector_patterns = [
+            "IDEA",
+            "CLD",
+            "ALLEGRO",
+        ]
+
+        for detector in detector_patterns:
+            if detector in path:
+                return detector
+
+        # Default detector based on accelerator
+        if "fcc/ee/" in path:
+            return "IDEA"  # Default for FCC-ee
+        elif "fcc/hh/" in path:
+            return "IDEA"  # Default for FCC-hh
+
+        return None
 
     async def _create_main_entity_with_conflict_resolution(
         self,
@@ -551,6 +680,7 @@ class Database:
             stage_id=foreign_key_ids["stage_id"],
             campaign_id=foreign_key_ids["campaign_id"],
             detector_id=foreign_key_ids["detector_id"],
+            file_type_id=foreign_key_ids["file_type_id"],
         )
 
         entity_dict = dataset_to_create.model_dump(exclude_none=False)
@@ -579,10 +709,12 @@ class Database:
             merged_metadata = self._merge_metadata_respecting_locks(
                 existing_metadata, new_metadata
             )
-            entity_dict["metadata"] = json.dumps(merged_metadata)
+            filtered_metadata = self._filter_empty_metadata_values(merged_metadata)
+            entity_dict["metadata"] = json.dumps(filtered_metadata)
         else:
-            # New entity, use new metadata as-is
-            entity_dict["metadata"] = json.dumps(new_metadata)
+            # New entity, use new metadata as-is (filtered)
+            filtered_metadata = self._filter_empty_metadata_values(new_metadata)
+            entity_dict["metadata"] = json.dumps(filtered_metadata)
 
         return entity_dict
 
@@ -593,6 +725,12 @@ class Database:
         elif isinstance(metadata_result, dict):
             return metadata_result
         return {}
+
+    def _filter_empty_metadata_values(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Filter out keys with empty string values, null values, and empty lists from metadata."""
+        return {
+            k: v for k, v in metadata.items() if v != "" and v is not None and v != []
+        }
 
     def _merge_metadata_respecting_locks(
         self, existing_metadata: dict[str, Any], new_metadata: dict[str, Any]
@@ -927,7 +1065,8 @@ class Database:
 
         self._log_metadata_processing(current_metadata, field_value, merged_metadata)
 
-        return json.dumps(merged_metadata)
+        filtered_metadata = self._filter_empty_metadata_values(merged_metadata)
+        return json.dumps(filtered_metadata)
 
     async def _get_current_metadata(
         self,
@@ -1061,6 +1200,8 @@ class Database:
         main_table: str,
     ) -> None:
         """Execute the update query."""
+        query_values: list[Any]
+
         if (
             not update_fields or len(update_fields) == 1
         ):  # Only last_edited_at was updated
@@ -1338,11 +1479,25 @@ class Database:
 
     def _build_metadata_fields(self, metadata_keys: list[dict]) -> list[str]:
         """Build metadata fields list."""
-        return [row["metadata_key"] for row in metadata_keys]
+        metadata_fields = []
+        for row in metadata_keys:
+            key = row["metadata_key"]
+            # Only add the prefixed version to avoid duplicates
+            metadata_fields.append(
+                f"metadata.{key}"
+            )  # Prefixed access (e.g., "metadata.cross-section")
+        return metadata_fields
 
     def _build_nested_fields(self, nested_metadata_keys: list[dict]) -> list[str]:
         """Build nested metadata fields list."""
-        return [row["nested_key"] for row in nested_metadata_keys]
+        nested_fields = []
+        for row in nested_metadata_keys:
+            key = row["nested_key"]
+            # Only add the prefixed version to avoid duplicates
+            nested_fields.append(
+                f"metadata.{key}"
+            )  # Prefixed access (e.g., "metadata.process.name")
+        return nested_fields
 
     def _combine_and_sort_fields(
         self, field_collections: dict[str, list[str]]
@@ -1590,7 +1745,9 @@ class Database:
 
         # Handle metadata fields
         if key == "metadata" and isinstance(value, dict):
-            return key, json.dumps(value)
+            # Filter out keys with empty string values
+            filtered_metadata = self._filter_empty_metadata_values(value)
+            return key, json.dumps(filtered_metadata)
 
         # Handle regular fields (excluding metadata dict that wasn't properly handled)
         if key != "metadata" or not isinstance(value, dict):

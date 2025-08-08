@@ -5,7 +5,7 @@ Handles application status, testing, and root-level endpoints.
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, UploadFile
 
 from app.utils import get_config, get_logger
 
@@ -13,14 +13,16 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["utility"])
 
-# Global reference to file watcher service (will be set by main.py)
-file_watcher_service = None
+# Global references (will be set by main.py)
+file_watcher_service: Any = None
+database: Any = None
 
 
-def init_dependencies(file_watcher) -> None:
+def init_dependencies(file_watcher, db=None) -> None:
     """Initialize router dependencies."""
-    global file_watcher_service
+    global file_watcher_service, database
     file_watcher_service = file_watcher
+    database = db
 
 
 @router.get("/")
@@ -51,3 +53,42 @@ async def file_watcher_status() -> dict[str, Any]:
         }
 
     return file_watcher_service.get_status()
+
+
+@router.post("/upload-fcc-dict/")
+async def upload_fcc_dict(file: UploadFile) -> dict[str, Any]:
+    """Upload and import an FCC dictionary JSON file."""
+
+    # Type check for the uploaded file
+    if not isinstance(file, UploadFile):
+        raise HTTPException(status_code=400, detail="Invalid file upload")
+
+    if database is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    # Validate file type
+    if not file.filename or not file.filename.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only JSON files are supported")
+
+    try:
+        # Read file content
+        content = await file.read()
+
+        if not content.strip():
+            raise HTTPException(status_code=400, detail="File is empty")
+
+        # Import using the database import function
+        await database.import_fcc_dict(content)
+
+        return {
+            "status": "success",
+            "message": f"Successfully imported FCC dictionary from {file.filename}",
+            "filename": file.filename,
+        }
+
+    except ValueError as e:
+        logger.error(f"Import validation error for {file.filename}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Import error for {file.filename}: {e}")
+        raise HTTPException(status_code=500, detail="Import failed due to server error")

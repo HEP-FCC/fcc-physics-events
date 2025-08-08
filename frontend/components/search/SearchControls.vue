@@ -79,6 +79,8 @@
                                             <div>
                                                 <code :class="codeClass">:</code>
                                                 substring,
+                                                <code :class="codeClass">!:</code>
+                                                not substring,
                                                 <code :class="codeClass">=~</code>
                                                 regex match,
                                                 <code :class="codeClass">!~</code>
@@ -86,7 +88,9 @@
                                                 <code :class="codeClass">#</code>
                                                 fuzzy match (0.7),
                                                 <code :class="codeClass">:*</code>
-                                                field exists
+                                                field exists,
+                                                <code :class="codeClass">!:*</code>
+                                                field not exists
                                             </div>
                                         </div>
                                     </div>

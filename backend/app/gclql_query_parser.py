@@ -33,7 +33,7 @@ QUERY_LANGUAGE_GRAMMAR = r"""
     NOT.2: "NOT"
     IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_-]*/
     ASTERISK: "*"
-    OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "=~" | "!~" | "#"
+    OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "!:" | "=~" | "!~" | "#"
     %import common.ESCAPED_STRING
     %import common.SIGNED_NUMBER
     %import common.WS
@@ -308,6 +308,10 @@ class SqlTranslator:
         if op == ":" and value == "*":
             return self._translate_field_exists(node.field, sql_field)
 
+        # Handle the special !:* operator for field non-existence
+        if op == "!:" and value == "*":
+            return self._translate_field_not_exists(node.field, sql_field)
+
         # Special handling for last_edited_at field
         is_last_edited_at = node.field.parts[
             0
@@ -342,6 +346,9 @@ class SqlTranslator:
         elif op == "!~":
             # Case-insensitive regular expression NOT match
             sql_op, param_value = "!~*", value
+        elif op == "!:":
+            # NOT contains - opposite of substring match
+            sql_op, param_value = "NOT_ILIKE", f"%{value}%"
         elif op == "#":
             # Fuzzy string matching using PostgreSQL similarity (0.7 threshold)
             # Only applicable to string fields
@@ -428,6 +435,44 @@ class SqlTranslator:
         else:
             # For regular fields, just check if NOT NULL
             return f"{sql_field} IS NOT NULL"
+
+    def _translate_field_not_exists(self, field: Any, sql_field: str) -> str:
+        """
+        Translate field non-existence checks (!:* operator) to appropriate SQL.
+        For regular fields, checks if IS NULL.
+        For JSON fields, checks if the key does not exist in the JSON object.
+        """
+        # Check if this is a metadata (JSON) field (explicit or auto-detected)
+        if (field.parts[0] == "metadata" and len(field.parts) > 1) or (
+            field.parts[0] in self.available_metadata_fields
+        ):
+            # Handle auto-detected metadata fields
+            if field.parts[0] in self.available_metadata_fields:
+                json_path = field.parts  # field.sub becomes ["field", "sub"]
+            else:
+                # Handle explicit metadata.field syntax
+                json_path = field.parts[
+                    1:
+                ]  # metadata.field.sub becomes ["field", "sub"]
+
+            if len(json_path) == 1:
+                # Simple JSON key: metadata.key or auto-detected key
+                # Use NOT (JSONB ? operator) to check if key does not exist
+                self.param_index += 1
+                placeholder = f"${self.param_index}"
+                self.params.append(json_path[0])
+                return f"NOT (d.metadata ? {placeholder})"
+            else:
+                # Nested JSON key: metadata.nested.key or auto-detected nested.key
+                # Check if the nested path does not exist using JSONB path functions
+                path_expression = ".".join(json_path)
+                self.param_index += 1
+                placeholder = f"${self.param_index}"
+                self.params.append(f"$.{path_expression}")
+                return f"NOT jsonb_path_exists(d.metadata, {placeholder})"
+        else:
+            # For regular fields, just check if IS NULL
+            return f"{sql_field} IS NULL"
 
     def _translate_global_search(self, node: GlobalSearch) -> str:
         # If the search value is '*' or empty, do not filter (all values are good)
@@ -909,8 +954,6 @@ class QueryParser:
         """
         count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
 
-        logger.debug("COUNT_QUERY: %s", count_query)
-        logger.debug("SELECT_QUERY: %s", select_query)
         return count_query, select_query, self.translator.params
 
     def _build_order_by_clause(self, sort_by: str, sort_order: str) -> str:

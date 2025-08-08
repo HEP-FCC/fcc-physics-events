@@ -133,7 +133,7 @@ async def validation_exception_handler(
 auth_router.init_dependencies(database)
 entities_router.init_dependencies(database, query_parser)
 navigation_router.init_dependencies(database)
-utility_router.init_dependencies(file_watcher)
+utility_router.init_dependencies(file_watcher, database)
 
 # Include routers
 app.include_router(utility_router.router)
