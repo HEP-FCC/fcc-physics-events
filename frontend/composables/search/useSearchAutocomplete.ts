@@ -56,8 +56,8 @@ export const useSearchAutocomplete = () => {
     /**
      * Load available field names from the API
      */
-    const loadFieldNames = async () => {
-        if (fieldsLoaded.value) return;
+    const loadFieldNames = async (forceRefresh: boolean = false) => {
+        if (fieldsLoaded.value && !forceRefresh) return;
 
         try {
             const response = await getSortingFields();
@@ -73,12 +73,14 @@ export const useSearchAutocomplete = () => {
                         // Keep non-metadata fields as they are
                         return field;
                     })
+                    .filter((field, index, array) => array.indexOf(field) === index)
                     .sort();
 
                 fieldsLoaded.value = true;
             }
         } catch (error) {
             console.warn("Failed to load field names for autocomplete:", error);
+            fieldsLoaded.value = false; // Reset on error to allow retry
         }
     };
 
@@ -341,6 +343,21 @@ export const useSearchAutocomplete = () => {
     };
 
     /**
+     * Clear the cached field names and force a reload on next request
+     */
+    const clearFieldCache = () => {
+        fieldsLoaded.value = false;
+        fieldNames.value = [];
+    };
+
+    /**
+     * Refresh field names from the API
+     */
+    const refreshFieldNames = async () => {
+        await loadFieldNames(true);
+    };
+
+    /**
      * Set the selected index directly
      */
     const setSelectedIndex = (index: number) => {
@@ -355,6 +372,8 @@ export const useSearchAutocomplete = () => {
         getSelectedSuggestion,
         applySuggestion,
         loadFieldNames,
+        clearFieldCache,
+        refreshFieldNames,
         setSelectedIndex,
     };
 };
