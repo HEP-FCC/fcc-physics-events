@@ -62,17 +62,26 @@ export const useSearchAutocomplete = () => {
         try {
             const response = await getSortingFields();
             if (response.fields && response.fields.length > 0) {
-                // Process the fields to strip metadata. prefix for display
-                // but keep the original field names for query construction
-                fieldNames.value = response.fields
-                    .map((field: string) => {
-                        if (field.startsWith("metadata.")) {
-                            // Strip the metadata. prefix for display
-                            return field.substring("metadata.".length);
-                        }
-                        // Keep non-metadata fields as they are
-                        return field;
-                    })
+                // Process the fields to strip metadata. prefix and _name suffix for display
+                const processedFields: string[] = [];
+
+                response.fields.forEach((originalField: string) => {
+                    let displayField = originalField;
+
+                    if (originalField.startsWith("metadata.")) {
+                        // Strip the metadata. prefix for display
+                        displayField = originalField.substring("metadata.".length);
+                    }
+
+                    // Strip _name suffix for cleaner display
+                    if (displayField.endsWith("_name")) {
+                        displayField = displayField.substring(0, displayField.length - "_name".length);
+                    }
+
+                    processedFields.push(displayField);
+                });
+
+                fieldNames.value = processedFields
                     .filter((field, index, array) => array.indexOf(field) === index)
                     .sort();
 
@@ -310,18 +319,21 @@ export const useSearchAutocomplete = () => {
         let newCursorPosition: number;
 
         if (suggestion.type === "field") {
-            // For field suggestions, replace the partial field name being typed (including hyphens)
+            // Use the stripped field name directly - the backend should handle it
+            const fieldName = suggestion.value;
+
+            // Replace the partial field name being typed (including hyphens)
             const fieldMatch = beforeCursor.match(/(?:^|\s|\(|AND\s+|OR\s+|NOT\s+)([\w.-]*)$/i);
             if (fieldMatch) {
                 // We found a partial field pattern, replace it
                 const partialField = fieldMatch[1];
                 const replaceStart = cursorPosition - partialField.length;
-                newQuery = query.slice(0, replaceStart) + suggestion.value + afterCursor;
-                newCursorPosition = replaceStart + suggestion.value.length;
+                newQuery = query.slice(0, replaceStart) + fieldName + afterCursor;
+                newCursorPosition = replaceStart + fieldName.length;
             } else {
                 // No partial field found, just append
-                newQuery = beforeCursor + suggestion.value + afterCursor;
-                newCursorPosition = cursorPosition + suggestion.value.length;
+                newQuery = beforeCursor + fieldName + afterCursor;
+                newCursorPosition = cursorPosition + fieldName.length;
             }
         } else if (suggestion.type === "operator") {
             // Add operator with appropriate spacing

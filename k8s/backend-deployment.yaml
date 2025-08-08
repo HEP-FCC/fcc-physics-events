@@ -30,7 +30,7 @@ spec:
         - 0.0.0.0
         - --port
         - "8000"
-        image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:15
+        image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:19
         name: fcc-phsyics-events-backend
         ports:
         - containerPort: 8000
@@ -38,8 +38,13 @@ spec:
         volumeMounts:
         - name: eos
           mountPath: /eos
+        - name: backend-storage
+          mountPath: /app/storage
       volumes:
       - name: eos
         persistentVolumeClaim:
           claimName: "eos-volume"
+      - name: backend-storage
+        persistentVolumeClaim:
+          claimName: backend-storage-pvc
       restartPolicy: Always
