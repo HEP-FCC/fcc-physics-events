@@ -804,9 +804,6 @@ class QueryParser:
         )
         params = [search_term] if search_term.strip() else []
 
-        logger.debug("Generated search WHERE clause: %s", where_clause)
-        logger.debug("Search parameters: %s", params)
-
         return where_clause, params
 
     def _build_hybrid_search_clause(self, query_string: str) -> tuple[str, list[Any]]:
@@ -834,13 +831,11 @@ class QueryParser:
 
             try:
                 # Try to parse this individual part
-                logger.debug("Trying to parse part: '%s'", part)
                 ast = cast(AstNode, self.transformer.transform(self.parser.parse(part)))
 
                 # If successful, translate to SQL
                 clause = self.translator.translate(ast)
                 valid_clauses.append(clause)
-                logger.debug("Successfully parsed part: '%s' -> %s", part, clause)
 
             except exceptions.LarkError:
                 # If this part fails, add it to search terms
@@ -877,9 +872,6 @@ class QueryParser:
         else:
             where_clause = "TRUE"
 
-        logger.debug("Final hybrid WHERE clause: %s", where_clause)
-        logger.debug("Final hybrid parameters: %s", all_params)
-
         return where_clause, all_params
 
     def parse_query(
@@ -903,11 +895,9 @@ class QueryParser:
 
         try:
             # Try to parse the query with the grammar
-            logger.debug("Attempting to parse query: '%s'", query_string)
             ast = cast(
                 AstNode, self.transformer.transform(self.parser.parse(query_string))
             )
-            logger.debug("Query parsed successfully. AST type: %s", type(ast))
 
             # If parsing succeeds, use the normal translation
             global_search_fields = self._build_dynamic_global_search_fields()
@@ -918,18 +908,15 @@ class QueryParser:
             )
             where_clause = self.translator.translate(ast)
 
-            logger.debug("Generated WHERE clause: %s", where_clause)
-            logger.debug("Generated parameters: %s", self.translator.params)
 
         except exceptions.LarkError as e:
             # If parsing fails, try to parse valid parts and apply search to the rest
-            logger.debug("Query parsing failed, using hybrid approach: %s", e)
+            logger.warning("Query parsing failed, using hybrid approach: %s", e)
 
             try:
                 where_clause, params = self._build_hybrid_search_clause(query_string)
-                logger.debug("Hybrid search completed successfully")
             except Exception as hybrid_error:
-                logger.error("Hybrid search failed: %s", hybrid_error)
+                logger.warning("Hybrid search failed: %s", hybrid_error)
                 # Fallback to simple search only
                 where_clause, params = self._build_fuzzy_search_clause(query_string)
 
@@ -941,8 +928,6 @@ class QueryParser:
                 {self._build_order_by_clause(sort_by, sort_order)}
             """
             count_query = f"SELECT COUNT(*) {self.from_and_joins} WHERE {where_clause}"
-            logger.debug("Search final query: %s", select_query)
-            logger.debug("Search final params: %s", params)
             return count_query, select_query, params
 
         select_fields = self._build_dynamic_select_fields()

@@ -116,6 +116,7 @@ class FileWatcherService:
 
         # Track known files for polling-based change detection
         self._known_files: dict[str, float] = {}  # file_path -> mtime
+        self._last_run_time: float = 0.0  # Track when service last ran
         self._state_save_counter = 0  # Counter for periodic state saves
 
         # Load persisted state if state file is configured
@@ -131,8 +132,9 @@ class FileWatcherService:
                 with open(self.state_file) as f:
                     state = json.load(f)
                     self._known_files = state.get("known_files", {})
+                    self._last_run_time = state.get("last_saved", 0.0)
                     logger.info(
-                        f"Loaded file watcher state: {len(self._known_files)} known files"
+                        f"Loaded file watcher state: {len(self._known_files)} known files, last run: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self._last_run_time))}"
                     )
             else:
                 # Ensure the directory exists
@@ -225,12 +227,12 @@ class FileWatcherService:
             logger.info(f"Processing all {len(files_to_process)} existing files")
 
         elif self.startup_mode == "process_new":
-            # Only process files not in our known state
-            for file_path in current_files:
-                if file_path not in self._known_files:
+            # Only process files that are newer than the last service run
+            for file_path, mtime in current_files.items():
+                if mtime > self._last_run_time:
                     files_to_process.append(file_path)
             logger.info(
-                f"Processing {len(files_to_process)} new files (out of {len(current_files)} total)"
+                f"Processing {len(files_to_process)} files newer than last run (out of {len(current_files)} total)"
             )
 
         # Process the files (DON'T update known_files before processing!)
