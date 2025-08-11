@@ -57,6 +57,7 @@ const autocomplete = useSearchAutocomplete();
 const inputRef = ref<HTMLInputElement | null>(null);
 const cursorPosition = ref(0);
 const showAutocompleteOnFocus = ref(false);
+const isAutocompleteIntentional = ref(false);
 
 // Computed
 const inputValue = computed({
@@ -97,9 +98,11 @@ const handleInput = (event: Event) => {
 
     // Only show suggestions automatically when search bar is empty
     if (!inputValue.value.trim()) {
+        isAutocompleteIntentional.value = false; // Automatic suggestion
         autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     } else {
-        // Hide suggestions when user is typing (they can use Ctrl+Space to show them)
+        // Hide suggestions when user is typing/pasting (they can use Ctrl+Space to show them)
+        isAutocompleteIntentional.value = false;
         autocomplete.hideSuggestions();
     }
 };
@@ -125,10 +128,17 @@ const handleKeyDown = (event: KeyboardEvent) => {
                 break;
             case "Enter":
                 event.preventDefault();
-                const selected = autocomplete.getSelectedSuggestion();
-                if (selected) {
-                    applySuggestion(selected);
+                // Only apply suggestion if autocomplete was intentionally triggered or field is empty
+                if (isAutocompleteIntentional.value || !inputValue.value.trim()) {
+                    const selected = autocomplete.getSelectedSuggestion();
+                    if (selected) {
+                        applySuggestion(selected);
+                    } else {
+                        emit("enter");
+                    }
                 } else {
+                    // User has text and autocomplete wasn't intentional - they want to search
+                    autocomplete.hideSuggestions();
                     emit("enter");
                 }
                 break;
@@ -137,11 +147,13 @@ const handleKeyDown = (event: KeyboardEvent) => {
                 autocomplete.hideSuggestions();
                 break;
             case "Tab":
-                // Allow tab to accept suggestion
-                const tabSelected = autocomplete.getSelectedSuggestion();
-                if (tabSelected) {
-                    event.preventDefault();
-                    applySuggestion(tabSelected);
+                // Allow tab to accept suggestion only if autocomplete was intentionally triggered or field is empty
+                if (isAutocompleteIntentional.value || !inputValue.value.trim()) {
+                    const tabSelected = autocomplete.getSelectedSuggestion();
+                    if (tabSelected) {
+                        event.preventDefault();
+                        applySuggestion(tabSelected);
+                    }
                 }
                 break;
         }
@@ -166,6 +178,7 @@ const handleFocus = () => {
 
     // Only show suggestions on focus if search bar is empty
     if (!inputValue.value.trim()) {
+        isAutocompleteIntentional.value = false; // Automatic suggestion on focus
         nextTick(() => {
             autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
         });
@@ -189,12 +202,14 @@ const handleClick = () => {
 
     // Only show suggestions on click if search bar is empty
     if (!inputValue.value.trim()) {
+        isAutocompleteIntentional.value = false; // Automatic suggestion on click
         autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     }
 };
 
 const triggerAutocomplete = () => {
     updateCursorPosition();
+    isAutocompleteIntentional.value = true; // User intentionally triggered
     autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
 };
 
@@ -227,6 +242,7 @@ const applySuggestion = (suggestion: any) => {
     });
 
     autocomplete.hideSuggestions();
+    isAutocompleteIntentional.value = false; // Reset flag after applying suggestion
 };
 
 // Initialize field names on mount

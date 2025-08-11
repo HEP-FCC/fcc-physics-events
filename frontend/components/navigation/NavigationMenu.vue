@@ -42,7 +42,7 @@
                         >
                             <div
                                 v-if="dropdowns[type]?.isOpen"
-                                class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-xs bg-white border border-space-200 rounded-md shadow-lg z-50 dropdown-menu"
+                                class="absolute top-full left-0 mt-1 w-auto min-w-48 max-w-sm bg-white border border-space-200 rounded-md shadow-lg z-50 dropdown-menu max-h-120 overflow-y-auto"
                             >
                                 <div class="p-2">
                                     <div v-if="currentPath[type]" class="mb-2">
@@ -70,10 +70,12 @@
                                         <button
                                             v-for="item in dropdowns[type]?.items || []"
                                             :key="item.dataset_id"
-                                            class="w-full text-left px-3 py-2 text-sm hover:bg-deep-blue-50 rounded whitespace-nowrap transition-colors duration-150"
+                                            class="w-full text-left px-3 py-2 text-sm hover:bg-deep-blue-50 rounded transition-colors duration-150 block truncate"
+                                            style="max-width: 300px"
                                             :class="{
                                                 'bg-eco-50 text-eco-700': currentPath[type] === item.name,
                                             }"
+                                            :title="item.name"
                                             @click="handleNavigate(type, item.name)"
                                         >
                                             {{ item.name }}
@@ -315,3 +317,34 @@ watchEffect(() => {
     });
 });
 </script>
+
+<style scoped>
+.dropdown-menu .truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Custom scrollbar styling for dropdown menus */
+.dropdown-menu {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background-color: rgb(203 213 225);
+    border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(148 163 184);
+}
+</style>

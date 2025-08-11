@@ -24,7 +24,12 @@
                         class="w-4 h-4 flex-shrink-0"
                         :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'"
                     />
-                    <span class="font-mono" :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'">
+                    <span
+                        class="font-mono flex-1 truncate min-w-0"
+                        :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'"
+                        :title="suggestion.value"
+                        style="max-width: 200px"
+                    >
                         {{ suggestion.value }}
                     </span>
                     <span
@@ -165,3 +170,11 @@ onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
 });
 </script>
+
+<style scoped>
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+</style>

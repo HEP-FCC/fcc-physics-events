@@ -1,6 +1,6 @@
 <template>
     <div
-        class="flex text-white flex-wrap items-center justify-between gap-4 rounded-lg border border-deep-blue-200 p-3   bg-deep-blue-900"
+        class="flex text-white flex-wrap items-center justify-between gap-4 rounded-lg border border-deep-blue-200 p-3 bg-deep-blue-900"
     >
         <!-- Entity Controls -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -58,6 +58,9 @@
                     placeholder="Select field"
                     value-key="value"
                     :search-input="{ placeholder: 'Search fields...' }"
+                    :ui="{
+                        content: 'max-w-xs overflow-hidden',
+                    }"
                     size="sm"
                     class="w-38"
                     @update:model-value="$emit('updateSortBy', $event)"

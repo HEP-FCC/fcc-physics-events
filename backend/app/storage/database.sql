@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS file_types (
 
 CREATE TABLE IF NOT EXISTS datasets (
     dataset_id BIGSERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
+    uuid UUID UNIQUE NOT NULL,
+    name TEXT NOT NULL,
     -- Foreign key relationships with proper constraints
     accelerator_id INTEGER REFERENCES accelerators(accelerator_id) ON DELETE SET NULL,
     stage_id INTEGER REFERENCES stages(stage_id) ON DELETE SET NULL,
@@ -54,17 +55,20 @@ CREATE TABLE IF NOT EXISTS datasets (
     file_type_id INTEGER REFERENCES file_types(file_type_id) ON DELETE SET NULL,
     metadata JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     last_edited_at TIMESTAMPTZ DEFAULT NULL,
     edited_by_name TEXT DEFAULT NULL,
 
     -- Add constraints for data integrity
     CONSTRAINT chk_name_not_empty CHECK (length(trim(name)) > 0),
     CONSTRAINT chk_edited_at_after_created CHECK (last_edited_at IS NULL OR last_edited_at >= created_at),
+    CONSTRAINT chk_updated_at_after_created CHECK (updated_at >= created_at),
     CONSTRAINT chk_metadata_valid CHECK (metadata IS NULL OR jsonb_typeof(metadata) = 'object')
 );
 
 -- Indexes
 -- Standard B-tree indexes for foreign keys to speed up joins
+CREATE INDEX IF NOT EXISTS idx_datasets_uuid ON datasets(uuid);
 CREATE INDEX IF NOT EXISTS idx_datasets_accelerator_id ON datasets(accelerator_id);
 CREATE INDEX IF NOT EXISTS idx_datasets_stage_id ON datasets(stage_id);
 CREATE INDEX IF NOT EXISTS idx_datasets_campaign_id ON datasets(campaign_id);
@@ -101,8 +105,10 @@ CREATE INDEX IF NOT EXISTS idx_datasets_metadata_campaign ON datasets USING BTRE
 
 -- Temporal indexes for sorting and filtering by timestamps
 CREATE INDEX IF NOT EXISTS idx_datasets_created_at ON datasets(created_at);
+CREATE INDEX IF NOT EXISTS idx_datasets_updated_at ON datasets(updated_at);
 CREATE INDEX IF NOT EXISTS idx_datasets_last_edited_at ON datasets(last_edited_at);
 CREATE INDEX IF NOT EXISTS idx_datasets_created_at_desc ON datasets(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_datasets_updated_at_desc ON datasets(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_datasets_last_edited_at_desc ON datasets(last_edited_at DESC);
 
 -- Composite indexes for common query patterns
@@ -124,6 +130,7 @@ WHERE metadata IS NOT NULL;
 -- Increase statistics for frequently queried columns
 ALTER TABLE datasets ALTER COLUMN name SET STATISTICS 1000;
 ALTER TABLE datasets ALTER COLUMN metadata SET STATISTICS 1000;
+ALTER TABLE datasets ALTER COLUMN updated_at SET STATISTICS 500;
 ALTER TABLE datasets ALTER COLUMN last_edited_at SET STATISTICS 500;
 
 -- Set statistics for lookup tables

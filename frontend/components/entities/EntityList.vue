@@ -46,9 +46,10 @@
                                 </div>
 
                                 <!-- Right side: Timestamps -->
+                                <!-- Right side: Timestamps -->
                                 <div class="relative text-xs flex-shrink-0 min-h-[16px] flex items-end">
-                                    <span v-if="entity.created_at" class="whitespace-nowrap">
-                                        Created: {{ formatTimestamp(entity.created_at) }}
+                                    <span v-if="entity.updated_at" class="whitespace-nowrap">
+                                        Updated: {{ formatTimestamp(entity.updated_at) }}
                                     </span>
                                     <span
                                         v-if="wasEntityEdited(entity)"
@@ -80,6 +81,7 @@
                 <div v-if="isMetadataExpanded(getEntityId(entity))" class="bg-space-50 cursor-default my-1" @click.stop>
                     <EntityMetadata
                         :entity-id="getEntityId(entity)"
+                        :entity="entity"
                         :metadata="entity.metadata || {}"
                         :edit-state="metadataEditState[getEntityId(entity)]"
                         @enter-edit="enterEditMode"

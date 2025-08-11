@@ -93,8 +93,11 @@
                 class="flex items-center justify-between px-2 py-1 border-neutral-200"
                 style="border-color: var(--theme-light-border-primary)"
             >
-                <div>
+                <div class="flex items-center gap-4">
                     <h4 class="text-xs font-medium">Metadata ({{ visibleFieldCount }} fields)</h4>
+                    <span v-if="entity.created_at" class="text-xs">
+                        Created: {{ formatTimestamp(entity.created_at) }}
+                    </span>
                 </div>
                 <UButton
                     icon="i-heroicons-pencil"
@@ -248,7 +251,7 @@
 </template>
 
 <script setup lang="ts">
-import type { MetadataEditState } from "~/types/api";
+import type { MetadataEditState, Entity } from "~/types/api";
 // Auto-imported: useAppConfiguration
 import { getSemanticColor, getThemeColor, type SemanticColorKey } from "~/config/colors";
 import { reduceEachLeadingCommentRange } from "typescript";
@@ -257,6 +260,7 @@ interface Props {
     entityId?: number;
     metadata: Record<string, unknown>;
     editState?: MetadataEditState;
+    entity: Entity;
 }
 
 interface Emits {
@@ -281,7 +285,8 @@ const actualEntityId = computed(() => {
 // No longer using lazy loading - show all fields by default
 
 // Composables
-const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getStatusBadgeColor } = useUtils();
+const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getStatusBadgeColor, formatTimestamp } =
+    useUtils();
 const { isAuthenticated } = useAuth();
 const { mainTableDisplayName } = useAppConfiguration();
 

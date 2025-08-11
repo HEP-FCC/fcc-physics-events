@@ -15,7 +15,7 @@
         <template #item="{ item }">
             <div
                 v-if="item.type === 'checkbox'"
-                class="flex items-center w-full py-1 px-2 hover:bg-space-50  rounded cursor-pointer"
+                class="flex items-center w-full py-1 px-2 hover:bg-space-50 rounded cursor-pointer"
                 @click.stop="handleFieldToggle(item.field)"
             >
                 <UCheckbox
@@ -26,21 +26,18 @@
                     @click.stop
                 />
                 <div class="flex-1 min-w-0">
-                    <div class="text-sm font-medium truncate">
+                    <div class="text-sm font-medium truncate" style="max-width: 240px" :title="item.label">
                         {{ item.label }}
                     </div>
                 </div>
             </div>
-            <div
-                v-else-if="item.type === 'label'"
-                class="flex items-center w-full py-2 px-3 text-sm"
-            >
+            <div v-else-if="item.type === 'label'" class="flex items-center w-full py-2 px-3 text-sm">
                 {{ item.label }}
             </div>
         </template>
 
         <template #content-top>
-            <div class="p-3 border-b border-space-200 ">
+            <div class="p-3 border-b border-space-200">
                 <div class="flex items-start justify-between mb-2">
                     <h3 class="text-sm font-semibold">Select Metadata to Show as Tags</h3>
                     <UButton
@@ -205,3 +202,11 @@ const handleSelectAll = () => {
     setSelectedFields([...availableFields.value]);
 };
 </script>
+
+<style scoped>
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+</style>

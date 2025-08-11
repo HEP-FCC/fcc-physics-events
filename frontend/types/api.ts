@@ -38,6 +38,7 @@ export interface Entity {
     dataset_id: number;
     name: string;
     created_at?: string;
+    updated_at?: string;
     last_edited_at?: string;
     edited_by_name?: string;
     metadata?: Record<string, unknown>;
