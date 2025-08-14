@@ -27,14 +27,14 @@ QUERY_LANGUAGE_GRAMMAR = r"""
     comparison: field OP value?
     field: IDENTIFIER ("." IDENTIFIER)*
     value: simple_value
-    simple_value: ESCAPED_STRING | SIGNED_NUMBER | IDENTIFIER | ASTERISK
+    simple_value: QUOTED_STRING | SIGNED_NUMBER | IDENTIFIER | ASTERISK
     AND.2: "AND"
     OR.2: "OR"
     NOT.2: "NOT"
     IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_-]*/
     ASTERISK: "*"
     OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "!:" | "=~" | "!~" | "#"
-    %import common.ESCAPED_STRING
+    QUOTED_STRING: /"[^"]*"/ | /'[^']*'/
     %import common.SIGNED_NUMBER
     %import common.WS
     %ignore WS
@@ -248,7 +248,7 @@ class AstTransformer(Transformer[Token, AstNode]):
     def simple_value(self, i: list[Any]) -> float | str | Any:
         v = i[0]
         if hasattr(v, "type"):
-            if v.type == "ESCAPED_STRING":
+            if v.type == "QUOTED_STRING":
                 # Return a tuple to preserve the information that this was quoted
                 return ("quoted", v.value[1:-1])
             if v.type == "SIGNED_NUMBER":
@@ -907,7 +907,6 @@ class QueryParser:
                 self.available_metadata_fields,
             )
             where_clause = self.translator.translate(ast)
-
 
         except exceptions.LarkError as e:
             # If parsing fails, try to parse valid parts and apply search to the rest

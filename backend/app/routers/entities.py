@@ -211,16 +211,6 @@ async def update_entity(
                 detail="No valid fields provided for update",
             )
 
-        # Add editor name to the update data
-        editor_name = None
-        if user.get("given_name") and user.get("family_name"):
-            editor_name = f"{user.get('given_name')} {user.get('family_name')}"
-        elif user.get("preferred_username"):
-            editor_name = user.get("preferred_username")
-
-        if editor_name:
-            update_dict["edited_by_name"] = editor_name
-
         updated_entity = await database.update_entity(
             entity_id, update_dict, user_info=user
         )
@@ -311,16 +301,6 @@ async def update_metadata_lock(
 
         update_data = {"metadata": lock_update}
         logger.info(f"Sending update_data to database: {update_data}")
-
-        # Add editor name to the update data
-        editor_name = None
-        if user.get("given_name") and user.get("family_name"):
-            editor_name = f"{user.get('given_name')} {user.get('family_name')}"
-        elif user.get("preferred_username"):
-            editor_name = user.get("preferred_username")
-
-        if editor_name:
-            update_data["edited_by_name"] = editor_name
 
         await database.update_entity(entity_id, update_data, user_info=user)
 
