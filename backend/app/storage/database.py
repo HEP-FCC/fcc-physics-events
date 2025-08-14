@@ -28,7 +28,9 @@ logger = get_logger()
 T = TypeVar("T", bound=BaseModel)
 
 # UUID namespace for dataset identification - fixed namespace for consistent UUID generation
-DATASET_UUID_NAMESPACE = uuid.UUID("12345678-1234-5678-1234-567812345678")
+# This is a proper UUID namespace created deterministically from the FCC project identifier
+# For versioning: FCCv01 -> this namespace, FCCv02 -> would be a different namespace
+DATASET_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, "fcc-physics-events.v01")
 # TODO: load this from config
 
 
@@ -40,7 +42,7 @@ def generate_dataset_uuid(
     Generate deterministic UUID for a dataset based on key identifying fields.
 
     Uses UUID5 (SHA-1 based) to ensure the same input always generates the same UUID.
-    The UUID key format: {dataset_name}{sorted_foreign_key_values}{16_zeros_for_future}
+    The namespace is derived from the FCC project domain and version (v01).
 
     Args:
         dataset_name: The dataset name
@@ -48,6 +50,10 @@ def generate_dataset_uuid(
 
     Returns:
         String representation of the generated UUID
+
+    Example:
+        >>> generate_dataset_uuid("my_dataset", campaign_id=1, detector_id=2)
+        'a1b2c3d4-e5f6-5789-abcd-ef1234567890'
     """
     # Sort the foreign key IDs by key name for consistent ordering
     sorted_keys = sorted(foreign_key_ids.keys())
@@ -59,14 +65,13 @@ def generate_dataset_uuid(
         value_str = str(value) if value is not None else "0"
         foreign_key_parts.append(value_str)
 
-    foreign_keys_str = "".join(foreign_key_parts)
+    foreign_keys_str = ",".join(foreign_key_parts)
 
-    # Create the key with 16 zeros for future expansion
-    future_padding = "0" * 16  # when adding a new key decrease this value
-    uuid_key = f"{dataset_name}{foreign_keys_str}{future_padding}"
+    # Create the deterministic name for UUID5 generation
+    uuid_name = f"{dataset_name},{foreign_keys_str}"
 
-    # Generate deterministic UUID5
-    dataset_uuid = uuid.uuid5(DATASET_UUID_NAMESPACE, uuid_key)
+    # Generate deterministic UUID5 using the FCC namespace
+    dataset_uuid = uuid.uuid5(DATASET_UUID_NAMESPACE, uuid_name)
 
     return str(dataset_uuid)
 
@@ -1372,10 +1377,22 @@ class Database:
         # 2. AND there are actual field changes
         if user_info and has_unlocked_changes:
             update_fields.append("last_edited_at = NOW()")
-            if "name" in user_info:
+
+            # Build editor name from user info
+            editor_name = None
+            if user_info.get("given_name") and user_info.get("family_name"):
+                editor_name = (
+                    f"{user_info.get('given_name')} {user_info.get('family_name')}"
+                )
+            elif user_info.get("preferred_username"):
+                editor_name = user_info.get("preferred_username")
+            elif user_info.get("name"):  # Fallback for direct name field
+                editor_name = user_info.get("name")
+
+            if editor_name:
                 param_count += 1
                 update_fields.append(f"edited_by_name = ${param_count}")
-                values.append(user_info["name"])
+                values.append(editor_name)
 
         return update_fields, values
 
