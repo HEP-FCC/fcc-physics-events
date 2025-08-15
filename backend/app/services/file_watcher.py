@@ -325,9 +325,6 @@ class FileWatcherService:
                 if file_path not in current_files:
                     changes.append((Change.deleted, file_path))
 
-            # Update known files
-            self._known_files = current_files
-
             return changes
 
         except Exception as e:
@@ -432,6 +429,13 @@ class FileWatcherService:
     async def _handle_file_change(self, change: Change, file_path: str) -> None:
         """Handle a single file change event."""
         try:
+            # Handle deleted files
+            if change == Change.deleted:
+                if file_path in self._known_files:
+                    del self._known_files[file_path]
+                    logger.debug(f"Removed deleted file from known files: {file_path}")
+                return
+
             # Only process added and modified files
             if change not in (Change.added, Change.modified):
                 return
