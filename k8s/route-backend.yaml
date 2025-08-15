@@ -5,6 +5,8 @@ metadata:
   labels:
     io.kompose.service: fcc-physics-events-backend
   name: fcc-physics-events-backend
+  annotations:
+    haproxy.router.openshift.io/ip_whitelist: ''
 spec:
   host: fcc-physics-events-backend.web.cern.ch
   port:
