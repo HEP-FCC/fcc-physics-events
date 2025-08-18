@@ -18,7 +18,7 @@
                 >
                     <template #content>
                         <div
-                            class="max-w-md p-4 bg-white rounded-lg shadow-lg"
+                            class="w-80 sm:max-w-md p-3 sm:p-4 bg-white rounded-lg shadow-lg max-h-[80vh] overflow-y-auto"
                             @mouseenter="onContentMouseEnter"
                             @mouseleave="onContentMouseLeave"
                         >
@@ -29,7 +29,7 @@
                                     color="neutral"
                                     variant="ghost"
                                     size="xs"
-                                    class="w-5 h-5 p-1 hover:bg-gray-100 rounded-full flex items-center justify-center cursor-pointer"
+                                    class="w-6 h-6 p-1 hover:bg-gray-100 rounded-full flex items-center justify-center cursor-pointer shrink-0"
                                     @click="closeModal"
                                 />
                             </div>

@@ -22,15 +22,15 @@
                                     @click.stop
                                     @change="toggleEntitySelection(getEntityId(entity))"
                                 />
-                                <h3 class="text-base font-semibold truncate flex-1">
+                                <h3 class="text-sm sm:text-base font-semibold truncate flex-1">
                                     {{ entity.name }}
                                 </h3>
                             </div>
 
                             <!-- Row 2: Badges and timestamps in one compact row -->
-                            <div class="flex items-center justify-between gap-4 ml-6">
+                            <div class="flex items-center justify-between gap-2 ml-6">
                                 <!-- Left side: Entity badges -->
-                                <div class="flex flex-wrap gap-1.5 flex-1">
+                                <div class="flex flex-wrap gap-1.5 flex-1 min-w-0">
                                     <template v-for="badge in getEntityBadges(entity, activeFilters)" :key="badge.key">
                                         <UBadge
                                             v-if="badge.value"
@@ -46,10 +46,13 @@
                                 </div>
 
                                 <!-- Right side: Timestamps -->
-                                <!-- Right side: Timestamps -->
-                                <div class="relative text-xs flex-shrink-0 min-h-[16px] flex items-end">
-                                    <span v-if="entity.updated_at" class="whitespace-nowrap">
+                                <div class="relative text-xs min-h-[16px] flex items-end flex-shrink-0 ml-2">
+                                    <span v-if="entity.updated_at" class="text-right hidden md:inline">
                                         Updated: {{ formatTimestamp(entity.updated_at) }}
+                                    </span>
+                                    <!-- Show abbreviated timestamp on mobile/tablet -->
+                                    <span v-if="entity.updated_at" class="text-right md:hidden text-xs">
+                                        {{ formatTimestamp(entity.updated_at).split(" ").slice(0, 2).join(" ") }}
                                     </span>
                                     <span
                                         v-if="wasEntityEdited(entity)"

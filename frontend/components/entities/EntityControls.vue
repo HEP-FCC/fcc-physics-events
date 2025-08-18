@@ -40,7 +40,7 @@
                 class="cursor-pointer"
                 @click="$emit('toggleAllMetadata')"
             >
-                {{ allMetadataExpanded ? "Hide All Metadata" : "Show All Metadata" }}
+                {{ allMetadataExpanded ? "All Metadata" : "All Metadata" }}
             </UButton>
 
             <!-- Metadata Tags Dropdown -->

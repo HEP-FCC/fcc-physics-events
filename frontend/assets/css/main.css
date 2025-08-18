@@ -87,6 +87,67 @@
     --color-deep-blue-700: #404270;
     --color-deep-blue-800: #26285c;
     --color-deep-blue-900: #10124a;
+
+    /* Status Colors - Custom semantic colors for status badges using kebab-case */
+    /* "done", "stopped" - green success colors */
+    --color-status-completed-50: #e5fae1; /* Light background for values */
+    --color-status-completed-100: #d4f5cd;
+    --color-status-completed-200: #c3f0b9;
+    --color-status-completed-300: #b2eba5;
+    --color-status-completed-400: #a1e691;
+    --color-status-completed-500: #9ee793; /* Header/border color */
+    --color-status-completed-600: #8ed783;
+    --color-status-completed-700: #7ec773;
+    --color-status-completed-800: #6eb763;
+    --color-status-completed-900: #5ea753;
+
+    /* "moved-to-tape" - yellow warning colors */
+    --color-status-in-progress-50: #faf8e3; /* Light background for values */
+    --color-status-in-progress-100: #f5f1d6;
+    --color-status-in-progress-200: #f0eac9;
+    --color-status-in-progress-300: #ebe3bc;
+    --color-status-in-progress-400: #e6dcaf;
+    --color-status-in-progress-500: #e9e19a; /* Header/border color */
+    --color-status-in-progress-600: #ddd28a;
+    --color-status-in-progress-700: #d1c37a;
+    --color-status-in-progress-800: #c5b46a;
+    --color-status-in-progress-900: #b9a55a;
+
+    /* "error", "not-registered" - red error colors */
+    --color-status-failed-50: #ffe5e2; /* Light background for values */
+    --color-status-failed-100: #ffd5d0;
+    --color-status-failed-200: #ffc5be;
+    --color-status-failed-300: #ffb5ac;
+    --color-status-failed-400: #ffa59a;
+    --color-status-failed-500: #fa9e96; /* Header/border color */
+    --color-status-failed-600: #ea8e86;
+    --color-status-failed-700: #da7e76;
+    --color-status-failed-800: #ca6e66;
+    --color-status-failed-900: #ba5e56;
+
+    /* "active" - blue active colors */
+    --color-status-active-50: #e0f5ff; /* Light background for values */
+    --color-status-active-100: #d0f0ff;
+    --color-status-active-200: #c0ebff;
+    --color-status-active-300: #b0e6ff;
+    --color-status-active-400: #a0e1ff;
+    --color-status-active-500: #70dcf9; /* Header/border color */
+    --color-status-active-600: #60d2f4;
+    --color-status-active-700: #50c8ef;
+    --color-status-active-800: #40beea;
+    --color-status-active-900: #30b4e5;
+
+    /* "not-registered" and other neutral states - gray colors */
+    --color-status-neutral-50: #e8e8e8; /* Light background for values */
+    --color-status-neutral-100: #dedede;
+    --color-status-neutral-200: #d4d4d4;
+    --color-status-neutral-300: #cacaca;
+    --color-status-neutral-400: #c0c0c0;
+    --color-status-neutral-500: #a7a7a7; /* Header/border color */
+    --color-status-neutral-600: #979797;
+    --color-status-neutral-700: #878787;
+    --color-status-neutral-800: #777777;
+    --color-status-neutral-900: #676767;
 }
 
 /* Custom Font Declarations for Local Fonts */
@@ -149,6 +210,69 @@
     --ui-flash: var(--color-flash-900);
     --ui-energy: var(--color-energy-900);
     --ui-deep-blue: var(--color-deep-blue-900);
+
+    /* Status color mappings - required for NuxtUI to recognize them */
+    --ui-status-completed: var(--color-status-completed-500);
+    --ui-status-in-progress: var(--color-status-in-progress-500);
+    --ui-status-failed: var(--color-status-failed-500);
+    --ui-status-active: var(--color-status-active-500);
+    --ui-status-neutral: var(--color-status-neutral-500);
+
+    /* Generate the full color palettes for NuxtUI */
+    --ui-color-status-completed-50: var(--color-status-completed-50);
+    --ui-color-status-completed-100: var(--color-status-completed-100);
+    --ui-color-status-completed-200: var(--color-status-completed-200);
+    --ui-color-status-completed-300: var(--color-status-completed-300);
+    --ui-color-status-completed-400: var(--color-status-completed-400);
+    --ui-color-status-completed-500: var(--color-status-completed-500);
+    --ui-color-status-completed-600: var(--color-status-completed-600);
+    --ui-color-status-completed-700: var(--color-status-completed-700);
+    --ui-color-status-completed-800: var(--color-status-completed-800);
+    --ui-color-status-completed-900: var(--color-status-completed-900);
+
+    --ui-color-status-in-progress-50: var(--color-status-in-progress-50);
+    --ui-color-status-in-progress-100: var(--color-status-in-progress-100);
+    --ui-color-status-in-progress-200: var(--color-status-in-progress-200);
+    --ui-color-status-in-progress-300: var(--color-status-in-progress-300);
+    --ui-color-status-in-progress-400: var(--color-status-in-progress-400);
+    --ui-color-status-in-progress-500: var(--color-status-in-progress-500);
+    --ui-color-status-in-progress-600: var(--color-status-in-progress-600);
+    --ui-color-status-in-progress-700: var(--color-status-in-progress-700);
+    --ui-color-status-in-progress-800: var(--color-status-in-progress-800);
+    --ui-color-status-in-progress-900: var(--color-status-in-progress-900);
+
+    --ui-color-status-failed-50: var(--color-status-failed-50);
+    --ui-color-status-failed-100: var(--color-status-failed-100);
+    --ui-color-status-failed-200: var(--color-status-failed-200);
+    --ui-color-status-failed-300: var(--color-status-failed-300);
+    --ui-color-status-failed-400: var(--color-status-failed-400);
+    --ui-color-status-failed-500: var(--color-status-failed-500);
+    --ui-color-status-failed-600: var(--color-status-failed-600);
+    --ui-color-status-failed-700: var(--color-status-failed-700);
+    --ui-color-status-failed-800: var(--color-status-failed-800);
+    --ui-color-status-failed-900: var(--color-status-failed-900);
+
+    --ui-color-status-active-50: var(--color-status-active-50);
+    --ui-color-status-active-100: var(--color-status-active-100);
+    --ui-color-status-active-200: var(--color-status-active-200);
+    --ui-color-status-active-300: var(--color-status-active-300);
+    --ui-color-status-active-400: var(--color-status-active-400);
+    --ui-color-status-active-500: var(--color-status-active-500);
+    --ui-color-status-active-600: var(--color-status-active-600);
+    --ui-color-status-active-700: var(--color-status-active-700);
+    --ui-color-status-active-800: var(--color-status-active-800);
+    --ui-color-status-active-900: var(--color-status-active-900);
+
+    --ui-color-status-neutral-50: var(--color-status-neutral-50);
+    --ui-color-status-neutral-100: var(--color-status-neutral-100);
+    --ui-color-status-neutral-200: var(--color-status-neutral-200);
+    --ui-color-status-neutral-300: var(--color-status-neutral-300);
+    --ui-color-status-neutral-400: var(--color-status-neutral-400);
+    --ui-color-status-neutral-500: var(--color-status-neutral-500);
+    --ui-color-status-neutral-600: var(--color-status-neutral-600);
+    --ui-color-status-neutral-700: var(--color-status-neutral-700);
+    --ui-color-status-neutral-800: var(--color-status-neutral-800);
+    --ui-color-status-neutral-900: var(--color-status-neutral-900);
 }
 
 code {
@@ -156,5 +280,5 @@ code {
 }
 
 body {
-    background-color: var(--color-space-50)
+    background-color: var(--color-space-50);
 }

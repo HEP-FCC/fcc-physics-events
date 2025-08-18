@@ -112,126 +112,225 @@
             <div class="px-2">
                 <!-- Unified Fields Grid Layout -->
                 <div v-if="getAllFieldsComputed.length > 0" class="py-2">
-                    <!-- Single continuous grid - no priority grouping -->
-                    <div class="grid grid-cols-12 gap-2 text-xs">
-                        <template v-for="field in getAllFieldsComputed" :key="field.key">
-                            <!-- Unified Field Card -->
-                            <div
-                                :class="[getUnifiedGridSpanClass(field), getUnifiedFieldColorClass()]"
-                                :style="getUnifiedFieldStyle(field)"
-                                class="group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm"
-                            >
+                    <!-- Mobile layout: Single grid that expands each field to full width -->
+                    <div class="block lg:hidden">
+                        <div class="grid grid-cols-1 gap-2 text-xs">
+                            <template v-for="field in getAllFieldsComputed" :key="field.key">
+                                <!-- Mobile Field Card - Full width, scalable height -->
                                 <div
-                                    v-if="field.category === 'regular'"
-                                    class="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-200"
-                                    :style="getUnifiedGradientStyle(field)"
-                                />
-
-                                <!-- Unified Field Header -->
-                                <div
-                                    class="relative flex items-center justify-between px-2 py-1 border-b border-opacity-20"
-                                    :style="[getUnifiedBorderStyle(field), getUnifiedFieldStyle(field, true)]"
+                                    :class="getUnifiedFieldColorClass()"
+                                    :style="getUnifiedFieldStyle(field)"
+                                    class="group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm"
                                 >
-                                    <div class="flex items-center gap-1.5 flex-1 min-w-0">
-                                        <!-- Unified icon -->
-                                        <div
-                                            :class="getUnifiedIconContainerClass(field)"
-                                            :style="getUnifiedIconStyle(field)"
-                                        >
-                                            <span class="text-[11px]">
-                                                {{ getUnifiedFieldIcon(field) }}
-                                            </span>
-                                        </div>
-                                        <!-- Field title -->
-                                        <span class="font-medium text-xs truncate" :title="field.displayName">
-                                            {{ field.displayName }}
-                                        </span>
-                                    </div>
-
-                                    <!-- Special badges/indicators - using :color for dynamic behavior -->
-                                    <UBadge
-                                        v-if="field.type === 'vector'"
-                                        color="primary"
-                                        variant="soft"
-                                        size="sm"
-                                        class="shrink-0"
-                                    >
-                                        {{ (field.value as unknown[]).length }}
-                                    </UBadge>
-                                </div>
-
-                                <!-- Unified Field Value -->
-                                <div class="relative px-2 py-1.5 flex items-center justify-between min-h-[1.5rem]">
+                                    <!-- Background gradient (only for regular fields) -->
                                     <div
-                                        :class="getUnifiedValueDisplayClass(field)"
-                                        class="flex-1 text-xs leading-tight"
-                                        :title="getUnifiedFieldValueTitle(field)"
+                                        v-if="field.category === 'regular'"
+                                        class="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-200"
+                                        :style="getUnifiedGradientStyle(field)"
+                                    />
+
+                                    <!-- Unified Field Header -->
+                                    <div
+                                        class="relative flex items-center justify-between px-2 py-1 border-b border-opacity-20"
+                                        :style="[getUnifiedBorderStyle(field), getUnifiedFieldStyle(field, true)]"
                                     >
-                                        {{ getUnifiedDisplayValue(field) }}
+                                        <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                            <!-- Unified icon (same as desktop) -->
+                                            <div
+                                                :class="getUnifiedIconContainerClass(field)"
+                                                :style="getUnifiedIconStyle(field)"
+                                            >
+                                                <span class="text-[11px]">
+                                                    {{ getUnifiedFieldIcon(field) }}
+                                                </span>
+                                            </div>
+                                            <div class="font-medium text-xs truncate">
+                                                {{ field.displayName }}
+                                            </div>
+                                        </div>
+
+                                        <!-- Action buttons -->
+                                        <div class="flex items-center gap-1 shrink-0">
+                                            <!-- Lock indicator -->
+                                            <UTooltip
+                                                :text="
+                                                    isFieldLocked(field.key)
+                                                        ? `Field '${field.key}' is locked`
+                                                        : `Field '${field.key}' is unlocked`
+                                                "
+                                            >
+                                                <UButton
+                                                    :icon="
+                                                        isFieldLocked(field.key)
+                                                            ? 'i-heroicons-lock-closed'
+                                                            : 'i-heroicons-lock-open'
+                                                    "
+                                                    :color="isFieldLocked(field.key) ? 'warning' : 'neutral'"
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    :loading="pendingLockChanges.has(field.key)"
+                                                    :disabled="!isAuthenticated"
+                                                    @click="toggleFieldLock(field.key)"
+                                                />
+                                            </UTooltip>
+
+                                            <!-- Copy button -->
+                                            <UTooltip text="Copy field value">
+                                                <UButton
+                                                    icon="i-heroicons-clipboard"
+                                                    color="neutral"
+                                                    variant="ghost"
+                                                    size="xs"
+                                                    @click="copyFieldValue(field.key, field.value)"
+                                                />
+                                            </UTooltip>
+                                        </div>
                                     </div>
 
-                                    <!-- Action buttons -->
-                                    <div class="flex items-center gap-1 shrink-0 ml-2">
-                                        <!-- Lock indicator - using :color prop for component behavior -->
-                                        <UTooltip
-                                            :text="
-                                                pendingLockChanges.has(field.key)
-                                                    ? 'Updating lock state...'
-                                                    : isFieldLocked(field.key)
-                                                    ? `Unlock ${field.displayName}`
-                                                    : `Lock ${field.displayName}`
-                                            "
-                                            :popper="{ placement: 'top' }"
+                                    <!-- Field Content - Mobile: scalable height, no truncation -->
+                                    <div class="relative px-2 py-1.5 min-h-[1.5rem]">
+                                        <div
+                                            class="text-xs leading-tight break-words"
+                                            :title="getUnifiedFieldValueTitle(field)"
                                         >
-                                            <UButton
-                                                :icon="
-                                                    pendingLockChanges.has(field.key)
-                                                        ? 'i-heroicons-arrow-path'
-                                                        : isFieldLocked(field.key)
-                                                        ? 'i-heroicons-lock-closed'
-                                                        : 'i-heroicons-lock-open'
-                                                "
-                                                :color="isFieldLocked(field.key) ? 'eco' : 'neutral'"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                :disabled="!isAuthenticated || pendingLockChanges.has(field.key)"
-                                                :class="[
-                                                    'w-4 h-4 p-0.5 transition-all duration-200',
-                                                    {
-                                                        'cursor-pointer opacity-70 hover:opacity-100 hover:bg-gray-100 rounded':
-                                                            isAuthenticated && !pendingLockChanges.has(field.key),
-                                                        'cursor-not-allowed opacity-50': !isAuthenticated,
-                                                        'opacity-60': pendingLockChanges.has(field.key),
-                                                    },
-                                                    pendingLockChanges.has(field.key) ? 'animate-spin' : '',
-                                                ]"
-                                                @click="
-                                                    isAuthenticated && !pendingLockChanges.has(field.key)
-                                                        ? toggleFieldLock(field.key)
-                                                        : undefined
-                                                "
-                                            />
-                                        </UTooltip>
-
-                                        <!-- Copy button - using Tailwind classes -->
-                                        <UTooltip
-                                            :text="`Copy ${field.displayName} value`"
-                                            :popper="{ placement: 'top' }"
-                                        >
-                                            <UButton
-                                                icon="i-heroicons-clipboard-document"
-                                                :class="[
-                                                    'w-4 h-4 p-0.5 rounded text-neutral-500 hover:text-info-600 hover:bg-gray-100 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200',
-                                                ]"
-                                                variant="ghost"
-                                                size="xs"
-                                                :padded="false"
-                                                @click="copyFieldValue(field.key, field.value)"
-                                            />
-                                        </UTooltip>
+                                            {{ getUnifiedDisplayValue(field) }}
+                                        </div>
                                     </div>
                                 </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Desktop layout: Sophisticated grouped grid (original) -->
+                    <div class="hidden lg:block">
+                        <!-- Group fields by display row priority -->
+                        <template v-for="fieldGroup in getGroupedFieldsComputed" :key="fieldGroup.priority">
+                            <div class="grid grid-cols-12 gap-2 text-xs mb-2">
+                                <template v-for="field in fieldGroup.fields" :key="field.key">
+                                    <!-- Unified Field Card -->
+                                    <div
+                                        :class="[getUnifiedGridSpanClass(field), getUnifiedFieldColorClass()]"
+                                        :style="getUnifiedFieldStyle(field)"
+                                        class="group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm"
+                                    >
+                                        <div
+                                            v-if="field.category === 'regular'"
+                                            class="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-200"
+                                            :style="getUnifiedGradientStyle(field)"
+                                        />
+
+                                        <!-- Unified Field Header -->
+                                        <div
+                                            class="relative flex items-center justify-between px-2 py-1 border-b border-opacity-20"
+                                            :style="[getUnifiedBorderStyle(field), getUnifiedFieldStyle(field, true)]"
+                                        >
+                                            <div class="flex items-center gap-1.5 flex-1 min-w-0">
+                                                <!-- Unified icon -->
+                                                <div
+                                                    :class="getUnifiedIconContainerClass(field)"
+                                                    :style="getUnifiedIconStyle(field)"
+                                                >
+                                                    <span class="text-[11px]">
+                                                        {{ getUnifiedFieldIcon(field) }}
+                                                    </span>
+                                                </div>
+                                                <!-- Field title -->
+                                                <span class="font-medium text-xs truncate" :title="field.displayName">
+                                                    {{ field.displayName }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Special badges/indicators - using :color for dynamic behavior -->
+                                            <UBadge
+                                                v-if="field.type === 'vector'"
+                                                color="primary"
+                                                variant="soft"
+                                                size="sm"
+                                                class="shrink-0"
+                                            >
+                                                {{ (field.value as unknown[]).length }}
+                                            </UBadge>
+                                        </div>
+
+                                        <!-- Unified Field Value -->
+                                        <div
+                                            class="relative px-2 py-1.5 flex items-center justify-between min-h-[1.5rem]"
+                                        >
+                                            <div
+                                                :class="getUnifiedValueDisplayClass(field)"
+                                                class="flex-1 text-xs leading-tight min-w-0 mr-2"
+                                                :title="getUnifiedFieldValueTitle(field)"
+                                            >
+                                                {{ getUnifiedDisplayValue(field) }}
+                                            </div>
+
+                                            <!-- Action buttons -->
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <!-- Lock indicator - using :color prop for component behavior -->
+                                                <UTooltip
+                                                    :text="
+                                                        pendingLockChanges.has(field.key)
+                                                            ? 'Updating lock state...'
+                                                            : isFieldLocked(field.key)
+                                                            ? `Unlock ${field.displayName}`
+                                                            : `Lock ${field.displayName}`
+                                                    "
+                                                    :popper="{ placement: 'top' }"
+                                                >
+                                                    <UButton
+                                                        :icon="
+                                                            pendingLockChanges.has(field.key)
+                                                                ? 'i-heroicons-arrow-path'
+                                                                : isFieldLocked(field.key)
+                                                                ? 'i-heroicons-lock-closed'
+                                                                : 'i-heroicons-lock-open'
+                                                        "
+                                                        :color="isFieldLocked(field.key) ? 'eco' : 'neutral'"
+                                                        variant="ghost"
+                                                        size="xs"
+                                                        :padded="false"
+                                                        :disabled="
+                                                            !isAuthenticated || pendingLockChanges.has(field.key)
+                                                        "
+                                                        :class="[
+                                                            'w-4 h-4 p-0.5 transition-all duration-200',
+                                                            {
+                                                                'cursor-pointer opacity-70 hover:opacity-100 hover:bg-gray-100 rounded':
+                                                                    isAuthenticated &&
+                                                                    !pendingLockChanges.has(field.key),
+                                                                'cursor-not-allowed opacity-50': !isAuthenticated,
+                                                                'opacity-60': pendingLockChanges.has(field.key),
+                                                            },
+                                                            pendingLockChanges.has(field.key) ? 'animate-spin' : '',
+                                                        ]"
+                                                        @click="
+                                                            isAuthenticated && !pendingLockChanges.has(field.key)
+                                                                ? toggleFieldLock(field.key)
+                                                                : undefined
+                                                        "
+                                                    />
+                                                </UTooltip>
+
+                                                <!-- Copy button - using Tailwind classes -->
+                                                <UTooltip
+                                                    :text="`Copy ${field.displayName} value`"
+                                                    :popper="{ placement: 'top' }"
+                                                >
+                                                    <UButton
+                                                        icon="i-heroicons-clipboard-document"
+                                                        :class="[
+                                                            'w-4 h-4 p-0.5 rounded text-neutral-500 hover:text-info-600 hover:bg-gray-100 cursor-pointer opacity-70 hover:opacity-100 transition-all duration-200',
+                                                        ]"
+                                                        variant="ghost"
+                                                        size="xs"
+                                                        :padded="false"
+                                                        @click="copyFieldValue(field.key, field.value)"
+                                                    />
+                                                </UTooltip>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </template>
                     </div>
@@ -705,7 +804,6 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
                 type: "status",
                 priority: 1, // Same priority as special fields to appear in same row
                 color: getStatusBadgeColor(value),
-                style: "color: red",
             };
         } else {
             // Regular field - determine type
@@ -744,6 +842,30 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
         }
         return a.displayName.localeCompare(b.displayName);
     });
+});
+
+// Group fields by priority for desktop layout
+const getGroupedFieldsComputed = computed(() => {
+    const allFields = getAllFieldsComputed.value;
+    const groups: Array<{ priority: number; fields: UnifiedField[] }> = [];
+
+    // Group by priority for visual separation
+    const groupMap = new Map<number, UnifiedField[]>();
+    allFields.forEach((field) => {
+        if (!groupMap.has(field.priority)) {
+            groupMap.set(field.priority, []);
+        }
+        groupMap.get(field.priority)!.push(field);
+    });
+
+    // Convert to array format expected by template
+    Array.from(groupMap.entries())
+        .sort(([a], [b]) => a - b)
+        .forEach(([priority, fields]) => {
+            groups.push({ priority, fields });
+        });
+
+    return groups;
 });
 
 // UNIFIED STYLING FUNCTIONS - Preference for Tailwind classes over CSS variables
@@ -791,14 +913,22 @@ const getSemanticColorForFieldType = (fieldType: string): string => {
         special: "gray",
         status: "secondary",
 
-        success: "eco",
-        warning: "warning",
-        error: "error",
-        info: "info",
-        neutral: "earth",
+        // Map the new custom status colors (using kebab-case to match @theme definitions)
+        "status-completed": "status-completed",
+        "status-in-progress": "status-in-progress",
+        "status-failed": "status-failed",
+        "status-active": "status-active",
+        "status-neutral": "status-neutral",
+
+        // Legacy fallbacks
+        success: "status-completed",
+        warning: "status-in-progress",
+        error: "status-failed",
+        info: "status-active",
+        neutral: "status-neutral",
     };
 
-    return typeMapping[fieldType] || "earth";
+    return typeMapping[fieldType] || "status-neutral";
 };
 
 // Generate CSS variable references for color schemes
@@ -852,18 +982,11 @@ const getUnifiedFieldColorClass = (): string => {
 
 const getUnifiedFieldStyle = (field: UnifiedField, isHeader: Boolean = false): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
+
     if (field.key === "path" || field.key === "comment" || field.key == "description") {
         return {
             backgroundColor: isHeader ? "#cad7fb" : "#eff2ff",
             borderColor: "#cad7fb",
-            "--hover-bg-color": "#e8efff",
-        };
-    }
-
-    if (field.key === "status") {
-        return {
-            backgroundColor: isHeader ? "#9ee793" : "#e5fae1",
-            borderColor: "#9ee793",
             "--hover-bg-color": "#e8efff",
         };
     }
@@ -900,8 +1023,9 @@ const getUnifiedFieldIcon = (field: UnifiedField): string => {
     }
 };
 
-// Grid span calculation for unified fields
+// Grid span calculation for unified fields - restored original desktop logic
 const getUnifiedGridSpanClass = (field: UnifiedField): string => {
+    // Return original desktop grid classes for the 12-column grid system
     if (field.category === "special") {
         return getSpecialFieldSpanClass(
             field.value,
@@ -939,7 +1063,15 @@ const getUnifiedValueDisplayClass = (field: UnifiedField): string => {
         classes.push("font-medium");
     }
 
-    if (field.type !== "longString") {
+    // Check if the value looks like a path (contains / or \)
+    const value = String(field.value);
+    const isPath = value.includes("/") || value.includes("\\");
+
+    if (field.type === "longString" || isPath) {
+        // Allow wrapping for long strings and paths
+        classes.push("break-words");
+    } else {
+        // Truncate shorter strings
         classes.push("truncate");
     }
 

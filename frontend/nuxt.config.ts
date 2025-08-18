@@ -30,6 +30,12 @@ export default defineNuxtConfig({
                 "flash",
                 "energy",
                 "deep-blue",
+                // Status-specific colors for badges
+                "status-completed",
+                "status-in-progress",
+                "status-failed",
+                "status-active",
+                "status-neutral",
             ],
         },
     },

@@ -20,7 +20,6 @@
             :is-visible="autocomplete.state.isVisible"
             :selected-index="autocomplete.state.selectedIndex"
             :input-element="inputElement"
-            :cursor-position="cursorPosition"
             @select="handleSuggestionSelect"
             @highlight="handleSuggestionHighlight"
         />
@@ -99,6 +98,9 @@ const handleInput = (event: Event) => {
     const target = event.target as HTMLInputElement;
     cursorPosition.value = target.selectionStart || 0;
 
+    // Use the actual input value from the event target, not the computed prop
+    const currentInputValue = target.value;
+
     // If user recently pasted, always hide suggestions and clear selection
     if (isRecentlyPasted.value) {
         resetAutocompleteState();
@@ -110,11 +112,11 @@ const handleInput = (event: Event) => {
     // 2. For normal typing (automatic suggestions)
     if (isContinuousSuggestionMode.value && isAutocompleteIntentional.value) {
         // Continuous mode - keep showing suggestions
-        autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
+        autocomplete.showSuggestions(currentInputValue, cursorPosition.value);
     } else {
         // Normal typing - show automatic suggestions
         isAutocompleteIntentional.value = false; // Mark as automatic suggestion
-        autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
+        autocomplete.showSuggestions(currentInputValue, cursorPosition.value);
     }
 };
 

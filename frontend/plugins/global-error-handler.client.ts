@@ -468,7 +468,7 @@ export default defineNuxtPlugin({
                     title: "Connection Problem",
                     description:
                         "Unable to connect to the server. This is not an authentication issue. Please check your internet connection and try again.",
-                    color: "warning",
+                    color: "status-failed",
                     duration: 10000, // Show longer for network issues
                 });
             }

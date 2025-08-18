@@ -4,6 +4,8 @@ interface User {
     given_name?: string;
     family_name?: string;
     preferred_username?: string;
+    cern_roles?: string[];
+    groups?: string[];
     [key: string]: any;
 }
 
@@ -48,12 +50,8 @@ export function useAuth() {
         authState.value.isLoading = true;
         authState.value.error = null;
 
-        console.log("TEST:", authState.value);
-
         try {
             const sessionData = await getSessionStatus();
-
-            console.log("SESSION_DATA:", sessionData);
 
             if (sessionData.authenticated && sessionData.user) {
                 authState.value.isAuthenticated = true;

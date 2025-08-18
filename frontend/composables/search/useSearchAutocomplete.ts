@@ -185,17 +185,52 @@ export const useSearchAutocomplete = () => {
         }
 
         // Check if we're in a value context: field operator "value" or field operator value
-        const valuePattern = /([\w.-]+)\s*([><=!:~]+)\s*(.+)$/i;
+        const valuePattern = /([\w.-]+)\s*([><=!:~#*]+)\s*(.+)$/i;
         const valueMatch = valuePattern.exec(currentSegment);
         if (valueMatch && valueMatch[3]) {
             return "value";
         }
 
         // Check if we have field + operator but no value yet: "field ="
-        const fieldOperatorPattern = /([\w.-]+)\s*([><=!:~]+)\s*$/i;
+        const fieldOperatorPattern = /([\w.-]+)\s*([><=!:~#*]+)(\s*)$/i;
         const fieldOpMatch = fieldOperatorPattern.exec(currentSegment);
         if (fieldOpMatch) {
-            return "value";
+            const operatorPart = fieldOpMatch[2];
+            const hasTrailingSpace = fieldOpMatch[3].length > 0;
+
+            // If there's a space after the operator, always go to value context
+            if (hasTrailingSpace) {
+                return "value";
+            }
+
+            // No trailing space - check if this is a complete operator
+            const isCompleteOperator = operators.some((op) => op.value === operatorPart);
+            const hasLongerOperators = operators.some(
+                (op) => op.value.startsWith(operatorPart) && op.value !== operatorPart,
+            );
+
+            if (isCompleteOperator && !hasLongerOperators) {
+                return "value";
+            }
+            // If there are longer operators possible, stay in operator context for suggestions
+        }
+
+        // Check if we're typing a partial operator after a field name
+        const partialOperatorPattern = /([\w.-]+)\s*([><=!:~#*]*)$/i;
+        const partialOpMatch = partialOperatorPattern.exec(currentSegment);
+        if (partialOpMatch) {
+            const fieldName = partialOpMatch[1];
+            const partialOp = partialOpMatch[2];
+
+            // Check if this is a valid field name
+            const isValidField = fieldNames.value.some((f) => f.toLowerCase() === fieldName.toLowerCase());
+
+            if (isValidField) {
+                // If there's any operator character started, or field followed by space, suggest operators
+                if (partialOp || currentSegment.includes(" ")) {
+                    return "operator";
+                }
+            }
         }
 
         // Check if we have just a field name (possibly with trailing space)
@@ -223,6 +258,49 @@ export const useSearchAutocomplete = () => {
     };
 
     /**
+     * Filter operators based on partial input
+     */
+    const filterOperators = (partial: string): SuggestionItem[] => {
+        if (!partial) {
+            // If no partial input, return all operators
+            return operators.map((op) => ({
+                value: op.value,
+                type: "operator" as const,
+                description: op.description,
+            }));
+        }
+
+        // Filter operators that start with the partial input
+        const filtered = operators.filter((op) => op.value.startsWith(partial));
+
+        // Sort by length (shorter operators first for exact matches)
+        filtered.sort((a, b) => {
+            if (a.value.length !== b.value.length) {
+                return a.value.length - b.value.length;
+            }
+            return a.value.localeCompare(b.value);
+        });
+
+        return filtered.map((op) => ({
+            value: op.value,
+            type: "operator" as const,
+            description: op.description,
+        }));
+    };
+
+    /**
+     * Extract partial operator from the query
+     */
+    const extractPartialOperator = (beforeCursor: string): string => {
+        // Look for field followed by partial operator characters (including multi-char operators)
+        const match = beforeCursor.match(/([\w.-]+)\s*([><=!:~#*]*)$/i);
+        if (match) {
+            return match[2] || "";
+        }
+        return "";
+    };
+
+    /**
      * Get suggestions based on current query and cursor position
      */
     const getSuggestions = async (query: string, cursorPosition: number): Promise<SuggestionItem[]> => {
@@ -243,14 +321,10 @@ export const useSearchAutocomplete = () => {
             const fieldSuggestions = filterFields(partial);
             suggestions.push(...fieldSuggestions);
         } else if (context === "operator") {
-            // Add operator suggestions
-            operators.forEach((op) => {
-                suggestions.push({
-                    value: op.value,
-                    type: "operator" as const,
-                    description: op.description,
-                });
-            });
+            // Extract partial operator and filter suggestions
+            const partialOperator = extractPartialOperator(beforeCursor);
+            const operatorSuggestions = filterOperators(partialOperator);
+            suggestions.push(...operatorSuggestions);
         } else if (context === "value") {
             // When in value context, don't show any suggestions
             // User should be able to type freely without autocomplete interference
@@ -336,15 +410,30 @@ export const useSearchAutocomplete = () => {
                 newCursorPosition = cursorPosition + fieldName.length;
             }
         } else if (suggestion.type === "operator") {
-            // Add operator with appropriate spacing
-            const needsSpaceBefore = beforeCursor.trim() !== "" && !beforeCursor.endsWith(" ");
-            const needsSpaceAfter = ![":", ":*"].includes(suggestion.value);
+            // Handle operator replacement - need to replace any partial operator already typed
+            const operatorMatch = beforeCursor.match(/([\w.-]+)\s*([><=!:~#*]*)$/i);
+            if (operatorMatch) {
+                // We found a field followed by a partial operator, replace the partial operator
+                const partialOperator = operatorMatch[2];
+                const replaceStart = cursorPosition - partialOperator.length;
 
-            const prefix = needsSpaceBefore ? " " : "";
-            const suffix = needsSpaceAfter ? " " : "";
+                // Check if we need space after the operator
+                const needsSpaceAfter = ![":", ":*"].includes(suggestion.value);
+                const suffix = needsSpaceAfter ? " " : "";
 
-            newQuery = beforeCursor + prefix + suggestion.value + suffix + afterCursor;
-            newCursorPosition = cursorPosition + prefix.length + suggestion.value.length + suffix.length;
+                newQuery = query.slice(0, replaceStart) + suggestion.value + suffix + afterCursor;
+                newCursorPosition = replaceStart + suggestion.value.length + suffix.length;
+            } else {
+                // No partial operator found, add operator with appropriate spacing
+                const needsSpaceBefore = beforeCursor.trim() !== "" && !beforeCursor.endsWith(" ");
+                const needsSpaceAfter = ![":", ":*"].includes(suggestion.value);
+
+                const prefix = needsSpaceBefore ? " " : "";
+                const suffix = needsSpaceAfter ? " " : "";
+
+                newQuery = beforeCursor + prefix + suggestion.value + suffix + afterCursor;
+                newCursorPosition = cursorPosition + prefix.length + suggestion.value.length + suffix.length;
+            }
         } else {
             // Default case for other types
             newQuery = beforeCursor + suggestion.value + afterCursor;

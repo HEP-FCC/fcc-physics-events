@@ -284,6 +284,47 @@ async def validate_token_and_get_user(
     }
     userinfo: dict[str, Any] = await oauth_client.parse_id_token(**data)
     logger.debug("Received userinfo: %s", userinfo)
+
+    # Additionally, try to get CERN roles information from introspection or userinfo endpoint
+    try:
+        # First try introspection
+        introspection_data = await cern_auth.introspect_token(access_token)
+        if "cern_roles" in introspection_data:
+            userinfo["cern_roles"] = introspection_data["cern_roles"]
+            logger.debug(
+                "Added CERN roles from token introspection: %s",
+                userinfo.get("cern_roles", []),
+            )
+        else:
+            # If no cern_roles in introspection, try userinfo endpoint
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo",
+                        headers={"Authorization": f"Bearer {access_token}"},
+                        timeout=10.0,
+                    )
+                    if response.status_code == 200:
+                        userinfo_data = response.json()
+                        if "cern_roles" in userinfo_data:
+                            userinfo["cern_roles"] = userinfo_data["cern_roles"]
+                            logger.debug(
+                                "Added CERN roles from userinfo endpoint: %s",
+                                userinfo.get("cern_roles", []),
+                            )
+                        # Also check for groups
+                        if "groups" in userinfo_data:
+                            userinfo["groups"] = userinfo_data["groups"]
+                            logger.debug(
+                                "Added groups from userinfo endpoint: %s",
+                                userinfo.get("groups", []),
+                            )
+            except Exception as e:
+                logger.warning(f"Failed to fetch from userinfo endpoint: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to introspect token for roles: {e}")
+        # Continue without roles if introspection fails
+
     return userinfo
 
 
@@ -548,7 +589,7 @@ class AuthDependency:
                 client_id=CERN_CLIENT_ID,
                 client_secret=CERN_CLIENT_SECRET,
                 client_kwargs={
-                    "scope": "openid email profile",
+                    "scope": "openid email profile groups",
                 },
             )
 

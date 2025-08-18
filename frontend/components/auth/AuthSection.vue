@@ -21,8 +21,8 @@
                     <div class="text-sm font-medium">
                         {{ displayName }}
                     </div>
-                    <div v-if="user?.preferred_username" class="text-xs">
-                        {{ user.preferred_username }}
+                    <div class="text-xs">
+                        {{ displayRoles }}
                     </div>
                 </div>
                 <UButton
@@ -61,13 +61,27 @@ const user = computed(() => authState.value.user);
 const isLoading = computed(() => authState.value.isLoading);
 const error = computed(() => authState.value.error);
 
-// Computed display name
+// Computed display name - just the full name
 const displayName = computed(() => {
-    console.log("ROLES:", user.value?.cern_roles)
     if (user.value?.given_name && user.value?.family_name) {
         return `${user.value.given_name} ${user.value.family_name}`;
     }
     return user.value?.preferred_username || "User";
+});
+
+// Computed display roles - filtered roles or "no roles"
+const displayRoles = computed(() => {
+    // Filter CERN roles to exclude the default "authorized" role
+    let roles: string[] = [];
+    if (user.value?.cern_roles && Array.isArray(user.value.cern_roles)) {
+        roles = user.value.cern_roles.filter((role) => role !== "default-role");
+    } else if (user.value?.groups && Array.isArray(user.value.groups)) {
+        // Fallback to groups if cern_roles not available, also filter "authorized"
+        roles = user.value.groups.filter((role) => role !== "default-role");
+    }
+
+    // Return roles or "no roles" if empty
+    return roles.length > 0 ? roles.join(", ") : "no roles";
 });
 
 // Handle login

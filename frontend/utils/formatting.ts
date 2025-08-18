@@ -64,19 +64,19 @@ export const isStatusField = (key: string): boolean => {
 };
 
 /**
- * Get status badge color based on value
+ * Get status badge color based on value using custom design system colors
  */
 export const getStatusBadgeColor = (
     value: unknown,
-): "success" | "warning" | "info" | "primary" | "secondary" | "error" | "neutral" => {
+): "status-completed" | "status-in-progress" | "status-active" | "status-failed" | "status-neutral" => {
     const stringValue = String(value).toLowerCase();
 
-    // Success states
-    if (stringValue.includes("done") || stringValue.includes("stopped")) {
-        return "success";
+    // Success states - completed/done operations
+    if (stringValue.includes("done") || stringValue.includes("stopped") || stringValue.includes("completed")) {
+        return "status-completed";
     }
 
-    // Warning states
+    // Warning states - ongoing processes
     if (
         stringValue.includes("warning") ||
         stringValue.includes("pending") ||
@@ -85,23 +85,32 @@ export const getStatusBadgeColor = (
         stringValue.includes("progress") ||
         stringValue.includes("partial")
     ) {
-        return "warning";
+        return "status-in-progress";
     }
 
-    // Error states
+    // Error states - failed operations
     if (
         stringValue.includes("error") ||
         stringValue.includes("fail") ||
-        stringValue.includes("not-registered") ||
         stringValue.includes("invalid") ||
         stringValue.includes("disabled") ||
         stringValue.includes("rejected") ||
         stringValue === "false"
     ) {
-        return "error";
+        return "status-failed";
     }
 
-    // Info states
+    // Neutral states - not-registered and other neutral states
+    if (
+        stringValue.includes("not-registered") ||
+        stringValue.includes("unknown") ||
+        stringValue.includes("undefined") ||
+        stringValue.includes("null")
+    ) {
+        return "status-neutral";
+    }
+
+    // Info states - active/running operations
     if (
         stringValue.includes("info") ||
         stringValue.includes("active") ||
@@ -109,14 +118,12 @@ export const getStatusBadgeColor = (
         stringValue.includes("scheduled") ||
         stringValue.includes("queued")
     ) {
-        return "info";
+        return "status-active";
     }
 
-    // Default neutral
-    return "neutral";
+    // Default neutral for unknown/unmatched states
+    return "status-neutral";
 };
-
-
 
 /**
  * Format field names for metadata display

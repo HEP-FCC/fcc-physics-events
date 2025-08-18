@@ -1,56 +1,53 @@
 <template>
-    <Teleport to="body">
-        <div
-            v-if="suggestions.length > 0 && isVisible"
-            ref="dropdownRef"
-            class="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 flex flex-col"
-            :style="dropdownStyle"
-        >
-            <!-- Header with keyboard hints - always visible -->
-            <div class="border-b border-primary-100 px-3 py-2 bg-gray-50 text-xs text-energy flex-shrink-0">
-                <div class="text-center">
-                    <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl+Space</kbd>
-                    to show suggestions anytime
-                </div>
-            </div>
-
-            <!-- Scrollable suggestions area -->
-            <div class="py-1 overflow-y-auto scroll-smooth flex-1">
-                <div
-                    v-for="(suggestion, index) in suggestions"
-                    :key="suggestion.value"
-                    :data-index="index"
-                    class="px-3 py-2 cursor-pointer text-sm flex items-center gap-2 hover:bg-blue-50 transition-colors"
-                    :class="{
-                        'bg-blue-100 text-primary': index === selectedIndex,
-                        'text-gray-900': index !== selectedIndex,
-                    }"
-                    @click="$emit('select', suggestion)"
-                    @mouseenter="$emit('highlight', index)"
-                >
-                    <UIcon
-                        :name="suggestion.type === 'field' ? 'i-heroicons-tag' : 'i-heroicons-code-bracket'"
-                        class="w-4 h-4 flex-shrink-0"
-                        :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'"
-                    />
-                    <span
-                        class="font-mono flex-1 truncate min-w-0"
-                        :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'"
-                        :title="suggestion.value"
-                        style="max-width: 200px"
-                    >
-                        {{ suggestion.value }}
-                    </span>
-                    <span
-                        v-if="suggestion.type === 'operator' && suggestion.description"
-                        class="text-xs text-gray-500 ml-auto"
-                    >
-                        {{ suggestion.description }}
-                    </span>
-                </div>
+    <div
+        v-if="suggestions.length > 0 && isVisible"
+        ref="dropdownRef"
+        class="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 min-w-full flex flex-col"
+    >
+        <!-- Header with keyboard hints - always visible -->
+        <div class="border-b border-primary-100 px-3 py-2 bg-gray-50 text-xs text-energy flex-shrink-0">
+            <div class="text-center">
+                <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl+Space</kbd>
+                to show suggestions anytime
             </div>
         </div>
-    </Teleport>
+
+        <!-- Scrollable suggestions area -->
+        <div class="py-1 overflow-y-auto scroll-smooth flex-1">
+            <div
+                v-for="(suggestion, index) in suggestions"
+                :key="suggestion.value"
+                :data-index="index"
+                class="px-3 py-2 cursor-pointer text-sm flex items-center gap-2 hover:bg-blue-50 transition-colors"
+                :class="{
+                    'bg-blue-100 text-primary': index === selectedIndex,
+                    'text-gray-900': index !== selectedIndex,
+                }"
+                @click="$emit('select', suggestion)"
+                @mouseenter="$emit('highlight', index)"
+            >
+                <UIcon
+                    :name="suggestion.type === 'field' ? 'i-heroicons-tag' : 'i-heroicons-adjustments-horizontal'"
+                    class="w-4 h-4 flex-shrink-0"
+                    :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'"
+                />
+                <span
+                    class="font-mono flex-1 truncate min-w-0"
+                    :class="suggestion.type === 'field' ? 'text-primary' : 'text-eco'"
+                    :title="suggestion.value"
+                    style="max-width: 200px"
+                >
+                    {{ suggestion.value }}
+                </span>
+                <span
+                    v-if="suggestion.type === 'operator' && suggestion.description"
+                    class="text-xs text-gray-500 ml-auto"
+                >
+                    {{ suggestion.description }}
+                </span>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -65,7 +62,6 @@ interface Props {
     isVisible: boolean;
     selectedIndex: number;
     inputElement: HTMLElement | null;
-    cursorPosition: number;
 }
 
 interface Emits {
@@ -78,29 +74,6 @@ const emit = defineEmits<Emits>();
 
 // Refs
 const dropdownRef = ref<HTMLElement | null>(null);
-
-// Computed styles for positioning
-const dropdownStyle = computed(() => {
-    if (!props.inputElement) {
-        return { display: "none" };
-    }
-
-    const inputRect = props.inputElement.getBoundingClientRect();
-    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
-    // Position dropdown below the input
-    const top = inputRect.bottom + scrollTop + 4;
-    const left = inputRect.left + scrollLeft;
-    const maxWidth = inputRect.width;
-
-    return {
-        top: `${top}px`,
-        left: `${left}px`,
-        minWidth: `${Math.min(maxWidth, 300)}px`,
-        maxWidth: `${Math.max(maxWidth, 400)}px`,
-    };
-});
 
 // Methods
 const scrollToSelectedItem = () => {
