@@ -74,7 +74,7 @@ export function useNavigationState() {
                         isOpen: openRefs[type]?.value || false,
                         icon: config.icon,
                         label: config.label,
-                        clearLabel: `Clear ${config.label}`,
+                        clearLabel: `clear selection`,
                     };
                 });
             } catch (error) {

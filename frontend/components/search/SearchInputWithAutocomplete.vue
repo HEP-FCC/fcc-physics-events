@@ -9,6 +9,7 @@
             :class="inputClass"
             @keydown="handleKeyDown"
             @input="handleInput"
+            @paste="handlePaste"
             @focus="handleFocus"
             @blur="handleBlur"
             @click="handleClick"
@@ -58,6 +59,8 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const cursorPosition = ref(0);
 const showAutocompleteOnFocus = ref(false);
 const isAutocompleteIntentional = ref(false);
+const isContinuousSuggestionMode = ref(false); // Track continuous suggestion mode
+const isRecentlyPasted = ref(false); // Track if user just pasted to prevent suggestions
 
 // Computed
 const inputValue = computed({
@@ -96,14 +99,22 @@ const handleInput = (event: Event) => {
     const target = event.target as HTMLInputElement;
     cursorPosition.value = target.selectionStart || 0;
 
-    // Only show suggestions automatically when search bar is empty
-    if (!inputValue.value.trim()) {
-        isAutocompleteIntentional.value = false; // Automatic suggestion
+    // If user recently pasted, always hide suggestions and clear selection
+    if (isRecentlyPasted.value) {
+        resetAutocompleteState();
+        return;
+    }
+
+    // Show suggestions in two cases:
+    // 1. If we're in continuous suggestion mode (triggered by Ctrl+Space)
+    // 2. For normal typing (automatic suggestions)
+    if (isContinuousSuggestionMode.value && isAutocompleteIntentional.value) {
+        // Continuous mode - keep showing suggestions
         autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     } else {
-        // Hide suggestions when user is typing/pasting (they can use Ctrl+Space to show them)
-        isAutocompleteIntentional.value = false;
-        autocomplete.hideSuggestions();
+        // Normal typing - show automatic suggestions
+        isAutocompleteIntentional.value = false; // Mark as automatic suggestion
+        autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     }
 };
 
@@ -113,6 +124,14 @@ const handleKeyDown = (event: KeyboardEvent) => {
         event.preventDefault();
         triggerAutocomplete();
         return;
+    }
+
+    // Handle space key - end continuous suggestion mode
+    if (event.key === " " && isContinuousSuggestionMode.value) {
+        isContinuousSuggestionMode.value = false;
+        isAutocompleteIntentional.value = false;
+        autocomplete.hideSuggestions();
+        return; // Allow space to be typed normally
     }
 
     // Handle autocomplete navigation
@@ -128,40 +147,80 @@ const handleKeyDown = (event: KeyboardEvent) => {
                 break;
             case "Enter":
                 event.preventDefault();
-                // Only apply suggestion if autocomplete was intentionally triggered or field is empty
-                if (isAutocompleteIntentional.value || !inputValue.value.trim()) {
+                // End continuous mode first
+                isContinuousSuggestionMode.value = false;
+
+                // Apply suggestion if:
+                // 1. Suggestions are visible
+                // 2. A suggestion is selected
+                // 3. Either in continuous mode OR user hasn't recently pasted complex content
+                if (autocomplete.state.isVisible && autocomplete.state.selectedIndex >= 0) {
                     const selected = autocomplete.getSelectedSuggestion();
                     if (selected) {
-                        applySuggestion(selected);
-                    } else {
-                        emit("enter");
+                        // If recently pasted, check if the current input could benefit from suggestions
+                        if (isRecentlyPasted.value) {
+                            const shouldApply = shouldShowSuggestionsForPastedContent(
+                                inputValue.value,
+                                inputValue.value,
+                            );
+                            if (shouldApply) {
+                                applySuggestion(selected);
+                                return;
+                            }
+                        } else {
+                            // Not recently pasted, normal suggestion application
+                            applySuggestion(selected);
+                            return;
+                        }
                     }
-                } else {
-                    // User has text and autocomplete wasn't intentional - they want to search
-                    autocomplete.hideSuggestions();
-                    emit("enter");
                 }
+
+                // In all other cases, perform search
+                resetAutocompleteState();
+                emit("enter");
                 break;
             case "Escape":
                 event.preventDefault();
+                // End continuous mode and hide suggestions
+                isContinuousSuggestionMode.value = false;
+                isAutocompleteIntentional.value = false;
                 autocomplete.hideSuggestions();
                 break;
+            case "Backspace":
+                // Check if this will make the search bar empty
+                nextTick(() => {
+                    if (!inputValue.value.trim()) {
+                        // Search bar is now empty, hide suggestions
+                        isContinuousSuggestionMode.value = false;
+                        isAutocompleteIntentional.value = false;
+                        autocomplete.hideSuggestions();
+                    }
+                });
+                break;
             case "Tab":
-                // Allow tab to accept suggestion only if autocomplete was intentionally triggered or field is empty
-                if (isAutocompleteIntentional.value || !inputValue.value.trim()) {
+                // Allow tab to accept suggestion if suggestions are visible and user didn't recently paste
+                if (autocomplete.state.isVisible && !isRecentlyPasted.value) {
                     const tabSelected = autocomplete.getSelectedSuggestion();
                     if (tabSelected) {
                         event.preventDefault();
                         applySuggestion(tabSelected);
+                        // End continuous mode after applying suggestion
+                        isContinuousSuggestionMode.value = false;
                     }
                 }
                 break;
         }
     } else {
-        // Handle regular input events
+        // Handle regular input events when autocomplete is not visible
         switch (event.key) {
             case "Enter":
+                // Always search when autocomplete is not active
                 emit("enter");
+                break;
+            case " ":
+                // Reset any lingering autocomplete state on space when not in suggestions
+                isAutocompleteIntentional.value = false;
+                isContinuousSuggestionMode.value = false;
                 break;
         }
     }
@@ -176,8 +235,8 @@ const handleFocus = () => {
     emit("focus");
     showAutocompleteOnFocus.value = true;
 
-    // Only show suggestions on focus if search bar is empty
-    if (!inputValue.value.trim()) {
+    // Show suggestions on focus if search bar is empty (automatic suggestions)
+    if (!inputValue.value.trim() && !isRecentlyPasted.value) {
         isAutocompleteIntentional.value = false; // Automatic suggestion on focus
         nextTick(() => {
             autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
@@ -200,17 +259,103 @@ const handleBlur = () => {
 const handleClick = () => {
     updateCursorPosition();
 
-    // Only show suggestions on click if search bar is empty
-    if (!inputValue.value.trim()) {
+    // Show suggestions on click if search bar is empty (automatic suggestions)
+    if (!inputValue.value.trim() && !isRecentlyPasted.value) {
         isAutocompleteIntentional.value = false; // Automatic suggestion on click
         autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
     }
+
+    // Also clear any recent paste flag if user clicks (they're actively interacting)
+    if (isRecentlyPasted.value) {
+        isRecentlyPasted.value = false;
+    }
+};
+
+const handlePaste = (event: ClipboardEvent) => {
+    // Get the pasted content to analyze it
+    const pastedText = event.clipboardData?.getData("text") || "";
+
+    // Set a temporary paste flag
+    isRecentlyPasted.value = true;
+
+    // Reset autocomplete state initially
+    resetAutocompleteState();
+
+    // Use a short delay to let the paste complete and analyze the content
+    setTimeout(() => {
+        updateCursorPosition();
+
+        // Analyze if the pasted content could benefit from autocomplete
+        const shouldShowSuggestions = shouldShowSuggestionsForPastedContent(pastedText, inputValue.value);
+
+        if (shouldShowSuggestions) {
+            // Show suggestions for potentially incomplete field names
+            isAutocompleteIntentional.value = false; // Mark as automatic
+            autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
+        } else {
+            // Hide suggestions for complete/complex text
+            autocomplete.hideSuggestions();
+            autocomplete.setSelectedIndex(-1);
+        }
+
+        // Clear the paste flag after ensuring everything is stable
+        setTimeout(() => {
+            isRecentlyPasted.value = false;
+        }, 200);
+    }, 10); // Very short delay to let paste complete
+};
+
+/**
+ * Determine if pasted content should trigger autocomplete suggestions
+ */
+const shouldShowSuggestionsForPastedContent = (pastedText: string, currentValue: string): boolean => {
+    // If the input is empty or only whitespace, don't show suggestions
+    if (!currentValue.trim()) {
+        return false;
+    }
+
+    // If pasted text contains operators or complex syntax, likely complete - no suggestions
+    const hasComplexSyntax = /[=!><:()""']/.test(pastedText);
+    if (hasComplexSyntax) {
+        return false;
+    }
+
+    // If pasted text contains numbers mixed with special chars, likely complete - no suggestions
+    const hasComplexNumberPattern = /\d+.*[^\w\s-]/.test(pastedText);
+    if (hasComplexNumberPattern) {
+        return false;
+    }
+
+    // If pasted text is very long (>20 chars), likely complete - no suggestions
+    if (pastedText.length > 20) {
+        return false;
+    }
+
+    // If pasted text contains spaces, check if it looks like a complete phrase
+    if (pastedText.includes(" ") && pastedText.split(" ").length > 2) {
+        return false;
+    }
+
+    // If we get here, it's likely a short, simple string that could be a partial field name
+    // Show suggestions for things like: "acc", "meta", "particle", etc.
+    return true;
 };
 
 const triggerAutocomplete = () => {
     updateCursorPosition();
     isAutocompleteIntentional.value = true; // User intentionally triggered
+    isContinuousSuggestionMode.value = true; // Enable continuous suggestion mode
+    isRecentlyPasted.value = false; // Clear paste flag since user explicitly wants autocomplete
     autocomplete.showSuggestions(inputValue.value, cursorPosition.value);
+};
+
+const resetAutocompleteState = () => {
+    isAutocompleteIntentional.value = false;
+    isContinuousSuggestionMode.value = false;
+    isRecentlyPasted.value = false; // Also reset paste flag
+    autocomplete.hideSuggestions();
+    // Also clear any selected suggestion to prevent stale selections
+    autocomplete.setSelectedIndex(-1);
 };
 
 const handleSuggestionSelect = (suggestion: any) => {
@@ -242,7 +387,9 @@ const applySuggestion = (suggestion: any) => {
     });
 
     autocomplete.hideSuggestions();
-    isAutocompleteIntentional.value = false; // Reset flag after applying suggestion
+    // Reset flags after applying suggestion
+    isAutocompleteIntentional.value = false;
+    isContinuousSuggestionMode.value = false;
 };
 
 // Initialize field names on mount

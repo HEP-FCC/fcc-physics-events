@@ -3,10 +3,19 @@
         <div
             v-if="suggestions.length > 0 && isVisible"
             ref="dropdownRef"
-            class="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto scroll-smooth"
+            class="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 flex flex-col"
             :style="dropdownStyle"
         >
-            <div class="py-1">
+            <!-- Header with keyboard hints - always visible -->
+            <div class="border-b border-primary-100 px-3 py-2 bg-gray-50 text-xs text-energy flex-shrink-0">
+                <div class="text-center">
+                    <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl+Space</kbd>
+                    to show suggestions anytime
+                </div>
+            </div>
+
+            <!-- Scrollable suggestions area -->
+            <div class="py-1 overflow-y-auto scroll-smooth flex-1">
                 <div
                     v-for="(suggestion, index) in suggestions"
                     :key="suggestion.value"
@@ -37,24 +46,6 @@
                         class="text-xs text-gray-500 ml-auto"
                     >
                         {{ suggestion.description }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Footer with keyboard hints -->
-            <div class="border-t border-primary-100 px-3 py-2 bg-gray-50 text-xs text-energy">
-                <div class="flex items-center justify-between">
-                    <span>
-                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">↑↓</kbd>
-                        to navigate
-                    </span>
-                    <span>
-                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Enter</kbd>
-                        to select
-                    </span>
-                    <span>
-                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Esc</kbd>
-                        to close
                     </span>
                 </div>
             </div>

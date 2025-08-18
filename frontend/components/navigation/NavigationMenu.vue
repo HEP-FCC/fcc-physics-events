@@ -48,11 +48,11 @@
                                 <div class="p-2">
                                     <div v-if="currentPath[type]" class="mb-2">
                                         <button
-                                            class="w-full text-left px-3 py-2 text-sm text-earth-600 hover:bg-space-50 rounded flex items-center whitespace-nowrap"
+                                            class="w-full text-left px-3 py-2 text-deep-blue-400 text-sm hover:bg-space-50 rounded flex items-center whitespace-nowrap"
                                             @click="handleClearSelection(type)"
                                         >
                                             <UIcon name="i-heroicons-x-mark" class="mr-2" />
-                                            {{ dropdowns[type]?.clearLabel || `Clear ${type}` }}
+                                            {{ dropdowns[type]?.clearLabel || `clear ${type.toLowerCase()}` }}
                                         </button>
                                     </div>
 
@@ -74,7 +74,7 @@
                                             class="w-full text-left px-3 py-2 text-sm hover:bg-deep-blue-50 rounded transition-colors duration-150 block truncate"
                                             style="max-width: 300px"
                                             :class="{
-                                                'bg-eco-50 text-eco-700': currentPath[type] === item.name,
+                                                'bg-space-200': currentPath[type] === item.name,
                                             }"
                                             :title="item.name"
                                             @click="handleNavigate(type, item.name)"
