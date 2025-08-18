@@ -21,6 +21,7 @@
                             trailing-icon="i-heroicons-chevron-down-20-solid"
                             @click="handleToggleDropdown(type)"
                             class="transition-all duration-150 cursor-pointer"
+                            size="lg"
                         >
                             <!-- Conditional icon: loading spinner or folder -->
                             <UIcon

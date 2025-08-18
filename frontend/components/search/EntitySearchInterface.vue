@@ -121,13 +121,20 @@
             <div v-if="showScrollToTop">
                 <UTooltip text="Scroll to top" placement="left">
                     <UButton
-                        icon="i-heroicons-arrow-up"
                         color="primary"
-                        variant="solid"
-                        size="lg"
-                        class="cursor-pointer fixed bottom-10 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300"
+                        size="md"
+                        class="w-8 h-8 cursor-pointer fixed bottom-6 right-6 z-50 shadow-lg hover:shadow-xl transition-shadow duration-300 flex items-center justify-center"
                         @click="scrollToTop"
                     >
+                        <UIcon
+                            name="i-heroicons-arrow-up"
+                            style="
+                                width: 18px !important;
+                                height: 18px !important;
+                                min-width: 18px !important;
+                                min-height: 18px !important;
+                            "
+                        />
                         <span class="sr-only">Scroll to top</span>
                     </UButton>
                 </UTooltip>

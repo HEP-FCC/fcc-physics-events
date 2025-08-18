@@ -22,8 +22,8 @@ interface BadgeInfo {
  * Composable for managing entity badges with optimized color assignment
  */
 export const useEntityBadges = () => {
-    const { getNavigationItem, isNavigationReady, getNavigationOrder } = useNavigationConfig();
-    const { formatFieldName, getStatusFields } = useUtils();
+    const { getNavigationItem, getNavigationOrder } = useNavigationConfig();
+    const { formatFieldName } = useUtils();
     const { getMetadataBadges } = useMetadataPreferences();
 
     // Cache for badge colors to avoid recalculation

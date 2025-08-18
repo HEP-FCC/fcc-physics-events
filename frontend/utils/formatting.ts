@@ -72,17 +72,7 @@ export const getStatusBadgeColor = (
     const stringValue = String(value).toLowerCase();
 
     // Success states
-    if (
-        stringValue.includes("done") ||
-        stringValue.includes("complete") ||
-        stringValue.includes("ready") ||
-        stringValue.includes("active") ||
-        stringValue.includes("running") ||
-        stringValue.includes("healthy") ||
-        stringValue.includes("ok") ||
-        stringValue === "true" ||
-        stringValue === "enabled"
-    ) {
+    if (stringValue.includes("done") || stringValue.includes("stopped")) {
         return "success";
     }
 
@@ -90,6 +80,7 @@ export const getStatusBadgeColor = (
     if (
         stringValue.includes("warning") ||
         stringValue.includes("pending") ||
+        stringValue.includes("moved-to-tape") ||
         stringValue.includes("processing") ||
         stringValue.includes("progress") ||
         stringValue.includes("partial")
@@ -101,8 +92,8 @@ export const getStatusBadgeColor = (
     if (
         stringValue.includes("error") ||
         stringValue.includes("fail") ||
+        stringValue.includes("not-registered") ||
         stringValue.includes("invalid") ||
-        stringValue.includes("stopped") ||
         stringValue.includes("disabled") ||
         stringValue.includes("rejected") ||
         stringValue === "false"
@@ -113,6 +104,7 @@ export const getStatusBadgeColor = (
     // Info states
     if (
         stringValue.includes("info") ||
+        stringValue.includes("active") ||
         stringValue.includes("draft") ||
         stringValue.includes("scheduled") ||
         stringValue.includes("queued")
@@ -124,27 +116,7 @@ export const getStatusBadgeColor = (
     return "neutral";
 };
 
-/**
- * Get status fields from metadata
- */
-export const getStatusFields = (
-    metadata: Record<string, unknown>,
-): Array<{
-    key: string;
-    label: string;
-    value: unknown;
-    color: "success" | "warning" | "info" | "primary" | "secondary" | "error" | "neutral";
-}> => {
-    return Object.entries(metadata)
-        .filter(([key]) => isStatusField(key))
-        .map(([key, value]) => ({
-            key,
-            label: formatFieldName(key),
-            value,
-            color: getStatusBadgeColor(value),
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-};
+
 
 /**
  * Format field names for metadata display

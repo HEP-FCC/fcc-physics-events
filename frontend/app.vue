@@ -1,9 +1,9 @@
 <template>
     <UApp>
         <!-- Navigation Header -->
-        <header class="bg-space-50 border-space-200 sticky top-0 z-50">
+        <header class="bg-space-50 border-space-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center h-16 relative">
+                <div class="flex items-center h-16">
                     <!-- Left: Logo -->
                     <div class="flex items-center">
                         <NuxtLink to="/" class="flex items-center">

@@ -1,6 +1,4 @@
 <template>
-    <!-- v-memo to prevent unnecessary re-renders when props hasn't changed -->
-    <!-- v-memo to prevent unnecessary re-renders when props haven't changed -->
     <div
         class="rounded border-t bg-white"
         style="border-color: var(--theme-light-border-primary)"
@@ -119,11 +117,10 @@
                         <template v-for="field in getAllFieldsComputed" :key="field.key">
                             <!-- Unified Field Card -->
                             <div
-                                :class="[getUnifiedGridSpanClass(field), getUnifiedFieldColorClass(field)]"
+                                :class="[getUnifiedGridSpanClass(field), getUnifiedFieldColorClass()]"
                                 :style="getUnifiedFieldStyle(field)"
                                 class="group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm"
                             >
-                                <!-- Background gradient (only for regular fields) -->
                                 <div
                                     v-if="field.category === 'regular'"
                                     class="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-200"
@@ -146,11 +143,7 @@
                                             </span>
                                         </div>
                                         <!-- Field title -->
-                                        <span
-                                            class="font-medium text-xs truncate"
-                                            :style="getUnifiedHeaderTextStyle(field)"
-                                            :title="field.displayName"
-                                        >
+                                        <span class="font-medium text-xs truncate" :title="field.displayName">
                                             {{ field.displayName }}
                                         </span>
                                     </div>
@@ -250,9 +243,6 @@
 
 <script setup lang="ts">
 import type { MetadataEditState, Entity } from "~/types/api";
-// Auto-imported: useAppConfiguration
-import { getSemanticColor, getThemeColor, type SemanticColorKey } from "~/config/colors";
-import { reduceEachLeadingCommentRange } from "typescript";
 
 interface Props {
     entityId?: number;
@@ -570,9 +560,9 @@ const getTypeIcon = (type: string): string => {
         case "vector":
             return "<>";
         case "longString":
-            return "Aa";
+            return "A";
         default: // shortString
-            return "Aa";
+            return "A";
     }
 };
 
@@ -683,6 +673,7 @@ interface UnifiedField {
     type: string;
     priority: number; // For layout grouping
     color?: string; // For status fields
+    style?: string;
 }
 
 // Unified field processing - combines all field types into a single structure
@@ -714,6 +705,7 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
                 type: "status",
                 priority: 1, // Same priority as special fields to appear in same row
                 color: getStatusBadgeColor(value),
+                style: "color: red",
             };
         } else {
             // Regular field - determine type
@@ -754,92 +746,51 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
     });
 });
 
-// Group fields for layout purposes - maintains visual separation while using unified structure
-const getGroupedFieldsComputed = computed(() => {
-    const allFields = getAllFieldsComputed.value;
-    const groups: Array<{ priority: number; fields: UnifiedField[] }> = [];
-
-    // Group by priority for visual separation
-    const groupMap = new Map<number, UnifiedField[]>();
-    allFields.forEach((field) => {
-        if (!groupMap.has(field.priority)) {
-            groupMap.set(field.priority, []);
-        }
-        groupMap.get(field.priority)!.push(field);
-    });
-
-    // Convert to array format expected by template
-    Array.from(groupMap.entries())
-        .sort(([a], [b]) => a - b)
-        .forEach(([priority, fields]) => {
-            groups.push({ priority, fields });
-        });
-
-    return groups;
-});
-
 // UNIFIED STYLING FUNCTIONS - Preference for Tailwind classes over CSS variables
 
 // Helper function to generate Tailwind class names for custom colors
 const getFieldColorClasses = (field: UnifiedField) => {
     const semanticColor = getSemanticColorForFieldType(resolveFieldSemanticColor(field));
     return {
-        // Background classes
         bg50: `bg-${semanticColor}-50`,
         bg100: `bg-${semanticColor}-100`,
         bg300: `bg-${semanticColor}-300`,
-        // Border classes
+
         border200: `border-${semanticColor}-200`,
-        // Text classes
+
         text600: `text-${semanticColor}-600`,
         text700: `text-${semanticColor}-700`,
         text800: `text-${semanticColor}-800`,
-        // Hover classes
+
         hoverBg100: `hover:bg-${semanticColor}-100`,
         hoverText700: `hover:text-${semanticColor}-700`,
     };
 };
 
 const getUnifiedIconContainerClass = (field: UnifiedField): string => {
-    const baseClass = "flex-shrink-0 flex items-center justify-center";
-    const colorClasses = getFieldColorClasses(field);
-
-    if (field.category === "special") {
-        return `${baseClass} w-4 h-4 rounded ${colorClasses.bg300} ${colorClasses.text800}`;
-    } else if (field.category === "status") {
-        return `${baseClass} w-4 h-4 rounded ${colorClasses.bg300} ${colorClasses.text800}`;
-    } else {
-        return `${baseClass} w-4 h-4 rounded-full text-[9px] bg-deep-blue-900 text-white`;
-    }
+    return "flex-shrink-0 flex items-center justify-center w-4 h-4 rounded";
 };
 
 const getUnifiedGradientStyle = (field: UnifiedField): Record<string, string> => {
-    if (field.category === "regular") {
-        const colors = getFieldColorsMemoized(field);
-        return {
-            background: `linear-gradient(to bottom right, ${colors.grad400}, ${colors.grad600})`,
-        };
-    }
-    return {};
+    const colors = getFieldColorsMemoized(field);
+    return {
+        background: `linear-gradient(to bottom right, ${colors.grad400}, ${colors.grad600})`,
+    };
 };
 
 // Enhanced color scheme mapping based on field categories and FCC design principles using CSS variables
 const getSemanticColorForFieldType = (fieldType: string): string => {
     const typeMapping: Record<string, string> = {
-        // Scientific data types - align with FCC's scientific excellence value
-        number: "gray", // Radiant blue for quantitative data
-        boolean: "success", // Eco green for binary/environmental states
-        vector: "accent", // Energy purple for complex particle data
+        number: "gray",
+        boolean: "success",
+        vector: "accent",
 
-        // Content types - align with FCC's open communication values
-        longString: "secondary", // Earth tones for descriptive content
-        shortString: "gray", // Gray for basic textual information
+        longString: "gray",
+        shortString: "gray",
 
-        // Metadata categories - align with FCC's transparency value
-        special: "secondary",
-        status: "secondary", // Radiant blue for status/state information
+        special: "gray",
+        status: "secondary",
 
-        // Status-specific colors - align with universal status conventions
         success: "eco",
         warning: "warning",
         error: "error",
@@ -866,7 +817,7 @@ const resolveFieldSemanticColor = (field: UnifiedField): string => {
     }
 };
 
-// Centralized color variables generator - further simplification
+// Centralized color variables generator
 const getFieldColorVariables = (field: UnifiedField) => {
     const semanticColor = getSemanticColorForFieldType(resolveFieldSemanticColor(field));
     return {
@@ -874,6 +825,7 @@ const getFieldColorVariables = (field: UnifiedField) => {
         bg100: getCSSVariableForColor(semanticColor, "100"),
         bg300: getCSSVariableForColor(semanticColor, "300"),
         border200: getCSSVariableForColor(semanticColor, "200"),
+        text300: getCSSVariableForColor(semanticColor, "300"),
         text600: getCSSVariableForColor(semanticColor, "600"),
         text700: getCSSVariableForColor(semanticColor, "700"),
         grad400: getCSSVariableForColor(semanticColor, "400"),
@@ -894,12 +846,28 @@ const getFieldColorsMemoized = (field: UnifiedField) => {
 
 // UNIFIED STYLING FUNCTIONS - CSS Variable-based dynamic color system
 
-const getUnifiedFieldColorClass = (field: UnifiedField): string => {
+const getUnifiedFieldColorClass = (): string => {
     return "group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm";
 };
 
 const getUnifiedFieldStyle = (field: UnifiedField, isHeader: Boolean = false): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
+    if (field.key === "path" || field.key === "comment" || field.key == "description") {
+        return {
+            backgroundColor: isHeader ? "#cad7fb" : "#eff2ff",
+            borderColor: "#cad7fb",
+            "--hover-bg-color": "#e8efff",
+        };
+    }
+
+    if (field.key === "status") {
+        return {
+            backgroundColor: isHeader ? "#9ee793" : "#e5fae1",
+            borderColor: "#9ee793",
+            "--hover-bg-color": "#e8efff",
+        };
+    }
+
     return {
         backgroundColor: isHeader ? colors.bg300 : colors.bg50,
         borderColor: colors.border200,
@@ -918,23 +886,15 @@ const getUnifiedIconStyle = (field: UnifiedField): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
     return {
         backgroundColor: "var(--color-deep-blue-main)",
-        color: colors.text600,
-    };
-};
-
-const getUnifiedHeaderTextStyle = (field: UnifiedField): Record<string, string> => {
-    // Using Tailwind classes is preferred, but this function returns inline styles for dynamic cases
-    return {
-        // For dynamic colors based on field types, we still need CSS variables
-        // But for static cases, prefer Tailwind classes in the template
+        color: colors.text300,
     };
 };
 
 const getUnifiedFieldIcon = (field: UnifiedField): string => {
     if (field.category === "special") {
-        return getSpecialFieldIcon(field.key);
+        return getTypeIcon(field.type);
     } else if (field.category === "status") {
-        return getStatusFieldIcon(field.key);
+        return getTypeIcon(field.type);
     } else {
         return getTypeIcon(field.type);
     }
@@ -975,8 +935,6 @@ const getUnifiedValueDisplayClass = (field: UnifiedField): string => {
 
     if (field.type === "vector") {
         classes.push("font-mono text-xs");
-    } else if (field.type === "number" || field.type === "boolean") {
-        classes.push("text-center");
     } else if (field.type === "shortString" || field.type === "longString") {
         classes.push("font-medium");
     }
@@ -986,27 +944,6 @@ const getUnifiedValueDisplayClass = (field: UnifiedField): string => {
     }
 
     return classes.join(" ");
-};
-
-const getUnifiedLockButtonSize = (field: UnifiedField): string => {
-    return field.category === "regular" ? "w-4 h-4" : "w-3 h-3";
-};
-
-const getUnifiedLockTitle = (field: UnifiedField): string => {
-    if (!isAuthenticated.value) {
-        return `Field is ${
-            isFieldLocked(field.key) ? "locked" : "unlocked"
-        } - You need to be logged in to modify locks`;
-    }
-    return isFieldLocked(field.key) ? `Unlock ${field.displayName}` : `Lock ${field.displayName}`;
-};
-
-// Helper functions for special fields
-const getSpecialFieldIcon = (key: string): string => {
-    const normalizedKey = key.toLowerCase();
-    if (normalizedKey.includes("description") || normalizedKey.includes("desc")) return "📝";
-    if (normalizedKey.includes("comment")) return "💬";
-    return "💭";
 };
 
 const getSpecialFieldTitle = (key: string): string => {
@@ -1089,23 +1026,9 @@ const getStatusFieldSpanClass = (value: unknown): string => {
     const stringValue = String(value);
     return stringValue.length > 20 ? "col-span-2" : "col-span-2";
 };
-
-const getStatusFieldIcon = (key: string): string => {
-    const normalizedKey = key.toLowerCase();
-    if (normalizedKey.includes("status")) return "📊";
-    if (normalizedKey.includes("state")) return "🏃";
-    if (normalizedKey.includes("phase")) return "🔄";
-    if (normalizedKey.includes("health")) return "💚";
-    if (normalizedKey.includes("condition")) return "⚡";
-    if (normalizedKey.includes("progress")) return "📈";
-    return "🔧"; // Default status icon
-};
 </script>
 
 <style scoped>
-/* FCC-aligned dynamic color system using CSS custom properties */
-/* This style block generates theme-aware colors based on the FCC design philosophy */
-
 /* Component uses inline styles for dynamic colors via Vue's :style binding */
 /* CSS custom properties are generated from the colors.ts configuration */
 

@@ -8,7 +8,6 @@ import {
     formatSizeInGiB,
     isStatusField,
     getStatusBadgeColor,
-    getStatusFields,
 } from "~/utils/formatting";
 
 import type { Entity } from "~/types/api";
@@ -77,7 +76,6 @@ export function useUtils() {
         formatSizeInGiB,
         isStatusField,
         getStatusBadgeColor,
-        getStatusFields,
 
         // Entity utilities
         getPrimaryKeyValue,

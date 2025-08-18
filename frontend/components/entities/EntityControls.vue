@@ -102,7 +102,7 @@
                         type="number"
                         min="25"
                         max="1000"
-                        size="xs"
+                        size="sm"
                         class="w-16"
                         placeholder="25"
                         @update:model-value="handlePageSizeInput"

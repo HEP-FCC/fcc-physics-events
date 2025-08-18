@@ -6,12 +6,12 @@
                 :loading="isLoading"
                 color="primary"
                 variant="solid"
-                size="sm"
+                size="lg"
                 icon="i-heroicons-user-circle"
                 class="login-btn cursor-pointer"
                 @click="handleLogin"
             >
-                {{ isLoading ? "Signing in..." : "Sign in with CERN" }}
+                {{ isLoading ? "Signing in..." : "Sign in" }}
             </UButton>
         </div>
 
@@ -29,7 +29,7 @@
                     :loading="isLoading"
                     color="energy"
                     variant="outline"
-                    size="sm"
+                    size="lg"
                     icon="i-heroicons-arrow-right-on-rectangle"
                     @click="handleLogout"
                 >
