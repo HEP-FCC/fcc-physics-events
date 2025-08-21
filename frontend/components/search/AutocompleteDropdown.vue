@@ -6,9 +6,27 @@
     >
         <!-- Header with keyboard hints - always visible -->
         <div class="border-b border-primary-100 px-3 py-2 bg-gray-50 text-xs text-energy flex-shrink-0">
-            <div class="text-center">
-                <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl+Space</kbd>
-                to show suggestions anytime
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-center sm:text-left">
+                <div class="flex flex-wrap justify-center sm:justify-start gap-x-3 gap-y-1">
+                    <span class="inline-flex items-center gap-1">
+                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Ctrl+Space</kbd>
+                        <span>show suggestions</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1">
+                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">↑↓</kbd>
+                        <span>navigate</span>
+                    </span>
+                </div>
+                <div class="flex flex-wrap justify-center sm:justify-end gap-x-3 gap-y-1">
+                    <span class="inline-flex items-center gap-1">
+                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Enter/Tab</kbd>
+                        <span>accept</span>
+                    </span>
+                    <span class="inline-flex items-center gap-1">
+                        <kbd class="px-1 py-0.5 bg-white border border-gray-300 rounded text-xs">Esc</kbd>
+                        <span>close</span>
+                    </span>
+                </div>
             </div>
         </div>
 

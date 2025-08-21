@@ -6,6 +6,10 @@ export default defineNuxtConfig({
 
     colorMode: {
         preference: "light",
+        fallback: "light",
+        dataValue: "light",
+        classSuffix: "",
+        storageKey: "nuxt-color-mode",
     },
 
     modules: ["@nuxt/eslint", "@nuxt/fonts", "@nuxt/icon", "@nuxt/image", "@nuxt/scripts", "@nuxt/ui"],

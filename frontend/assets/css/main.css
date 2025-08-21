@@ -2,6 +2,29 @@
 @import "@nuxt/ui";
 @import "./colors.css";
 
+/* Force light mode - disable all dark mode behavior */
+* {
+    color-scheme: light !important;
+}
+
+html,
+body {
+    color-scheme: light !important;
+}
+
+/* Prevent any dark mode classes from applying */
+.dark,
+[data-theme="dark"] {
+    color-scheme: light !important;
+}
+
+/* Override any dark mode media queries */
+@media (prefers-color-scheme: dark) {
+    * {
+        color-scheme: light !important;
+    }
+}
+
 /* Define custom colors for Nuxt UI integration - pulling from your existing color system */
 @theme {
     /* ECO Palette - referencing your existing color definitions from colors.css */

@@ -6,17 +6,40 @@
                 :loading="isLoading"
                 color="primary"
                 variant="solid"
-                size="lg"
+                :size="mobileCompact ? 'md' : 'lg'"
                 icon="i-heroicons-user-circle"
                 class="login-btn cursor-pointer"
+                :label="mobileCompact ? undefined : isLoading ? 'Signing in...' : 'Sign in'"
                 @click="handleLogin"
-            >
-                {{ isLoading ? "Signing in..." : "Sign in" }}
-            </UButton>
+            />
         </div>
 
         <div v-else class="user-section">
-            <div class="flex items-center gap-3">
+            <!-- User info only mode - just display user info -->
+            <div v-if="userInfoOnly" class="flex items-center gap-3">
+                <div class="text-right">
+                    <div class="text-sm font-medium">
+                        {{ displayName }}
+                    </div>
+                    <div class="text-xs">
+                        {{ displayRoles }}
+                    </div>
+                </div>
+            </div>
+            <!-- Logout only mode - just logout button -->
+            <div v-else-if="logoutOnly" class="flex items-center">
+                <UButton
+                    :loading="isLoading"
+                    color="energy"
+                    variant="outline"
+                    :size="mobileCompact ? 'md' : 'lg'"
+                    icon="i-heroicons-arrow-right-on-rectangle"
+                    :label="mobileCompact ? undefined : 'Sign out'"
+                    @click="handleLogout"
+                />
+            </div>
+            <!-- Regular mode with logout button and user info -->
+            <div v-else class="flex items-center gap-3">
                 <div class="text-right">
                     <div class="text-sm font-medium">
                         {{ displayName }}
@@ -29,12 +52,11 @@
                     :loading="isLoading"
                     color="energy"
                     variant="outline"
-                    size="lg"
+                    :size="mobileCompact ? 'md' : 'lg'"
                     icon="i-heroicons-arrow-right-on-rectangle"
+                    :label="mobileCompact ? undefined : 'Sign out'"
                     @click="handleLogout"
-                >
-                    Sign out
-                </UButton>
+                />
             </div>
         </div>
 
@@ -45,7 +67,13 @@
             color="error"
             variant="soft"
             :title="error"
-            :close-button="{ icon: 'i-heroicons-x-mark-20-solid', color: 'gray', variant: 'link', padded: false }"
+            :close-button="{
+                icon: 'i-heroicons-x-mark-20-solid',
+                color: 'neutral',
+                variant: 'ghost',
+                size: 'xs',
+                class: 'w-6 h-6 p-1 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-center shrink-0',
+            }"
             class="fixed top-20 right-4 z-50 max-w-sm"
             @close="clearError"
         />
@@ -53,6 +81,18 @@
 </template>
 
 <script setup lang="ts">
+interface Props {
+    mobileCompact?: boolean;
+    userInfoOnly?: boolean;
+    logoutOnly?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    mobileCompact: false,
+    userInfoOnly: false,
+    logoutOnly: false,
+});
+
 const { authState, login, logout, clearError } = useAuth();
 
 // Computed properties for easy access

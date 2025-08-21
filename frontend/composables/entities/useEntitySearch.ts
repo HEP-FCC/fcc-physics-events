@@ -472,6 +472,22 @@ export function useEntitySearch() {
         { immediate: true },
     );
 
+    // Watch route query parameter to sync search query
+    watch(
+        () => route.query.q,
+        (newQuery) => {
+            const queryString = (newQuery as string) || "";
+            if (userSearchQuery.value !== queryString) {
+                userSearchQuery.value = queryString;
+                // Trigger search when query changes from route navigation
+                if (isComponentReady.value) {
+                    performSearch(true);
+                }
+            }
+        },
+        { immediate: false }, // Don't run immediately since we already initialize from route
+    );
+
     return {
         // State
         userSearchQuery,

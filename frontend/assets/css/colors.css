@@ -266,18 +266,19 @@
 }
 
 /* =============================================================================
-   DARK MODE OVERRIDES
-   Applied when dark mode is active
+   DARK MODE OVERRIDES - DISABLED
+   Dark mode has been disabled to prevent inconsistent mobile rendering
    ============================================================================= */
 
+/*
 [data-theme="dark"],
 .dark {
-    /* Override semantic colors with dark theme alternatives where appropriate */
     --color-background: var(--theme-dark-background-primary);
     --color-surface: var(--theme-dark-surface-primary);
     --color-text: var(--theme-dark-text-primary);
     --color-border: var(--theme-dark-border-primary);
 }
+*/
 
 /* =============================================================================
    UTILITY CLASSES

@@ -36,6 +36,7 @@ export interface ApiError {
  */
 export interface Entity {
     dataset_id: number;
+    uuid?: string;
     name: string;
     created_at?: string;
     updated_at?: string;

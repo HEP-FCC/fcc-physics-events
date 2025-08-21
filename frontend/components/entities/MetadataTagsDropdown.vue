@@ -45,7 +45,7 @@
                         color="neutral"
                         variant="ghost"
                         size="xs"
-                        class="ml-2"
+                        class="w-6 h-6 p-1 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-center shrink-0"
                         @click="closeDropdown"
                     />
                 </div>

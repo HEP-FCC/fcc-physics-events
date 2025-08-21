@@ -7,13 +7,26 @@
             size="lg"
             icon="i-heroicons-magnifying-glass"
             :class="inputClass"
+            :ui="{ trailing: 'pe-1' }"
             @keydown="handleKeyDown"
             @input="handleInput"
             @paste="handlePaste"
             @focus="handleFocus"
             @blur="handleBlur"
             @click="handleClick"
-        />
+        >
+            <template v-if="inputValue?.length" #trailing>
+                <UButton
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    icon="i-heroicons-x-mark"
+                    aria-label="Clear search"
+                    class="w-6 h-6 p-1 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-center shrink-0"
+                    @click="handleClear"
+                />
+            </template>
+        </UInput>
 
         <AutocompleteDropdown
             :suggestions="autocomplete.state.suggestions"
@@ -392,6 +405,23 @@ const applySuggestion = (suggestion: any) => {
     // Reset flags after applying suggestion
     isAutocompleteIntentional.value = false;
     isContinuousSuggestionMode.value = false;
+};
+
+const handleClear = () => {
+    inputValue.value = "";
+    autocomplete.hideSuggestions();
+    isAutocompleteIntentional.value = false;
+    isContinuousSuggestionMode.value = false;
+    isRecentlyPasted.value = false;
+
+    // Focus the input after clearing
+    nextTick(() => {
+        const input = inputElement.value;
+        if (input) {
+            input.focus();
+            cursorPosition.value = 0;
+        }
+    });
 };
 
 // Initialize field names on mount

@@ -1185,6 +1185,7 @@ class Database:
                 # Build SELECT fields dynamically
                 select_fields = [
                     f"d.{primary_key_column}",
+                    "d.uuid",
                     "d.name",
                     "d.metadata",
                     "d.created_at",
@@ -1925,6 +1926,58 @@ class Database:
                     limit,
                     offset,
                 )
+
+            except asyncpg.UndefinedColumnError as e:
+                logger.warning(
+                    f"Column not found in database schema: {e}. Attempting fallback to metadata search..."
+                )
+
+                # Extract the missing column name from the error message
+                error_msg = str(e)
+                import re
+
+                column_match = re.search(r'column "([^"]+)" does not exist', error_msg)
+                if column_match:
+                    missing_column = column_match.group(1)
+                    logger.info(f"Missing column identified: {missing_column}")
+
+                    # Replace the column reference with metadata access in both queries
+                    fallback_count_query = count_query.replace(
+                        f"d.{missing_column}", f"d.metadata->>'{missing_column}'"
+                    )
+                    fallback_search_query = search_query.replace(
+                        f"d.{missing_column}", f"d.metadata->>'{missing_column}'"
+                    )
+
+                    logger.info(
+                        f"Retrying with fallback queries using metadata access for column: {missing_column}"
+                    )
+
+                    try:
+                        # Retry with fallback queries
+                        total_records_result = await conn.fetchval(
+                            fallback_count_query, *params
+                        )
+                        total_records = total_records_result or 0
+
+                        records = await conn.fetch(
+                            f"{fallback_search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}",
+                            *params,
+                            limit,
+                            offset,
+                        )
+
+                        logger.info(
+                            f"Fallback query successful for missing column: {missing_column}"
+                        )
+                    except Exception as fallback_error:
+                        logger.error(f"Fallback query also failed: {fallback_error}")
+                        raise
+                else:
+                    logger.error(
+                        f"Could not extract column name from error: {error_msg}"
+                    )
+                    raise
 
             except Exception as e:
                 logger.error(f"Failed to execute search queries: {e}")
