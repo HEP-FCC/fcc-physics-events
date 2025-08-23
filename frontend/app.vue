@@ -9,7 +9,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3 flex-1 min-w-0">
                             <NuxtLink to="/" class="flex items-center flex-shrink-0" @click="handleLogoClick">
-                                <NuxtImg src="/logo.webp" alt="FCC Physics Events" class="h-8 w-auto" />
+                                <NuxtImg src="/logo.png" alt="FCC Physics Events" class="h-8 w-auto" />
                             </NuxtLink>
                             <h1 class="text-lg font-semibold font-sans truncate select-none">
                                 {{ appTitle }}
@@ -34,7 +34,7 @@
                     <!-- Left: Logo -->
                     <div class="flex items-center">
                         <NuxtLink class="flex items-center cursor-pointer" @click="handleLogoClick">
-                            <NuxtImg src="/logo.webp" alt="FCC Physics Events" class="h-8 w-auto" />
+                            <NuxtImg src="/logo.png" alt="FCC Physics Events" class="h-8 w-auto" />
                         </NuxtLink>
                     </div>
 
