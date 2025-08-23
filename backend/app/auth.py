@@ -543,14 +543,18 @@ class AuthDependency:
 
         # Custom role required
         user: dict = Depends(AuthDependency("editor"))
+
+        # No authentication required - returns generic "Unauthenticated user"
+        user: dict = Depends(AuthDependency(None))
     """
 
-    def __init__(self, required_role: str):
+    def __init__(self, required_role: str | None = "authorized"):
         """
         Initialize the auth dependency with a required role.
 
         Args:
-            required_role: The CERN role required for access (default: "authorized")
+            required_role: The CERN role required for access. Use None to skip authentication
+                          and return a generic "Unauthenticated user" (default: "authorized")
         """
         self.required_role = required_role
 
@@ -566,15 +570,25 @@ class AuthDependency:
             request: FastAPI Request object (auto-injected)
 
         Returns:
-            User information dictionary if authenticated and authorized
+            User information dictionary if authenticated and authorized, or generic
+            unauthenticated user dict if required_role is None
 
         Raises:
-            HTTPException: If authentication or authorization fails
+            HTTPException: If authentication or authorization fails (when required_role is not None)
         """
         try:
-            logger.debug(
-                f"AuthDependency called with required_role: {self.required_role}"
-            )
+            # If no role is required, return a generic unauthenticated user
+            if self.required_role is None:
+                logger.debug("No authentication required, returning generic user")
+                return {
+                    "preferred_username": "Unauthenticated user",
+                    "email": "unauthenticated@example.com",
+                    "name": "Unauthenticated user",
+                    "groups": [],
+                    "roles": [],
+                    "authenticated": False,
+                    "sub": "unauthenticated",
+                }
 
             # Get configuration and setup OAuth client
             config = get_config()
@@ -597,7 +611,7 @@ class AuthDependency:
             # Token refresh and cookie management is handled by dedicated endpoint
             is_authenticated, user_info = await validate_user_session(
                 request=request,
-                response=None,  # No cookie updates in dependencies
+                response=None,
                 oauth_client=oauth.provider,
                 required_role=self.required_role,
             )
