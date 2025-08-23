@@ -7,6 +7,7 @@ imports them into the database using the existing FCC dict import functionality.
 """
 
 import asyncio
+import fcntl
 import json
 import os
 import time
@@ -40,6 +41,11 @@ class FileWatcherService:
         self.config = get_config()
         self.is_running = False
         self._watch_task: asyncio.Task[None] | None = None
+
+        # Worker coordination - only one worker should handle file watching
+        self._lock_file: int | None = None
+        self._lock_file_path = "/app/locks/file_watcher.lock"
+        self._is_primary_worker = False
 
         # Load configuration
         watcher_config = self.config.get("file_watcher", {})
@@ -122,6 +128,57 @@ class FileWatcherService:
         # Load persisted state if state file is configured
         self._load_state()
 
+    def _try_acquire_lock(self) -> bool:
+        """Try to acquire the file watcher lock to become the primary worker."""
+        try:
+            # Ensure locks directory exists
+            os.makedirs(os.path.dirname(self._lock_file_path), exist_ok=True)
+
+            # Open the lock file
+            self._lock_file = os.open(
+                self._lock_file_path, os.O_CREAT | os.O_TRUNC | os.O_RDWR
+            )
+
+            # Try to acquire exclusive lock (non-blocking)
+            fcntl.flock(self._lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+            # Write our process ID to the lock file
+            os.write(self._lock_file, f"{os.getpid()}\n".encode())
+            os.fsync(self._lock_file)
+
+            self._is_primary_worker = True
+            logger.info(f"Acquired file watcher lock (PID: {os.getpid()})")
+            return True
+
+        except OSError:
+            # Lock is already held by another process
+            if self._lock_file is not None:
+                try:
+                    os.close(self._lock_file)
+                except Exception:
+                    pass
+                self._lock_file = None
+            self._is_primary_worker = False
+            return False
+
+    def _release_lock(self) -> None:
+        """Release the file watcher lock."""
+        if self._lock_file is not None:
+            try:
+                fcntl.flock(self._lock_file, fcntl.LOCK_UN)
+                os.close(self._lock_file)
+                # Try to remove the lock file, but don't fail if we can't
+                try:
+                    os.unlink(self._lock_file_path)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+            finally:
+                self._lock_file = None
+                self._is_primary_worker = False
+                logger.info(f"Released file watcher lock (PID: {os.getpid()})")
+
     def _load_state(self) -> None:
         """Load persisted state from state file."""
         if not self.state_file:
@@ -175,6 +232,13 @@ class FileWatcherService:
 
         if self.is_running:
             logger.warning("File watcher service is already running")
+            return
+
+        # Try to acquire the lock to become the primary worker
+        if not self._try_acquire_lock():
+            logger.info(
+                "Another worker is already handling file watching - this worker will remain idle"
+            )
             return
 
         # Log configured paths but don't validate immediately
@@ -277,6 +341,9 @@ class FileWatcherService:
         # Save final state
         self._save_state()
 
+        # Release the lock if we have it
+        self._release_lock()
+
         logger.info("File watcher service stopped")
 
     async def _poll_directory_changes(
@@ -355,76 +422,83 @@ class FileWatcherService:
         max_retries = 5
         retry_delay = 10  # seconds
 
-        while self.is_running and retry_count < max_retries:
-            try:
-                # Validate watch paths before starting watcher
-                valid_paths = []
-                for path in self.watch_paths:
-                    if os.path.exists(path) and os.path.isdir(path):
-                        valid_paths.append(path)
-                        logger.info(f"File watcher monitoring: {path}")
-                    else:
-                        logger.warning(f"Watch path not available: {path}")
+        try:
+            while self.is_running and retry_count < max_retries:
+                try:
+                    # Validate watch paths before starting watcher
+                    valid_paths = []
+                    for path in self.watch_paths:
+                        if os.path.exists(path) and os.path.isdir(path):
+                            valid_paths.append(path)
+                            logger.info(f"File watcher monitoring: {path}")
+                        else:
+                            logger.warning(f"Watch path not available: {path}")
 
-                if not valid_paths:
+                    if not valid_paths:
+                        retry_count += 1
+                        logger.warning(
+                            f"No valid watch paths found (attempt {retry_count}/{max_retries}). "
+                            f"Retrying in {retry_delay} seconds..."
+                        )
+                        await asyncio.sleep(retry_delay)
+                        continue
+
+                    # Reset retry count on successful path validation
+                    retry_count = 0
+
+                    logger.info(f"Starting file monitoring for paths: {valid_paths}")
+
+                    # Handle startup files based on configuration
+                    await self._handle_startup_files(valid_paths)
+
+                    # Start polling loop instead of using inotify-based awatch
+                    state_save_counter = 0
+                    state_save_interval = 10  # Save state every 10 polling cycles
+
+                    while self.is_running:
+                        changes = await self._poll_directory_changes(valid_paths)
+
+                        if changes:
+                            logger.info(f"Detected {len(changes)} file changes")
+                            for change, file_path in changes:
+                                await self._handle_file_change(change, file_path)
+                        else:
+                            logger.debug("No file changes detected")
+
+                        # Periodically save state
+                        state_save_counter += 1
+                        if state_save_counter >= state_save_interval:
+                            self._save_state()
+                            state_save_counter = 0
+
+                        # Wait for polling interval before next scan
+                        await asyncio.sleep(self.polling_interval)
+
+                except asyncio.CancelledError:
+                    logger.info("File watcher task cancelled")
+                    raise
+                except Exception as e:
                     retry_count += 1
-                    logger.warning(
-                        f"No valid watch paths found (attempt {retry_count}/{max_retries}). "
-                        f"Retrying in {retry_delay} seconds..."
+                    logger.error(
+                        f"File watcher encountered an error (attempt {retry_count}/{max_retries}): {e}"
                     )
-                    await asyncio.sleep(retry_delay)
-                    continue
+                    if retry_count >= max_retries:
+                        logger.error("File watcher failed after maximum retries")
+                        break
 
-                # Reset retry count on successful path validation
-                retry_count = 0
+                    if self.is_running:
+                        logger.info(
+                            f"Restarting file watcher in {retry_delay} seconds..."
+                        )
+                        await asyncio.sleep(retry_delay)
 
-                logger.info(f"Starting file monitoring for paths: {valid_paths}")
+            if retry_count >= max_retries:
+                logger.error("File watcher service stopped due to repeated failures")
+                self.is_running = False
 
-                # Handle startup files based on configuration
-                await self._handle_startup_files(valid_paths)
-
-                # Start polling loop instead of using inotify-based awatch
-                state_save_counter = 0
-                state_save_interval = 10  # Save state every 10 polling cycles
-
-                while self.is_running:
-                    changes = await self._poll_directory_changes(valid_paths)
-
-                    if changes:
-                        logger.info(f"Detected {len(changes)} file changes")
-                        for change, file_path in changes:
-                            await self._handle_file_change(change, file_path)
-                    else:
-                        logger.debug("No file changes detected")
-
-                    # Periodically save state
-                    state_save_counter += 1
-                    if state_save_counter >= state_save_interval:
-                        self._save_state()
-                        state_save_counter = 0
-
-                    # Wait for polling interval before next scan
-                    await asyncio.sleep(self.polling_interval)
-
-            except asyncio.CancelledError:
-                logger.info("File watcher task cancelled")
-                raise
-            except Exception as e:
-                retry_count += 1
-                logger.error(
-                    f"File watcher encountered an error (attempt {retry_count}/{max_retries}): {e}"
-                )
-                if retry_count >= max_retries:
-                    logger.error("File watcher failed after maximum retries")
-                    break
-
-                if self.is_running:
-                    logger.info(f"Restarting file watcher in {retry_delay} seconds...")
-                    await asyncio.sleep(retry_delay)
-
-        if retry_count >= max_retries:
-            logger.error("File watcher service stopped due to repeated failures")
-            self.is_running = False
+        finally:
+            # Always release the lock when the watch task ends
+            self._release_lock()
 
     async def _handle_file_change(self, change: Change, file_path: str) -> None:
         """Handle a single file change event."""
