@@ -52,6 +52,7 @@
             <div class="flex items-center gap-2">
                 <span class="text-sm font-medium">Sort by:</span>
                 <USelectMenu
+                    ref="sortSelectMenu"
                     :model-value="sortBy"
                     :items="sortingFieldOptions"
                     :loading="sortLoading"
@@ -158,6 +159,9 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+// Ref for sort select menu
+const sortSelectMenu = ref();
 
 // Handle page size input to prevent unwanted "0" insertion
 const handlePageSizeInput = (value: string | number) => {

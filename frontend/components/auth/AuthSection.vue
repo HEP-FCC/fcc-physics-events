@@ -35,6 +35,7 @@
                     :size="mobileCompact ? 'md' : 'lg'"
                     icon="i-heroicons-arrow-right-on-rectangle"
                     :label="mobileCompact ? undefined : 'Sign out'"
+                    class="cursor-pointer"
                     @click="handleLogout"
                 />
             </div>
@@ -55,6 +56,7 @@
                     :size="mobileCompact ? 'md' : 'lg'"
                     icon="i-heroicons-arrow-right-on-rectangle"
                     :label="mobileCompact ? undefined : 'Sign out'"
+                    class="cursor-pointer"
                     @click="handleLogout"
                 />
             </div>

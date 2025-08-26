@@ -5,7 +5,9 @@
         :ui="{
             content: 'w-80 max-h-96 overflow-y-auto',
         }"
+        :popper="{ strategy: 'fixed' }"
         @update:open="handleDropdownToggle"
+        @keydown="handleDropdownKeydown"
     >
         <UButton icon="i-heroicons-tag" color="neutral" variant="outline" size="sm" class="cursor-pointer">
             Display Tags
@@ -16,7 +18,11 @@
             <div
                 v-if="item.type === 'checkbox'"
                 class="flex items-center w-full py-1 px-2 hover:bg-space-50 rounded cursor-pointer"
+                tabindex="0"
+                role="menuitem"
+                :aria-checked="isFieldSelected(item.field)"
                 @click.stop="handleFieldToggle(item.field)"
+                @keydown.stop="handleItemKeydown($event, item.field)"
             >
                 <UCheckbox
                     :model-value="isFieldSelected(item.field)"
@@ -60,7 +66,15 @@
                         name="i-heroicons-magnifying-glass"
                         class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4"
                     />
-                    <UInput v-model="searchQuery" placeholder="Search fields..." size="sm" class="pl-10" />
+                    <UInput
+                        v-model="searchQuery"
+                        placeholder="Search fields..."
+                        size="sm"
+                        class="pl-10"
+                        tabindex="0"
+                        autofocus
+                        @keydown.stop="handleSearchKeydown"
+                    />
                 </div>
             </div>
         </template>
@@ -75,7 +89,10 @@
                             size="xs"
                             variant="ghost"
                             color="neutral"
+                            tabindex="0"
+                            role="button"
                             @click.stop="handleClearAll"
+                            @keydown.stop="handleButtonKeydown($event, 'clear')"
                         >
                             Clear All
                         </UButton>
@@ -84,7 +101,10 @@
                             size="xs"
                             variant="ghost"
                             color="primary"
+                            tabindex="0"
+                            role="button"
                             @click.stop="handleSelectAll"
+                            @keydown.stop="handleButtonKeydown($event, 'selectAll')"
                         >
                             Select All
                         </UButton>
@@ -200,5 +220,91 @@ const handleClearAll = () => {
 
 const handleSelectAll = () => {
     setSelectedFields([...availableFields.value]);
+};
+
+const handleItemKeydown = (event: KeyboardEvent, field: string) => {
+    // Close dropdown on Escape
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeDropdown();
+        return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        handleFieldToggle(field);
+    }
+};
+
+const handleButtonKeydown = (event: KeyboardEvent, action: string) => {
+    // Close dropdown on Escape
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeDropdown();
+        return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        if (action === "clear") {
+            handleClearAll();
+        } else if (action === "selectAll") {
+            handleSelectAll();
+        }
+    }
+};
+
+const handleSearchKeydown = (event: KeyboardEvent) => {
+    // Close dropdown on Escape
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeDropdown();
+        return;
+    }
+
+    // Prevent Enter from closing the dropdown when typing in search
+    if (event.key === "Enter") {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+    }
+};
+
+const handleDropdownKeydown = (event: KeyboardEvent) => {
+    // Close dropdown on Escape
+    if (event.key === "Escape") {
+        event.preventDefault();
+        closeDropdown();
+        return;
+    }
+
+    // Prevent dropdown from closing on Enter when navigating items
+    if (event.key === "Enter") {
+        const target = event.target as HTMLElement;
+
+        // If we're on a checkbox item, toggle it and prevent dropdown close
+        if (target.closest("[data-checkbox-item]")) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const fieldName = target.closest("[data-checkbox-item]")?.getAttribute("data-field");
+            if (fieldName) {
+                handleFieldToggle(fieldName);
+            }
+            return;
+        }
+
+        // If we're on a button, trigger it and prevent dropdown close
+        if (target.tagName === "BUTTON" || target.closest("button")) {
+            event.preventDefault();
+            event.stopPropagation();
+            target.click();
+            return;
+        }
+    }
 };
 </script>

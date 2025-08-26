@@ -14,7 +14,7 @@
                 :key="getEntityId(entity)"
                 :data-entity-card="index"
                 :ui="{ body: 'sm:p-1.5' }"
-                class="overflow-hidden select-text cursor-pointer root-p-0 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                class="overflow-hidden select-text cursor-pointer root-p-0"
                 role="listitem"
                 tabindex="0"
                 :aria-label="`Entity: ${entity.name}`"

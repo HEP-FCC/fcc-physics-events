@@ -37,8 +37,13 @@
     color: var(--hover-color) !important;
 }
 
+/* Global focus behavior - only show focus rings on keyboard navigation */
+*:focus:not(:focus-visible) {
+    outline: none;
+}
+
 /* Focus management for better keyboard navigation */
-.entity-card-focusable:focus {
+.entity-card-focusable:focus-visible {
     outline: 2px solid var(--color-primary-500);
     outline-offset: 2px;
 }
@@ -60,16 +65,32 @@
     top: 6px;
 }
 
-/* Focus visible for better accessibility */
-.focus-visible:focus {
+/* Focus visible for better accessibility - only show on keyboard navigation */
+.focus-visible:focus-visible {
     outline: 2px solid var(--color-primary-500);
     outline-offset: 2px;
 }
 
-/* Smooth focus transitions */
-[tabindex="0"]:focus,
-button:focus,
-input:focus,
-select:focus {
+/* Smooth focus transitions - only for focus-visible */
+[tabindex="0"]:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
     transition: outline-color 0.15s ease-in-out, outline-offset 0.15s ease-in-out;
+}
+
+/* Dropdown menu keyboard navigation enhancements */
+[role="menu"] [role="menuitem"]:focus-visible,
+[role="listbox"] [role="option"]:focus-visible,
+.dropdown-menu [tabindex="0"]:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+    background-color: var(--color-primary-50);
+}
+
+/* USelectMenu and UDropdownMenu specific focus styles */
+[data-headlessui-state="open"] [role="option"]:focus,
+[data-headlessui-state="open"] [role="menuitem"]:focus {
+    outline: 2px solid var(--color-primary-500) !important;
+    outline-offset: 2px !important;
 }
