@@ -10,6 +10,19 @@
  */
 
 /**
+ * Redirect configuration types
+ */
+export interface RedirectConfig {
+    redirects: Record<string, string>;
+}
+
+export interface RedirectRule {
+    from: string;
+    to: string;
+    permanent?: boolean;
+}
+
+/**
  * Generic database entity with flexible primary key
  * For dataset entities, the primary key is 'dataset_id'
  */

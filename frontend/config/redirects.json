@@ -1,0 +1,17 @@
+{
+    "redirects": {
+        "/fcc-hh/LHEevents.php": "/fcc-hh/gen?q=file_type%3D%22lhe%22",
+        "/fcc-hh/Delphesevents_fcc_v02.php": "/fcc-hh/rec/fcc_v02",
+        "/fcc-hh/Delphesevents_fcc_v03.php": "/fcc-hh/rec/fcc_v03",
+        "/fcc-hh/Delphesevents_fcc_v04.php": "/fcc-hh/rec/fcc_v04",
+        "/fcc-hh/Delphesevents_fcc_v05_scenarioI.php": "/fcc-hh/rec/fcc_v05/I",
+        "/fcc-hh/Delphesevents_fcc_v05_scenarioII.php": "/fcc-hh/rec/fcc_v05/II",
+        "/fcc-hh/Delphesevents_fcc_v06/I.php": "",
+        "/fcc-hh/Delphesevents_fcc_v06/II.php": "/fcc-hh/rec/fcc_v06/II",
+        "/fcc-hh/Delphesevents_fcc_v07/I.php": "/fcc-hh/rec/fcc_v07/I",
+        "/fcc-hh/Delphesevents_fcc_v07/II.php": "/fcc-hh/rec/fcc_v07/II",
+        "/fcc-hh/FCCsim_v03.php": "/fcc-hh/rec/v03",
+        "/fcc-hh/FCCsim_v03_ecal.php": "/fcc-hh/rec/v03_ecal",
+        "/fcc-hh/FCCsim_v04.php": "/fcc-hh/rec/v04"
+    }
+}
