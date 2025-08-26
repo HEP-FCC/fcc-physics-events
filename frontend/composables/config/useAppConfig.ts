@@ -55,7 +55,7 @@ export const useAppConfiguration = () => {
             const { appTitle, searchPlaceholder, main_table } = schemaResponse;
 
             appConfig.value = {
-                appTitle: (appTitle as string) || "Data Explorer",
+                appTitle: (appTitle as string) || "Metadata Viewer",
                 searchPlaceholder: (searchPlaceholder as string) || "Search...",
                 mainTable: (main_table as string) || "entities",
                 mainTableDisplayName: formatTableNameForDisplay((main_table as string) || "entities"),
@@ -66,7 +66,7 @@ export const useAppConfiguration = () => {
             console.error("Failed to load app configuration:", error);
             // Fallback to defaults
             appConfig.value = {
-                appTitle: "Data Explorer",
+                appTitle: "Metadata Viewer",
                 searchPlaceholder: "Search...",
                 mainTable: "entities",
                 mainTableDisplayName: "Entities",
@@ -80,7 +80,7 @@ export const useAppConfiguration = () => {
     /**
      * Computed properties for easy access
      */
-    const appTitle = computed(() => appConfig.value.appTitle || "Data Explorer");
+    const appTitle = computed(() => appConfig.value.appTitle || "Metadata Viewer");
     const searchPlaceholder = computed(() => appConfig.value.searchPlaceholder || "Search...");
     const mainTable = computed(() => appConfig.value.mainTable || "entities");
     const mainTableDisplayName = computed(() => appConfig.value.mainTableDisplayName || "Entities");

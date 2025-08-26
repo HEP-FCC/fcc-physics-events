@@ -123,7 +123,7 @@ async def get_database_schema() -> Any:
                 "navigationTables": navigation_analysis["navigation_tables"],
                 "navigationOrder": navigation_config["order"],
                 "navigation": navigation_config["config"],
-                "appTitle": config.get("application", {}).get("title", "Data Explorer"),
+                "appTitle": config.get("application", {}).get("title", "Metadata Viewer"),
                 "searchPlaceholder": config.get("application", {}).get(
                     "search_placeholder", f"Search {main_table}..."
                 ),
