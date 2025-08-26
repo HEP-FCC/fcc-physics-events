@@ -19,22 +19,30 @@ from pydantic import BaseModel
 from app.models.generic import GenericEntityCreate
 from app.storage.fcc_dict_parser import DatasetCollection
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.config import Config
+from app.utils.config import Config, get_config
 from app.utils.errors import SearchValidationError
 from app.utils.logging import get_logger
-
-# Constants
-SCHEMA_ADVISORY_LOCK_ID = 1234567890
-# TODO: load this from config
 
 logger = get_logger()
 T = TypeVar("T", bound=BaseModel)
 
-# UUID namespace for dataset identification - fixed namespace for consistent UUID generation
-# This is a proper UUID namespace created deterministically from the FCC project identifier
-# For versioning: FCCv01 -> this namespace, FCCv02 -> would be a different namespace
-DATASET_UUID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_DNS, "fcc-physics-events.v01")
-# TODO: load this from config
+# Load configuration once at module level
+config = get_config()
+
+# PostgreSQL advisory lock ID for schema migrations
+# This lock ensures only one process applies schema changes at a time,
+# preventing concurrent schema application from multiple workers.
+SCHEMA_ADVISORY_LOCK_ID = int(
+    config.get("database.schema_advisory_lock_id", 1234567890)
+)
+
+# UUID namespace for dataset identification
+# This namespace creates deterministic UUIDs for datasets based on the FCC project
+# identifier and version. For versioning: FCCv01 -> this namespace, FCCv02 -> different namespace.
+ENTITY_UUID_NAMESPACE = uuid.uuid5(
+    uuid.NAMESPACE_DNS,
+    config.get("database.entity_uuid_namespace", "fcc-physics-events.v01"),
+)
 
 
 def generate_dataset_uuid(
@@ -74,7 +82,7 @@ def generate_dataset_uuid(
     uuid_name = f"{dataset_name},{foreign_keys_str}"
 
     # Generate deterministic UUID5 using the FCC namespace
-    dataset_uuid = uuid.uuid5(DATASET_UUID_NAMESPACE, uuid_name)
+    dataset_uuid = uuid.uuid5(ENTITY_UUID_NAMESPACE, uuid_name)
 
     return str(dataset_uuid)
 
