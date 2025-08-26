@@ -12,15 +12,15 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, Response
 
-from app.auth import load_cern_endpoints
-from app.gclql_query_parser import QueryParser
 from app.routers import auth as auth_router
 from app.routers import entities as entities_router
 from app.routers import navigation as navigation_router
-from app.routers import utility as utility_router
 from app.services.file_watcher import FileWatcherService
 from app.storage.database import Database
-from app.utils import get_config, get_logger, setup_logging
+from app.utils.auth import load_cern_endpoints
+from app.utils.config import get_config
+from app.utils.gclql_query_parser import QueryParser
+from app.utils.logging import get_logger, setup_logging
 
 logger = get_logger(__name__)
 config = get_config()
@@ -36,7 +36,7 @@ async def lifespan(_: FastAPI) -> Any:
     setup_logging()
 
     # Run startup tasks sequentially for better reliability
-    await database.setup(config.get("database"))
+    await database.setup(config)
     await load_cern_endpoints()
 
     # Query parser setup depends on database being ready
@@ -61,8 +61,8 @@ app = FastAPI(
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=config.get("general.SECRET_KEY"),
-    https_only=config.get("general.HTTPS_ONLY", "false").lower() == "true",
+    secret_key=config.get("general.application_secret_key"),
+    https_only=config.get("general.https_only").lower() == "true",
     same_site="lax",
     max_age=3600,
     session_cookie="fcc-physics-events-web",
@@ -71,12 +71,7 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        config.get("general.FRONTEND_URL", "http://localhost:3000"),
-        "http://localhost:3000",
-        "https://fcc-physics-events-dev.web.cern.ch",
-        "https://fcc-physics-events.web.cern.ch",
-    ],
+    allow_origins=[config.get("general.frontend_url")],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -133,10 +128,8 @@ async def validation_exception_handler(
 auth_router.init_dependencies(database)
 entities_router.init_dependencies(database, query_parser)
 navigation_router.init_dependencies(database)
-utility_router.init_dependencies(file_watcher, database)
 
 # Include routers
-app.include_router(utility_router.router)
 app.include_router(auth_router.router)
 app.include_router(entities_router.router)
 app.include_router(navigation_router.router)

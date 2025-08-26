@@ -8,10 +8,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
-from app.utils import get_config, get_logger
+from app.storage.schema_discovery import get_schema_discovery
+from app.utils.config import get_config
 from app.utils.errors import server_error
+from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -79,7 +80,7 @@ async def get_database_schema() -> Any:
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
-            from app.schema_discovery import get_schema_discovery
+            from app.storage.schema_discovery import get_schema_discovery
 
             schema_discovery = await get_schema_discovery(conn)
 

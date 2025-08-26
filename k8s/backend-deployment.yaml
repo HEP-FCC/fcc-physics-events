@@ -22,14 +22,6 @@ spec:
         io.kompose.service: fcc-physics-events-backend
     spec:
       containers:
-      - args:
-        - fastapi
-        - dev
-        - app/main.py
-        - --host
-        - 0.0.0.0
-        - --port
-        - "8000"
         image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:24
         name: fcc-phsyics-events-backend
         ports:

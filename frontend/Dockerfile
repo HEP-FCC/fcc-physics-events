@@ -1,6 +1,6 @@
 # Build Stage 1
 
-FROM node:22-alpine AS build
+FROM node:22-alpine3.22 AS build
 WORKDIR /app
 
 RUN corepack enable

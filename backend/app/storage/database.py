@@ -16,9 +16,11 @@ import inflect
 from asyncpg.pool import Pool
 from pydantic import BaseModel
 
-from app.fcc_dict_parser import DatasetCollection
 from app.models.generic import GenericEntityCreate
-from app.utils import Config, get_config, get_logger
+from app.storage.fcc_dict_parser import DatasetCollection
+from app.storage.schema_discovery import get_schema_discovery
+from app.utils.config import Config
+from app.utils.logging import get_logger
 
 # Constants
 SCHEMA_ADVISORY_LOCK_ID = 1234567890
@@ -139,26 +141,31 @@ class Database:
         """Creates the connection pool and initializes the database."""
         if self._pool:
             return
+
+        self.config = config
+
         try:
             logger.info("Setting up the database...")
-            await self._create_connection_pool(config)
-            await self._apply_database_schema(config)
+            await self._create_connection_pool()
+            await self._apply_database_schema()
             logger.info("Database setup successfully.")
         except Exception as e:
             logger.error(f"Error setting up database: {e}")
             raise
 
-    async def _create_connection_pool(self, config: Config) -> None:
+    async def _create_connection_pool(self) -> None:
         """Creates the database connection pool."""
-        connection_string = f"postgresql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['db']}"
+        connection_string = f"postgresql://{self.config['database.user']}:{self.config['database.password']}@{self.config['database.host']}:{self.config['database.port']}/{self.config['database.db']}"
         self._pool = await asyncpg.create_pool(
             dsn=connection_string, min_size=5, max_size=20
         )
         logger.info("Database connection pool created successfully.")
 
-    async def _apply_database_schema(self, config: Config) -> None:
+    async def _apply_database_schema(self) -> None:
         """Applies the database schema if not already applied."""
-        schema_file = config.get("schema_file", Path(__file__).parent / "database.sql")
+        schema_file = self.config.get(
+            "database.schema_file", Path(__file__).parent / "database.sql"
+        )
 
         with open(schema_file, encoding="utf-8") as f:
             schema_sql = f.read()
@@ -196,7 +203,7 @@ class Database:
             self._pool = None
             logger.info("Database connection pool closed.")
 
-    async def generate_schema_mapping(self) -> dict[str, str]:
+    async def generate_schema_mapping(self, app_config: Config) -> dict[str, str]:
         """
         Generates a dynamic schema mapping for the query parser based on database schema.
 
@@ -208,8 +215,7 @@ class Database:
         logger.info("Generating dynamic schema mapping for query parser.")
 
         try:
-            config = get_config()
-            main_table = config["application"]["main_table"]
+            main_table = self.config["application"]["main_table"]
 
             async with self.session() as conn:
                 primary_key_column = await self._get_main_table_primary_key(
@@ -244,8 +250,6 @@ class Database:
     ) -> dict[str, str]:
         """Create navigation entity mappings based on schema discovery."""
         try:
-            from app.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
                 main_table
@@ -352,9 +356,10 @@ class Database:
                 f"Failed to create or find entity in {table_name} with name {name}"
             )
 
-    async def import_fcc_dict(self, json_content: bytes) -> None:
+    async def import_data(self, json_content: bytes) -> None:
         """Parses JSON content and upserts the data into the database with proper transaction handling."""
         try:
+            # NOTE: This function needs to be defined by users
             collection = self._parse_json_content(json_content)
         except ValueError as e:
             # If the file format is incompatible, log and skip without raising an error
@@ -365,14 +370,14 @@ class Database:
                 # Re-raise other validation errors
                 raise
 
-        config = get_config()
-        main_table = config["application"]["main_table"]
+        main_table = self.config["application"]["main_table"]
 
+        # NOTE: This function needs to be defined by users
         # Process each dataset in its own transaction to avoid transaction abort issues
         (
             processed_count,
             failed_count,
-        ) = await self._process_dataset_collection_with_recovery(collection, main_table)
+        ) = await self._process_entity_collection_with_recovery(collection, main_table)
 
         self._log_import_results(processed_count, failed_count)
         self._validate_import_success(processed_count, failed_count)
@@ -404,14 +409,11 @@ class Database:
         except Exception as e:
             raise ValueError(f"Invalid data format: {e}") from e
 
-    async def _process_dataset_collection_with_recovery(
+    async def _process_entity_collection_with_recovery(
         self, collection: DatasetCollection, main_table: str
     ) -> tuple[int, int]:
-        """Process all datasets in the collection using batch transactions with fallback."""
-        from app.utils.config import get_config
-
-        config = get_config()
-        batch_size = config["application"]["batch_size"]
+        """Process all entity in the collection using batch transactions with fallback."""
+        batch_size = self.config["application"]["batch_size"]
 
         total_processed = 0
         total_failed = 0
@@ -465,7 +467,7 @@ class Database:
 
                     # Process all datasets in the batch
                     for idx, dataset_data in zip(batch_indices, batch, strict=True):
-                        await self._process_single_dataset_with_cache(
+                        await self._process_single_entity(
                             conn, dataset_data, idx, main_table, navigation_cache
                         )
 
@@ -524,12 +526,6 @@ class Database:
                     if field_value and str(field_value).strip():
                         entity_name = str(field_value).strip()
 
-                # Fallback to path parsing if direct field is empty
-                if not entity_name and dataset_data.path:
-                    entity_name = self._extract_entity_from_path(
-                        entity_key, dataset_data.path
-                    )
-
                 if entity_name:
                     if entity_key not in unique_entities:
                         unique_entities[entity_key] = set()
@@ -555,7 +551,7 @@ class Database:
 
         return navigation_cache
 
-    async def _process_single_dataset_with_cache(
+    async def _process_single_entity(
         self,
         conn: asyncpg.Connection,
         dataset_data: Any,
@@ -569,7 +565,7 @@ class Database:
 
         # Get foreign key IDs from cache instead of creating individually
         foreign_key_ids = await self._get_foreign_key_ids_from_cache(
-            dataset_data, dataset_name, navigation_cache
+            dataset_data, navigation_cache
         )
 
         # Get metadata and create the main entity
@@ -581,9 +577,9 @@ class Database:
     async def _get_foreign_key_ids_from_cache(
         self,
         dataset_data: Any,
-        dataset_name: str,
         navigation_cache: dict[str, dict[str, int]],
     ) -> dict[str, int | None]:
+        # TODO: what is this function? can it be removed or made more generic?
         """Get foreign key IDs from the navigation cache."""
         # For now, let's build the foreign_key_ids based on what we know
         # This is a simplified version that works with the cache structure
@@ -617,19 +613,9 @@ class Database:
         return foreign_key_ids
 
     def _get_entity_name_for_dataset(
-        self, dataset_data: Any, entity_key: str
+        self, dataset_data: Any, field_name: str
     ) -> str | None:
         """Get the entity name for a specific entity key from dataset data."""
-        # Map entity keys to field names
-        field_mappings = {
-            "accelerator": "accelerator",
-            "stage": "stage",
-            "campaign": "campaign",
-            "detector": "detector",
-            "file_type": "file_type",
-        }
-
-        field_name = field_mappings.get(entity_key)
         if not field_name:
             return None
 
@@ -640,28 +626,7 @@ class Database:
             if field_value and str(field_value).strip():
                 entity_name = str(field_value).strip()
 
-        # Fallback to path parsing if direct field is empty
-        if not entity_name and dataset_data.path:
-            entity_name = self._extract_entity_from_path(entity_key, dataset_data.path)
-
         return entity_name
-
-    async def _process_dataset_collection(
-        self, conn: asyncpg.Connection, collection: DatasetCollection, main_table: str
-    ) -> tuple[int, int]:
-        """Process all datasets in the collection and return counts."""
-        processed_count = 0
-        failed_count = 0
-
-        for idx, dataset_data in enumerate(collection.processes):
-            try:
-                await self._process_single_dataset(conn, dataset_data, idx, main_table)
-                processed_count += 1
-            except Exception as e:
-                failed_count += 1
-                logger.error(f"Failed to process dataset at index {idx}: {e}")
-
-        return processed_count, failed_count
 
     async def _process_single_dataset(
         self, conn: asyncpg.Connection, dataset_data: Any, idx: int, main_table: str
@@ -676,6 +641,7 @@ class Database:
         )
 
         # Get metadata and create the main entity
+        # TODO: get_all_metadata is a required function
         metadata_dict = dataset_data.get_all_metadata()
         await self._create_main_entity_with_conflict_resolution(
             conn, dataset_name, metadata_dict, foreign_key_ids, main_table
@@ -698,13 +664,10 @@ class Database:
     ) -> dict[str, dict[str, str]]:
         """Get dynamic navigation entity structure from config and schema."""
         try:
-            config = get_config()
-            main_table = config["application"]["main_table"]
-            navigation_order = config["navigation"]["order"]
+            main_table = self.config["application"]["main_table"]
+            navigation_order = self.config["navigation"]["order"]
 
             # Use schema discovery to get the actual table mappings
-            from app.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
             navigation_analysis = await schema_discovery.analyze_navigation_structure(
                 main_table
@@ -735,10 +698,8 @@ class Database:
 
         except Exception as e:
             logger.error(f"Failed to get dynamic navigation structure: {e}")
-            # Instead of hardcoded fallback, try a simpler approach using just config
             try:
-                config = get_config()
-                navigation_order = config["navigation"]["order"]
+                navigation_order = self.config["navigation"]["order"]
 
                 # Build minimal structure from config only
                 entity_structure = {}
@@ -799,12 +760,6 @@ class Database:
                     if field_value and str(field_value).strip():
                         entity_name = str(field_value).strip()
 
-                # Fallback to path parsing for certain entities if direct field is empty
-                if not entity_name and dataset_data.path:
-                    entity_name = self._extract_entity_from_path(
-                        entity_key, dataset_data.path
-                    )
-
                 # Create the entity if we have a name
                 if entity_name:
                     # Special handling for detector which needs accelerator_id
@@ -837,94 +792,6 @@ class Database:
             )
 
         return foreign_key_ids
-
-    def _extract_entity_from_path(self, entity_key: str, path: str) -> str | None:
-        """Extract entity name from file path based on entity type."""
-        if not path:
-            return None
-
-        # Delegate to specific extraction methods based on entity key
-        if entity_key == "accelerator":
-            return self._extract_accelerator_from_path(path)
-        elif entity_key == "stage":
-            return self._extract_stage_from_path(path)
-        elif entity_key == "file_type":
-            return self._extract_file_type_from_path(path)
-        elif entity_key == "detector":
-            return self._extract_detector_from_path(path)
-        else:
-            # For any other entity types, we don't have path parsing logic
-            return None
-
-    def _extract_accelerator_from_path(self, path: str) -> str | None:
-        """Extract accelerator name from file path."""
-        if not path:
-            return None
-
-        # Pattern: /eos/experiment/fcc/hh/ -> fcc-hh
-        # Pattern: /eos/experiment/fcc/ee/ -> fcc-ee
-
-        match = re.search(r"/fcc/(hh|ee)/", path)
-        if match:
-            return f"fcc-{match.group(1)}"
-        return None
-
-    def _extract_stage_from_path(self, path: str) -> str | None:
-        """Extract stage name from file path."""
-        if not path:
-            return None
-
-        # DelphesEvents indicates simulation/reconstruction stage
-        if "DelphesEvents" in path:
-            return "sim"
-        # LHEevents indicates generation stage
-        elif "LHEevents" in path:
-            return "gen"
-        # STDHEP indicates generation stage
-        elif "STDHEP" in path:
-            return "gen"
-        return None
-
-    def _extract_file_type_from_path(self, path: str) -> str | None:
-        """Extract file type from file path."""
-        if not path:
-            return None
-
-        # DelphesEvents typically contain edm4hep-root files
-        if "DelphesEvents" in path:
-            return "edm4hep-root"
-        # LHEevents contain lhe files
-        elif "LHEevents" in path:
-            return "lhe"
-        # STDHEP events contain stdhep files
-        elif "STDHEP" in path:
-            return "stdhep"
-        return None
-
-    def _extract_detector_from_path(self, path: str) -> str | None:
-        """Extract detector name from file path."""
-        if not path:
-            return None
-
-        # Look for detector names in the path
-        # Common detector names in FCC paths
-        detector_patterns = [
-            "IDEA",
-            "CLD",
-            "ALLEGRO",
-        ]
-
-        for detector in detector_patterns:
-            if detector in path:
-                return detector
-
-        # Default detector based on accelerator
-        if "fcc/ee/" in path:
-            return "IDEA"  # Default for FCC-ee
-        elif "fcc/hh/" in path:
-            return "IDEA"  # Default for FCC-hh
-
-        return None
 
     async def _create_main_entity_with_conflict_resolution(
         self,
@@ -975,7 +842,7 @@ class Database:
         )
 
         # Build and execute the upsert query
-        await self._execute_upsert_query(conn, entity_dict, main_table)
+        await self._upsert_entity(conn, entity_dict, main_table)
 
     async def _merge_metadata_with_locked_fields(
         self, conn: asyncpg.Connection, entity_dict: dict[str, Any], main_table: str
@@ -1041,7 +908,7 @@ class Database:
 
         return merged_metadata
 
-    async def _execute_upsert_query(
+    async def _upsert_entity(
         self,
         conn: asyncpg.Connection,
         entity_dict: dict[str, Any],
@@ -1119,16 +986,6 @@ class Database:
 
         await conn.execute(query, *values)
 
-    def _is_field_locked(
-        self, field_name: str, metadata: dict[str, Any] | None
-    ) -> bool:
-        """Check if a field is locked based on metadata lock fields."""
-        if not metadata:
-            return False
-
-        lock_field_name = f"__{field_name}__lock__"
-        return metadata.get(lock_field_name, False)
-
     def _log_import_results(self, processed_count: int, failed_count: int) -> None:
         """Log the results of the import operation."""
         if failed_count > 0:
@@ -1146,16 +1003,6 @@ class Database:
                 f"Import failed: {failed_count}/{total_datasets} datasets could not be processed"
             )
 
-    async def _get_entity_id_by_name(
-        self, conn: asyncpg.Connection, table_name: str, name: str
-    ) -> int | None:
-        """Helper function to get an entity ID by name."""
-        id_column = f"{table_name.rstrip('s')}_id"
-        query = f"SELECT {id_column} FROM {table_name} WHERE name ILIKE $1"
-
-        record = await conn.fetchrow(query, name)
-        return int(record[id_column]) if record else None
-
     async def get_entities_by_ids(self, entity_ids: list[int]) -> list[dict[str, Any]]:
         """
         Get entities by their IDs with all details and related entity names.
@@ -1164,13 +1011,10 @@ class Database:
         if not entity_ids:
             return []
 
-        config = get_config()
-        main_table = config["application"]["main_table"]
+        main_table = self.config["application"]["main_table"]
 
         # Build dynamic query with navigation tables
         try:
-            from app.schema_discovery import get_schema_discovery
-
             async with self.session() as conn:
                 # Get the primary key column dynamically
                 primary_key_column = await self._get_main_table_primary_key(
@@ -1282,8 +1126,7 @@ class Database:
         Update an entity with the provided data using full replacement strategy.
         Returns the updated entity with all details.
         """
-        config = get_config()
-        main_table = config["application"]["main_table"]
+        main_table = self.config["application"]["main_table"]
 
         async with self.session() as conn:
             primary_key_column = await self._get_main_table_primary_key(
@@ -1634,8 +1477,7 @@ class Database:
                 "message": "No entity IDs provided for deletion",
             }
 
-        config = get_config()
-        main_table = config["application"]["main_table"]
+        main_table = self.config["application"]["main_table"]
 
         async with self.session() as conn:
             # Get the primary key column dynamically
@@ -1716,8 +1558,7 @@ class Database:
         Dynamically fetch available sorting fields from the database schema.
         Returns categorized lists of sortable fields based on the current database structure.
         """
-        config = get_config()
-        main_table = config["application"]["main_table"]
+        main_table = self.config["application"]["main_table"]
 
         async with self.session() as conn:
             schema_data = await self._fetch_schema_data(conn, main_table)
@@ -1912,14 +1753,10 @@ class Database:
         offset: int,
     ) -> dict[str, Any]:
         async with self.session() as conn:
-            # Execute count and records queries sequentially to avoid connection conflicts
-            # The performance difference is minimal for these quick queries
             try:
-                # Get total count first
                 total_records_result = await conn.fetchval(count_query, *params)
                 total_records = total_records_result or 0
 
-                # Then get the records
                 records = await conn.fetch(
                     f"{search_query} LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}",
                     *params,
@@ -1934,7 +1771,6 @@ class Database:
 
                 # Extract the missing column name from the error message
                 error_msg = str(e)
-                import re
 
                 column_match = re.search(r'column "([^"]+)" does not exist', error_msg)
                 if column_match:
@@ -2001,311 +1837,6 @@ class Database:
                 items.append(item_dict)
 
             return {"total": total_records, "items": items}
-
-    async def import_generic_data(
-        self,
-        navigation_entities: dict[str, list[dict[str, Any]]],
-        main_entities: list[dict[str, Any]],
-        main_table: str,
-    ) -> bool:
-        """
-        Generic data import function that can work with any schema.
-
-        Args:
-            navigation_entities: Dict mapping table names to lists of entity dicts
-            main_entities: List of main entity dicts
-            main_table: Name of the main table
-
-        Returns:
-            True if import succeeded, False otherwise
-        """
-        try:
-            async with self.session() as conn:
-                # Use an explicit transaction for all operations
-                async with conn.transaction():
-                    # First, import navigation/lookup entities
-                    navigation_id_map: dict[str, dict[str, int]] = {}
-
-                    for table_name, entities in navigation_entities.items():
-                        logger.info(
-                            f"Importing {len(entities)} records into {table_name}"
-                        )
-                        navigation_id_map[table_name] = {}
-
-                        for entity_data in entities:
-                            if (
-                                not isinstance(entity_data, dict)
-                                or "name" not in entity_data
-                            ):
-                                continue
-
-                            name = entity_data["name"]
-                            try:
-                                # Create or get existing entity
-                                entity_id = await self._get_or_create_generic_entity(
-                                    conn, table_name, entity_data
-                                )
-                                navigation_id_map[table_name][name] = entity_id
-                            except Exception as e:
-                                logger.error(
-                                    f"Failed to import {name} into {table_name}: {e}"
-                                )
-
-                    # Then import main table entities
-                    logger.info(
-                        f"Importing {len(main_entities)} records into {main_table}"
-                    )
-
-                    processed_count = 0
-                    failed_count = 0
-
-                    for idx, entity_data in enumerate(main_entities):
-                        try:
-                            await self._import_main_entity_generic(
-                                conn, main_table, entity_data, navigation_id_map
-                            )
-                            processed_count += 1
-                        except Exception as e:
-                            failed_count += 1
-                            logger.error(
-                                f"Failed to process {main_table} entity at index {idx}: {e}"
-                            )
-
-                    if failed_count > 0:
-                        logger.warning(
-                            f"Import completed with {failed_count} failures out of {processed_count + failed_count} total entities"
-                        )
-                    else:
-                        logger.info(
-                            f"Successfully processed all {processed_count} entities"
-                        )
-
-            logger.info("Generic data import completed")
-            return failed_count == 0
-
-        except Exception as e:
-            logger.error(f"Generic data import failed: {e}")
-            return False
-
-    async def _get_or_create_generic_entity(
-        self, conn: asyncpg.Connection, table_name: str, entity_data: dict[str, Any]
-    ) -> int:
-        """Get or create a generic entity and return its ID."""
-        name = entity_data["name"]
-
-        # Use dynamic primary key mapping instead of hardcoded dictionary
-        primary_key = self._get_dynamic_primary_key(table_name)
-
-        # Check if entity exists
-        check_query = f"SELECT {primary_key} FROM {table_name} WHERE name ILIKE $1"
-        existing_record: dict[str, int] = await conn.fetchrow(check_query, name)
-
-        if existing_record:
-            return existing_record[primary_key]
-
-        # Create new entity
-        columns = []
-        values = []
-        placeholders = []
-
-        for i, (key, value) in enumerate(entity_data.items(), 1):
-            if key != primary_key:  # Skip primary key as it's auto-generated
-                columns.append(key)
-                values.append(value)
-                placeholders.append(f"${i}")
-
-        insert_query = f"""
-            INSERT INTO {table_name} ({', '.join(columns)})
-            VALUES ({', '.join(placeholders)})
-            RETURNING {primary_key}
-        """
-
-        result: dict[str, int] = await conn.fetchrow(insert_query, *values)
-        if result:
-            return result[primary_key]
-
-        raise RuntimeError(f"Failed to create entity in {table_name} with name {name}")
-
-    async def _import_main_entity_generic(
-        self,
-        conn: asyncpg.Connection,
-        main_table: str,
-        entity_data: dict[str, Any],
-        navigation_id_map: dict[str, dict[str, int]],
-    ) -> None:
-        """Import a main entity with navigation relationships."""
-        name = entity_data.get("name")
-        if not name:
-            raise ValueError("Main entity must have a name")
-
-        primary_key = self._get_primary_key_for_table(main_table)
-        columns, values, placeholders = self._prepare_entity_data(
-            entity_data, primary_key, navigation_id_map
-        )
-
-        if columns:
-            upsert_query = await self._build_upsert_query_respecting_locks(
-                conn, main_table, columns, placeholders, entity_data
-            )
-            await conn.execute(upsert_query, *values)
-
-    def _get_primary_key_for_table(self, table_name: str) -> str:
-        """Get the primary key column name for a table using dynamic mapping."""
-        return self._get_dynamic_primary_key(table_name)
-
-    def _prepare_entity_data(
-        self,
-        entity_data: dict[str, Any],
-        primary_key: str,
-        navigation_id_map: dict[str, dict[str, int]],
-    ) -> tuple[list[str], list[str | int], list[str]]:
-        """Prepare entity data for insertion, handling navigation references and metadata."""
-        columns = []
-        values: list[str | int] = []
-        placeholders = []
-
-        for i, (key, value) in enumerate(entity_data.items(), 1):
-            if key == primary_key:  # Skip auto-generated primary key
-                continue
-
-            processed_column, processed_value = self._process_entity_field(
-                key, value, navigation_id_map
-            )
-
-            if processed_column and processed_value is not None:
-                columns.append(processed_column)
-                values.append(processed_value)
-                placeholders.append(f"${i}")
-
-        return columns, values, placeholders
-
-    def _process_entity_field(
-        self, key: str, value: Any, navigation_id_map: dict[str, dict[str, int]]
-    ) -> tuple[str | None, str | int | None]:
-        """Process a single entity field, handling navigation references and metadata."""
-        # Check if this is a navigation reference (ends with _name)
-        if key.endswith("_name") and value:
-            return self._process_navigation_reference(key, value, navigation_id_map)
-
-        # Handle metadata fields
-        if key == "metadata" and isinstance(value, dict):
-            # Filter out keys with empty string values
-            filtered_metadata = self._filter_empty_metadata_values(value)
-            return key, json.dumps(filtered_metadata)
-
-        # Handle regular fields (excluding metadata dict that wasn't properly handled)
-        if key != "metadata" or not isinstance(value, dict):
-            return key, value
-
-        return None, None
-
-    def _process_navigation_reference(
-        self, key: str, value: str, navigation_id_map: dict[str, dict[str, int]]
-    ) -> tuple[str | None, int | None]:
-        """Process a navigation reference field, converting name to ID."""
-        table_prefix = key[:-5]  # Remove "_name" suffix
-
-        # Find matching table in navigation_id_map
-        matching_table = None
-        for nav_table in navigation_id_map:
-            if nav_table.startswith(table_prefix) or table_prefix in nav_table:
-                matching_table = nav_table
-                break
-
-        if matching_table and value in navigation_id_map[matching_table]:
-            id_column = f"{table_prefix}_id"
-            return id_column, navigation_id_map[matching_table][value]
-
-        return None, None
-
-    def _build_upsert_query(
-        self, main_table: str, columns: list[str], placeholders: list[str]
-    ) -> str:
-        """Build an upsert query for the main entity (legacy method, use _build_upsert_query_respecting_locks instead)."""
-        update_columns = [col for col in columns if col != "uuid"]
-        update_clauses = [f"{col} = EXCLUDED.{col}" for col in update_columns]
-        update_clauses.append("last_edited_at = NOW()")
-
-        return f"""
-            INSERT INTO {main_table} ({', '.join(columns)})
-            VALUES ({', '.join(placeholders)})
-            ON CONFLICT (uuid) DO UPDATE SET
-            {', '.join(update_clauses)}
-        """
-
-    async def _build_upsert_query_respecting_locks(
-        self,
-        conn: asyncpg.Connection,
-        main_table: str,
-        columns: list[str],
-        placeholders: list[str],
-        entity_data: dict[str, Any],
-        user_info: dict[str, Any] | None = None,
-    ) -> str:
-        """Build an upsert query for the main entity, respecting locked fields."""
-        # Build the conflict update clause with SQL-based lock checking
-        update_clauses = []
-        updateable_fields = []  # Track fields that can be updated (for last_edited_at logic)
-
-        for col in columns:
-            if col != "uuid":  # Don't update the conflict column
-                # Generate SQL-based lock check for this field
-                lock_check_sql = f"COALESCE(({main_table}.metadata->'__{col}__lock__')::boolean, false)"
-
-                # Use CASE statement to conditionally update based on lock status
-                case_sql = f"""
-                    {col} = CASE
-                        WHEN {lock_check_sql} THEN {main_table}.{col}
-                        ELSE EXCLUDED.{col}
-                    END"""
-
-                update_clauses.append(case_sql)
-                updateable_fields.append(col)
-
-        # Always update updated_at for any operation
-        update_clauses.append("updated_at = NOW()")
-
-        # Handle last_edited_at and edited_by_name for manual operations
-        if user_info:
-            # For manual operations, update last_edited_at if any unlocked fields could be updated
-            # We check if at least one field is unlocked using SQL logic
-            unlocked_conditions = []
-            for col in updateable_fields:
-                lock_check_sql = f"COALESCE(({main_table}.metadata->'__{col}__lock__')::boolean, false)"
-                unlocked_conditions.append(f"NOT {lock_check_sql}")
-
-            if unlocked_conditions:
-                # Update last_edited_at if any field is unlocked (meaning manual changes are possible)
-                any_unlocked_sql = " OR ".join(unlocked_conditions)
-                update_clauses.append(f"""
-                    last_edited_at = CASE
-                        WHEN ({any_unlocked_sql}) THEN NOW()
-                        ELSE {main_table}.last_edited_at
-                    END""")
-
-                # Update edited_by_name if user info is provided and any field is unlocked
-                if "name" in user_info:
-                    user_name_escaped = user_info["name"].replace(
-                        "'", "''"
-                    )  # Escape single quotes
-                    update_clauses.append(f"""
-                        edited_by_name = CASE
-                            WHEN ({any_unlocked_sql}) THEN '{user_name_escaped}'
-                            ELSE {main_table}.edited_by_name
-                        END""")
-
-        # Clean up the update clauses (remove extra whitespace and newlines)
-        cleaned_clauses = [
-            clause.strip().replace("\n", " ").replace("  ", " ")
-            for clause in update_clauses
-        ]
-
-        return f"""
-            INSERT INTO {main_table} ({', '.join(columns)})
-            VALUES ({', '.join(placeholders)})
-            ON CONFLICT (uuid) DO UPDATE SET
-            {', '.join(cleaned_clauses)}
-        """
 
     async def get_dropdown_items(
         self,
@@ -2423,7 +1954,7 @@ class Database:
         query += f" ORDER BY t.{name_column}"
         return query
 
-    async def search_datasets_generic(
+    async def search_entities(
         self,
         main_table: str,
         navigation_analysis: dict[str, Any],

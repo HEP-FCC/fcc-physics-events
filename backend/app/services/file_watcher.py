@@ -13,10 +13,10 @@ import os
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 from app.storage.database import Database
-from app.utils import get_config, get_logger
+from app.utils.config import get_config
+from app.utils.logging import get_logger
 
 logger = get_logger()
 
@@ -595,7 +595,7 @@ class FileWatcherService:
 
             # Import the file content
             try:
-                await self.database.import_fcc_dict(content)
+                await self.database.import_data(content)
                 logger.info(f"Successfully imported FCC dictionary from: {file_path}")
 
                 # Update known files and save state after successful processing
@@ -607,30 +607,3 @@ class FileWatcherService:
 
         except Exception as e:
             logger.error(f"Unexpected error processing file {file_path}: {e}")
-
-    def get_status(self) -> dict[str, Any]:
-        """Get the current status of the file watcher service."""
-        # Check which paths are currently accessible
-        valid_paths = []
-        invalid_paths = []
-        for path in self.watch_paths:
-            if os.path.exists(path) and os.path.isdir(path):
-                valid_paths.append(path)
-            else:
-                invalid_paths.append(path)
-
-        return {
-            "enabled": self.enabled,
-            "running": self.is_running,
-            "watch_paths": self.watch_paths,
-            "valid_paths": valid_paths,
-            "invalid_paths": invalid_paths,
-            "file_extensions": self.file_extensions,
-            "recursive": self.recursive,
-            "debounce_delay": self.debounce_delay,
-            "polling_interval": self.polling_interval,
-            "startup_mode": self.startup_mode,
-            "state_file": self.state_file,
-            "pending_files": len(self._pending_files),
-            "known_files": len(self._known_files),
-        }

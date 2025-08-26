@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from starlette.responses import RedirectResponse
 
-from app.auth import (
+from app.storage.database import Database
+from app.utils.auth import (
     clear_auth_cookies,
     extract_auth_cookies,
     get_logout_url,
@@ -13,18 +14,18 @@ from app.auth import (
     try_refresh_token,
     validate_token_and_get_user,
 )
-from app.storage.database import Database
-from app.utils import get_config, get_logger
+from app.utils.config import get_config
 from app.utils.errors import ErrorTypes, server_error, unauthenticated_error
+from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
 config = get_config()
 
 router = APIRouter(prefix="", tags=["authentication"])
-FRONTEND_URL = config.get("general.FRONTEND_URL")
-AUTH_COOKIE_PREFIX = f"{config.get('general.COOKIE_PREFIX')}-auth"
-CERN_CLIENT_ID = config.get("general.CERN_CLIENT_ID")
-CERN_CLIENT_SECRET = config.get("general.CERN_CLIENT_SECRET")
+FRONTEND_URL = config.get("general.frontend_url")
+AUTH_COOKIE_PREFIX = f"{config.get('general.cookie_prefix')}-auth"
+CERN_CLIENT_ID = config.get("general.cern_client_id")
+CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
 CERN_OIDC_URL = config.get("auth.cern_oidc_url")
 
 # This will be injected from main.py
@@ -49,7 +50,7 @@ oauth.register(
     },
 )
 
-redirect_uri = config.get("general.CERN_REDIRECT_URI")
+redirect_uri = config.get("general.cern_redirect_uri")
 
 
 class TokenRefreshError(Exception):

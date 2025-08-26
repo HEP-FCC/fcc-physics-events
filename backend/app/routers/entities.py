@@ -11,17 +11,19 @@ from fastapi import (
     HTTPException,
     Query,
     Request,
+    UploadFile,
     status,
 )
 from pydantic import BaseModel
 
-from app.auth import AuthDependency
-from app.gclql_query_parser import QueryParser
 from app.models.generic import GenericEntityUpdate
-from app.schema_discovery import get_schema_discovery
 from app.storage.database import Database
-from app.utils import get_config, get_logger
+from app.storage.schema_discovery import get_schema_discovery
+from app.utils.auth import AuthDependency
+from app.utils.config import get_config
 from app.utils.errors import not_found_error, validation_error
+from app.utils.gclql_query_parser import QueryParser
+from app.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -381,6 +383,46 @@ async def delete_entities(
         )
 
 
+# TODO: require jwt token auth to this method
+@router.post("/entity")
+async def upload_fcc_dict(file: UploadFile) -> dict[str, Any]:
+    """Upload and import an FCC dictionary JSON file."""
+
+    # Type check for the uploaded file
+    if not isinstance(file, UploadFile):
+        raise HTTPException(status_code=400, detail="Invalid file upload")
+
+    if database is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    # Validate file type
+    if not file.filename or not file.filename.endswith(".json"):
+        raise HTTPException(status_code=400, detail="Only JSON files are supported")
+
+    try:
+        # Read file content
+        content = await file.read()
+
+        if not content.strip():
+            raise HTTPException(status_code=400, detail="File is empty")
+
+        # Import using the database import function
+        await database.import_fcc_dict(content)
+
+        return {
+            "status": "success",
+            "message": f"Successfully imported FCC dictionary from {file.filename}",
+            "filename": file.filename,
+        }
+
+    except ValueError as e:
+        logger.error(f"Import validation error for {file.filename}: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Import error for {file.filename}: {e}")
+        raise HTTPException(status_code=500, detail="Import failed due to server error")
+
+
 @router.post("/search")
 async def search_datasets_generic(request: SearchRequest) -> Any:
     """
@@ -388,7 +430,6 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
     Automatically handles joins based on schema discovery.
     """
     try:
-        config = get_config()
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
@@ -398,7 +439,7 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
             )
 
             # Use the database method instead of direct SQL
-            result = await database.search_datasets_generic(
+            result = await database.search_entities(
                 main_table,
                 navigation_analysis,
                 request.filters,

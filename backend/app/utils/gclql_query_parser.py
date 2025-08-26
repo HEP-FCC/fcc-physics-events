@@ -12,10 +12,11 @@ from typing import Any, cast
 from lark import Lark, Token, Transformer, exceptions
 
 from app.storage.database import Database
-from app.utils import get_config, get_logger
+from app.storage.schema_discovery import get_schema_discovery
+from app.utils.config import get_config
+from app.utils.logging import get_logger
 
 logger = get_logger()
-config = get_config()
 
 QUERY_LANGUAGE_GRAMMAR = r"""
     ?start: expr
@@ -574,10 +575,14 @@ class QueryParser:
         self.entity_aliases: dict[str, str] = {}  # Store entity_key -> alias mapping
 
     async def setup(self) -> None:
+        self.config = get_config()
+
         # Execute setup tasks sequentially for better reliability
         try:
             # Get schema mapping first
-            self.schema_mapping = await self.database.generate_schema_mapping()
+            self.schema_mapping = await self.database.generate_schema_mapping(
+                self.config
+            )
 
             # Then get metadata fields
             self.available_metadata_fields = (
@@ -588,14 +593,11 @@ class QueryParser:
             logger.error(f"Failed to setup query parser: {e}")
             raise
 
-        # Get navigation structure analysis to build dynamic JOINs
-        from app.schema_discovery import get_schema_discovery
-
         async with self.database.session() as conn:
             schema_discovery = await get_schema_discovery(conn)
             self.navigation_analysis = (
                 await schema_discovery.analyze_navigation_structure(
-                    config["application"]["main_table"]
+                    self.config["application"]["main_table"]
                 )
             )
 
@@ -679,7 +681,7 @@ class QueryParser:
 
     def _build_dynamic_joins(self) -> None:
         """Build FROM and JOIN clauses dynamically based on schema analysis."""
-        joins = [f"FROM {config['application']['main_table']} d"]
+        joins = [f"FROM {self.config['application']['main_table']} d"]
         used_aliases = {"d"}  # Track used aliases to avoid conflicts
 
         for entity_key, table_info in self.navigation_analysis[
@@ -890,7 +892,7 @@ class QueryParser:
                 {self.from_and_joins}
                 {self._build_order_by_clause(sort_by, sort_order)}
             """
-            count_query = f"SELECT COUNT(*) FROM {config['application']['main_table']}"
+            count_query = f"SELECT COUNT(*) FROM {self.config['application']['main_table']}"
             return count_query, select_query, []
 
         try:

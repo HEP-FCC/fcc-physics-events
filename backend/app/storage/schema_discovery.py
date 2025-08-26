@@ -9,7 +9,7 @@ from typing import Any
 
 import asyncpg
 
-from app.utils import get_logger
+from app.utils.logging import get_logger
 
 logger = get_logger()
 

@@ -41,15 +41,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync
 
 # Create storage directory for file watcher state
-RUN mkdir -p /data
+RUN mkdir -p /app/storage
 
 # Create locks directory for worker coordination
 RUN mkdir -p /app/locks
 
-# Define volume for persistent data storage
-VOLUME ["/data"]
+# Define volumes for persistent storage
+VOLUME ["/app/storage"]
 
 # Define volume for worker coordination locks
 VOLUME ["/app/locks"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]

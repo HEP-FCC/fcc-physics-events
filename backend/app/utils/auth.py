@@ -19,7 +19,8 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.utils import get_config, get_logger
+from app.utils.config import get_config
+from app.utils.logging import get_logger
 
 # Load configuration
 logger = get_logger(__name__)
@@ -28,9 +29,9 @@ config = get_config()
 # Get auth configuration
 CERN_OIDC_URL = config.get("auth.cern_oidc_url")
 CERN_ISSUER = config.get("auth.cern_issuer")
-CERN_CLIENT_ID = config.get("general.CERN_CLIENT_ID")
-CERN_CLIENT_SECRET = config.get("general.CERN_CLIENT_SECRET")
-AUTH_COOKIE_PREFIX = f"{config.get('general.COOKIE_PREFIX')}-auth"
+CERN_CLIENT_ID = config.get("general.cern_client_id")
+CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
+AUTH_COOKIE_PREFIX = f"{config.get('general.cookie_prefix')}-auth"
 
 # Well-known endpoint data loaded at startup
 CERN_ENDPOINTS: dict[str, Any] = {}
@@ -84,8 +85,8 @@ class CERNAuthenticator:
                 introspection_endpoint,
                 data={
                     "token": token,
-                    "client_id": config.get("general.CERN_CLIENT_ID", ""),
-                    "client_secret": config.get("general.CERN_CLIENT_SECRET", ""),
+                    "client_id": config.get("general.cern_client_id"),
+                    "client_secret": config.get("general.cern_client_secret"),
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=10.0,
@@ -135,7 +136,7 @@ class CERNAuthenticator:
         Check if the user has the required role for authorization.
         Returns True if user is authorized, False otherwise.
         """
-        if not (required_role := config.get("general.REQUIRED_CERN_ROLE")):
+        if not (required_role := config.get("general.required_cern_role")):
             logger.warning(
                 "No specific role required, allowing all authenticated users"
             )
@@ -371,7 +372,7 @@ def set_auth_cookies(
         "max_age": max_age,
         "httponly": True,
         "samesite": "lax",
-        "secure": config.get("general.HTTPS_ONLY", "false").lower() == "true",
+        "secure": config.get("general.https_only").lower() == "true",
     }
 
     # Set all cookies required for authentication and token management
@@ -406,7 +407,7 @@ def clear_auth_cookies(response: Response) -> None:
     cookie_settings = {
         "httponly": True,
         "samesite": "lax",
-        "secure": config.get("general.HTTPS_ONLY", "false").lower() == "true",
+        "secure": config.get("general.https_only").lower() == "true",
     }
 
     response.delete_cookie(
@@ -592,8 +593,8 @@ class AuthDependency:
 
             # Get configuration and setup OAuth client
             config = get_config()
-            CERN_CLIENT_ID = config.get("general.CERN_CLIENT_ID")
-            CERN_CLIENT_SECRET = config.get("general.CERN_CLIENT_SECRET")
+            CERN_CLIENT_ID = config.get("general.cern_client_id")
+            CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
             CERN_OIDC_URL = config.get("auth.cern_oidc_url")
 
             oauth = OAuth()

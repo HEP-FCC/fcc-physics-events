@@ -69,7 +69,7 @@ export default defineNuxtConfig({
 
     runtimeConfig: {
         public: {
-            apiBaseUrl: process.env.BACKEND_URL || "http://localhost:8000",
+            apiBaseUrl: process.env.METADATA_VIEWER_BACKEND_URL || "http://localhost:8000",
         },
     },
 

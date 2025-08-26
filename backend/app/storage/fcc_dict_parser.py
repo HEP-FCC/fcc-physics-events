@@ -9,7 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.utils import get_logger
+from app.utils.logging import get_logger
 
 logger = get_logger()
 
@@ -30,7 +30,7 @@ class FccDataset(BaseModel):
     comment: str | None = Field(default=None)
     status: str | None = Field(default=None)
 
-    # Navigation entity fields (new format)
+    # Navigation entity fields
     accelerator: str | None = Field(default=None)
     stage: str | None = Field(default=None)
     campaign: str | None = Field(default=None)
