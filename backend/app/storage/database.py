@@ -20,6 +20,7 @@ from app.models.generic import GenericEntityCreate
 from app.storage.fcc_dict_parser import DatasetCollection
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.config import Config
+from app.utils.errors import SearchValidationError
 from app.utils.logging import get_logger
 
 # Constants
@@ -1777,6 +1778,19 @@ class Database:
                     missing_column = column_match.group(1)
                     logger.info(f"Missing column identified: {missing_column}")
 
+                    # Check if this is a direct field access (d.field_name) - if so, it's an invalid field
+                    if (
+                        f"d.{missing_column}" in search_query
+                        or f"d.{missing_column}" in count_query
+                    ):
+                        # This means user tried to search by a field that doesn't exist
+                        raise SearchValidationError(
+                            message=f"Field '{missing_column}' does not exist in the database schema",
+                            error_type="invalid_field",
+                            field_name=missing_column,
+                            user_message=f"The field '{missing_column}' is not available for searching. Please check the field name and try again.",
+                        )
+
                     # Replace the column reference with metadata access in both queries
                     fallback_count_query = count_query.replace(
                         f"d.{missing_column}", f"d.metadata->>'{missing_column}'"
@@ -1808,12 +1822,23 @@ class Database:
                         )
                     except Exception as fallback_error:
                         logger.error(f"Fallback query also failed: {fallback_error}")
-                        raise
+                        # If fallback also fails, raise a more informative error
+                        raise SearchValidationError(
+                            message=f"Field '{missing_column}' does not exist in database schema or metadata",
+                            error_type="invalid_field",
+                            field_name=missing_column,
+                            user_message=f"The field '{missing_column}' is not available for searching. Please check the field name and try again.",
+                        )
                 else:
                     logger.error(
                         f"Could not extract column name from error: {error_msg}"
                     )
-                    raise
+                    # Generic undefined column error
+                    raise SearchValidationError(
+                        message=f"Database column error: {error_msg}",
+                        error_type="invalid_field",
+                        user_message="One or more fields in your search query are not available. Please check your field names and try again.",
+                    )
 
             except Exception as e:
                 logger.error(f"Failed to execute search queries: {e}")

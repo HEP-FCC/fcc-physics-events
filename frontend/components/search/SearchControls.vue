@@ -192,8 +192,8 @@
             color="error"
             variant="soft"
             icon="i-heroicons-exclamation-triangle"
-            :title="searchError"
-            description="Please check your query syntax and try again."
+            :title="getErrorTitle(searchError)"
+            :description="getErrorDescription(searchError)"
             closable
             @close="$emit('clearError')"
         />
@@ -389,5 +389,44 @@ async function handleCopyPermalink(): Promise<void> {
     } finally {
         isPermalinkCopyInProgress.value = false;
     }
+}
+
+/**
+ * Get appropriate error title based on error message
+ */
+function getErrorTitle(errorMessage: string): string {
+    // Check for specific error patterns to provide better titles
+    if (errorMessage.toLowerCase().includes("field") && errorMessage.toLowerCase().includes("not available")) {
+        return "Invalid Field";
+    }
+    if (errorMessage.toLowerCase().includes("operation") && errorMessage.toLowerCase().includes("cannot be used")) {
+        return "Invalid Operation";
+    }
+    if (errorMessage.toLowerCase().includes("syntax")) {
+        return "Syntax Error";
+    }
+    if (errorMessage.toLowerCase().includes("query")) {
+        return "Search Error";
+    }
+    return "Search Error";
+}
+
+/**
+ * Get appropriate error description with helpful context
+ */
+function getErrorDescription(errorMessage: string): string {
+    // If the error message is already user-friendly, use it as is
+    if (errorMessage.includes("field") && errorMessage.includes("not available")) {
+        return `${errorMessage} You can check the available fields using the help tooltip above.`;
+    }
+    if (errorMessage.includes("operation") && errorMessage.includes("cannot be used")) {
+        return `${errorMessage} Try using '=' for exact match, ':' for contains, or '=~' for regex patterns.`;
+    }
+    if (errorMessage.includes("syntax")) {
+        return `${errorMessage} Check the search syntax guide in the help tooltip above.`;
+    }
+
+    // For generic errors, provide helpful context
+    return `${errorMessage} Please check your search syntax and try again. You can use the help tooltip above for syntax examples.`;
 }
 </script>

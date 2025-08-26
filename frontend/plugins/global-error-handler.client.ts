@@ -32,6 +32,10 @@ export const ERROR_TYPES = {
 
     // Validation (400) - Backend defined
     INVALID_INPUT: "invalid_input",
+    INVALID_QUERY: "invalid_query",
+    INVALID_FIELD: "invalid_field",
+    INVALID_OPERATION: "invalid_operation",
+    INVALID_SYNTAX: "invalid_syntax",
 
     // Client errors (4xx) - Backend defined
     NOT_FOUND: "not_found",
@@ -191,6 +195,42 @@ function parseApiError(error: unknown): ErrorToastOptions {
 
     // Handle validation errors (400)
     if (status === 400) {
+        // Handle specific search validation errors
+        switch (errorType) {
+            case ERROR_TYPES.INVALID_FIELD:
+                return {
+                    title: "Invalid Field",
+                    description:
+                        errorMessage ||
+                        "The field you're trying to search is not available. Please check the field name and try again.",
+                    color: "error",
+                };
+            case ERROR_TYPES.INVALID_OPERATION:
+                return {
+                    title: "Invalid Operation",
+                    description:
+                        errorMessage ||
+                        "The operation you're trying to perform is not supported for this field. Please use a different operator.",
+                    color: "error",
+                };
+            case ERROR_TYPES.INVALID_QUERY:
+                return {
+                    title: "Invalid Search Query",
+                    description:
+                        errorMessage ||
+                        "Your search query contains invalid syntax. Please check your query and try again.",
+                    color: "error",
+                };
+            case ERROR_TYPES.INVALID_SYNTAX:
+                return {
+                    title: "Syntax Error",
+                    description:
+                        errorMessage ||
+                        "There's a syntax error in your query. Please check your search syntax and try again.",
+                    color: "error",
+                };
+        }
+
         if (errorType === ERROR_TYPES.INVALID_INPUT && apiError.details?.validation_errors) {
             const validationErrors = apiError.details.validation_errors;
             const fieldErrors = Object.entries(validationErrors)

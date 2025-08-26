@@ -14,6 +14,7 @@ from lark import Lark, Token, Transformer, exceptions
 from app.storage.database import Database
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.config import get_config
+from app.utils.errors import SearchValidationError
 from app.utils.logging import get_logger
 
 logger = get_logger()
@@ -89,6 +90,11 @@ class Field:
 
         sql_column = schema_mapping.get(base_field)
 
+        # Validate operation and value compatibility early
+        self._validate_operation_compatibility(
+            base_field, op, value, available_metadata_fields
+        )
+
         if not sql_column:
             # Check if this might be a foreign key field (entity reference)
             # Common entity fields that map to foreign keys in the dataset table
@@ -131,8 +137,18 @@ class Field:
 
                 return json_field
             else:
-                # Try to search the dataset columns directly
-                sql_column = f"d.{base_field}"
+                # Field not found in schema or metadata - raise validation error
+                available_fields = list(schema_mapping.keys())
+                if available_metadata_fields:
+                    available_fields.extend(list(available_metadata_fields))
+
+                field_path = ".".join(self.parts)
+                raise SearchValidationError(
+                    message=f"Field '{field_path}' does not exist in the database schema or metadata",
+                    error_type="invalid_field",
+                    field_name=field_path,
+                    user_message=f"The field '{field_path}' is not available for searching. Available fields include: {', '.join(sorted(available_fields)[:10])}{'...' if len(available_fields) > 10 else ''}",
+                )
 
         # Handle explicit metadata fields (metadata.field syntax)
         if base_field == "metadata" and len(self.parts) > 1:
@@ -157,6 +173,107 @@ class Field:
 
             return json_field
         return sql_column
+
+    def _validate_operation_compatibility(
+        self,
+        field_name: str,
+        op: str | None,
+        value: Any,
+        available_metadata_fields: set[str] | None = None,
+    ) -> None:
+        """Validate that the operation and value are compatible with the field type."""
+        if not op or value is None:
+            return
+
+        # Define field type mappings based on common database schema patterns
+        # These are the typical string fields that should not accept numeric comparisons
+        string_fields = {
+            "name",
+            "accelerator",
+            "campaign",
+            "detector",
+            "software_stack",
+            "stage",
+            "description",
+            "title",
+            "status",
+            "type",
+            "format",
+            "uuid",
+            "path",
+            "filename",
+            "edited_by_name",
+        }
+
+        # ID fields (foreign keys) should only accept integer values for comparisons
+        id_fields = {
+            "accelerator_id",
+            "campaign_id",
+            "detector_id",
+            "software_stack_id",
+            "stage_id",
+        }
+
+        # Check if this is a metadata field
+        is_metadata_field = (
+            available_metadata_fields and field_name in available_metadata_fields
+        ) or field_name == "metadata"
+
+        # Validate string fields
+        if field_name in string_fields and not is_metadata_field:
+            if op in (">", "<", ">=", "<=") and isinstance(value, int | float):
+                raise SearchValidationError(
+                    message=f"Cannot use numeric comparison operator '{op}' with string field '{field_name}'",
+                    error_type="invalid_operation",
+                    field_name=field_name,
+                    operation=op,
+                    user_message=f"The field '{field_name}' contains text values and cannot be compared using '{op}'. Use '=' for exact match, ':' for contains, or '=~' for pattern matching.",
+                )
+
+            if op in (">", "<", ">=", "<=") and isinstance(value, str):
+                raise SearchValidationError(
+                    message=f"String comparison operator '{op}' is not supported for field '{field_name}'",
+                    error_type="invalid_operation",
+                    field_name=field_name,
+                    operation=op,
+                    user_message=f"Cannot compare text values in '{field_name}' using '{op}'. Use '=' for exact match, ':' for contains, or '=~' for pattern matching.",
+                )
+
+        # Validate ID fields - they should only accept integers
+        if field_name in id_fields or field_name.endswith("_id"):
+            if not isinstance(value, int) and op in ("=", "!=", ">", "<", ">=", "<="):
+                try:
+                    # Try to convert to int
+                    int(value)
+                except (ValueError, TypeError):
+                    raise SearchValidationError(
+                        message=f"Field '{field_name}' expects integer values, got '{value}' ({type(value).__name__})",
+                        error_type="invalid_operation",
+                        field_name=field_name,
+                        operation=op,
+                        user_message=f"The field '{field_name}' expects numeric ID values. Please provide an integer value instead of '{value}'.",
+                    )
+
+        # Validate metadata fields have special rules
+        if is_metadata_field:
+            self._validate_metadata_operation(op, value, field_name)
+
+    def _validate_metadata_operation(
+        self, op: str | None, value: Any, field_name: str
+    ) -> None:
+        """Validate that the operation is compatible with metadata fields."""
+        if not op:
+            return
+
+        # Check for string comparison operations that are not supported
+        if op in ("<", ">", "<=", ">=") and isinstance(value, str):
+            raise SearchValidationError(
+                message=f"String comparison with operator '{op}' is not supported for metadata field '{field_name}'",
+                error_type="invalid_operation",
+                field_name=field_name,
+                operation=op,
+                user_message=f"Cannot use '{op}' to compare text values in field '{field_name}'. Use '=' for exact match, ':' for contains, or '=~' for regex patterns.",
+            )
 
 
 @dataclass(frozen=True)
@@ -892,7 +1009,9 @@ class QueryParser:
                 {self.from_and_joins}
                 {self._build_order_by_clause(sort_by, sort_order)}
             """
-            count_query = f"SELECT COUNT(*) FROM {self.config['application']['main_table']}"
+            count_query = (
+                f"SELECT COUNT(*) FROM {self.config['application']['main_table']}"
+            )
             return count_query, select_query, []
 
         try:

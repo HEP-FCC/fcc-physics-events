@@ -239,7 +239,50 @@ export function useEntitySearch() {
         } catch (error) {
             if (currentRequestController?.signal.aborted) return;
             console.error("Search failed:", error);
-            searchState.error = error instanceof Error ? error.message : "Failed to fetch entities.";
+
+            // Extract more specific error message from API response
+            let errorMessage = "Failed to fetch entities.";
+
+            if (error && typeof error === "object") {
+                const apiError = error as any;
+
+                // Based on the console log, the structure is:
+                // error.details.detail.message contains the user-friendly message
+                if (apiError?.details?.detail?.message) {
+                    // This is the main path for FastAPI validation errors
+                    errorMessage = apiError.details.detail.message;
+                } else if (apiError?.data?.detail?.message) {
+                    // Alternative path for FastAPI errors
+                    errorMessage = apiError.data.detail.message;
+                } else if (apiError?.data?.message) {
+                    // Fallback for other error structures
+                    errorMessage = apiError.data.message;
+                } else if (apiError?.message) {
+                    // Direct access to message (but this contains HTTP request info)
+                    // Only use this if it doesn't contain HTTP request details
+                    if (!apiError.message.includes("[GET]") && !apiError.message.includes("http://")) {
+                        errorMessage = apiError.message;
+                    }
+                } else if (apiError?.details?.user_message) {
+                    // Check for user_message in details
+                    errorMessage = apiError.details.user_message;
+                } else if (apiError?.data?.user_message) {
+                    // Check for user_message in data
+                    errorMessage = apiError.data.user_message;
+                } else if (apiError?.details?.message) {
+                    // Fallback to technical message in details
+                    errorMessage = apiError.details.message;
+                } else if (apiError?.data?.details?.message) {
+                    // Another fallback path
+                    errorMessage = apiError.data.details.message;
+                }
+            } else if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            }
+
+            searchState.error = errorMessage;
             if (isInitialLoad) {
                 entities.value = [];
                 scrollState.totalEntities = 0;

@@ -21,7 +21,14 @@ from app.storage.database import Database
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.auth import AuthDependency
 from app.utils.config import get_config
-from app.utils.errors import not_found_error, validation_error
+from app.utils.errors import (
+    SearchValidationError,
+    field_error,
+    not_found_error,
+    operation_error,
+    query_validation_error,
+    validation_error,
+)
 from app.utils.gclql_query_parser import QueryParser
 from app.utils.logging import get_logger
 
@@ -102,6 +109,29 @@ async def execute_gclql_query(
             count_query, search_query, search_query_params, limit, offset
         )
 
+    except SearchValidationError as e:
+        logger.warning(f"Query validation error: {e.message}")
+        # Convert custom search validation error to standardized HTTP exception
+        if e.error_type == "invalid_field":
+            raise field_error(
+                field_name=e.field_name or "unknown",
+                message=e.message,
+                user_message=e.user_message,
+            )
+        elif e.error_type == "invalid_operation":
+            raise operation_error(
+                operation=e.operation or "unknown",
+                field_name=e.field_name,
+                message=e.message,
+                user_message=e.user_message,
+            )
+        else:
+            raise query_validation_error(
+                error_type=e.error_type,
+                message=e.message,
+                user_message=e.user_message
+                or "Invalid search query. Please check your search syntax.",
+            )
     except ValueError as e:
         logger.error("Invalid query", exc_info=True)
         raise validation_error(
@@ -449,6 +479,35 @@ async def search_datasets_generic(request: SearchRequest) -> Any:
             )
             return result
 
+    except SearchValidationError as e:
+        logger.warning(f"Search validation error: {e.message}")
+        # Convert custom search validation error to standardized HTTP exception
+        if e.error_type == "invalid_field":
+            raise field_error(
+                field_name=e.field_name or "unknown",
+                message=e.message,
+                user_message=e.user_message,
+            )
+        elif e.error_type == "invalid_operation":
+            raise operation_error(
+                operation=e.operation or "unknown",
+                field_name=e.field_name,
+                message=e.message,
+                user_message=e.user_message,
+            )
+        else:
+            raise query_validation_error(
+                error_type=e.error_type,
+                message=e.message,
+                user_message=e.user_message
+                or "Invalid search query. Please check your search syntax.",
+            )
+    except ValueError as e:
+        logger.warning(f"Search value error: {e}")
+        raise query_validation_error(
+            message=str(e),
+            user_message="Invalid search parameters. Please check your query and try again.",
+        )
     except Exception as e:
         logger.error(f"Failed to perform generic search: {e}")
         raise HTTPException(
