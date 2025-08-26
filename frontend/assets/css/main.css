@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 @import "./colors.css";
+@import "./components.css";
 
 /* Force light mode - disable all dark mode behavior */
 * {

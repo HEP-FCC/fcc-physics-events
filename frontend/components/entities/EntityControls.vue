@@ -30,7 +30,7 @@
                 </UButton>
             </UDropdownMenu>
 
-            <div class="h-6 w-px bg-deep-blue-400"/>
+            <div class="h-6 w-px bg-deep-blue-400" />
 
             <UButton
                 :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
@@ -94,7 +94,10 @@
 
                 <!-- Page size control -->
                 <div class="flex items-center gap-1 text-sm">
-                    <UTooltip text="Number of items to load per page. Range: 25-1000" placement="top">
+                    <UTooltip
+                        text="Number of items to load per page. Range: 25-1000. Press Enter to apply, Tab to navigate to results."
+                        placement="top"
+                    >
                         <span>Page size:</span>
                     </UTooltip>
                     <UInput
@@ -107,6 +110,7 @@
                         placeholder="25"
                         @update:model-value="handlePageSizeInput"
                         @blur="handlePageSizeBlur"
+                        @keydown="handlePageSizeKeydown"
                     />
                 </div>
             </div>
@@ -165,6 +169,30 @@ const handlePageSizeInput = (value: string | number) => {
     }
 };
 
+// Handle page size keydown to prevent search refresh on tab navigation
+const handlePageSizeKeydown = (event: KeyboardEvent) => {
+    // If user presses Tab, ensure we don't trigger a search refresh
+    if (event.key === "Tab") {
+        // Allow the tab to proceed naturally without triggering page size change
+        return;
+    }
+
+    // If user presses Enter, apply the current value and trigger page size change
+    if (event.key === "Enter") {
+        const target = event.target as HTMLInputElement;
+        const value = parseInt(target.value, 10);
+
+        if (!isNaN(value) && value >= 25) {
+            const clampedValue = Math.max(25, Math.min(1000, value));
+            target.value = clampedValue.toString();
+            emit("updatePageSize", clampedValue);
+            emit("handlePageSizeChange");
+            target.blur(); // Remove focus after Enter
+        }
+        event.preventDefault();
+    }
+};
+
 // Handle page size blur to ensure we have a valid value
 const handlePageSizeBlur = (event: Event) => {
     const target = event.target as HTMLInputElement;
@@ -177,8 +205,12 @@ const handlePageSizeBlur = (event: Event) => {
         // Clamp the value within bounds and apply it
         const clampedValue = Math.max(25, Math.min(1000, value));
         target.value = clampedValue.toString();
-        emit("updatePageSize", clampedValue);
-        emit("handlePageSizeChange");
+
+        // Only trigger page size change if the value actually changed
+        if (clampedValue !== props.pageSize) {
+            emit("updatePageSize", clampedValue);
+            emit("handlePageSizeChange");
+        }
     }
 };
 

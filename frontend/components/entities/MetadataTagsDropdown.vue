@@ -202,11 +202,3 @@ const handleSelectAll = () => {
     setSelectedFields([...availableFields.value]);
 };
 </script>
-
-<style scoped>
-.truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-</style>

@@ -1,15 +1,25 @@
 <template>
     <div>
+        <!-- Screen reader instructions for keyboard navigation -->
+        <div class="sr-only">
+            Entity list. Use Tab to navigate through items. Press Enter or Space to expand metadata, or S to toggle
+            selection.
+        </div>
+
         <!-- Entity List -->
-        <div class="space-y-1.5">
+        <div class="space-y-1.5" role="list" aria-label="Search results">
             <!-- Entity cards -->
             <UCard
                 v-for="(entity, index) in entities"
                 :key="getEntityId(entity)"
                 :data-entity-card="index"
                 :ui="{ body: 'sm:p-1.5' }"
-                class="overflow-hidden select-text cursor-pointer root-p-0"
+                class="overflow-hidden select-text cursor-pointer root-p-0 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                role="listitem"
+                tabindex="0"
+                :aria-label="`Entity: ${entity.name}`"
                 @click="handleRowClick($event, getEntityId(entity))"
+                @keydown="handleEntityKeydown($event, getEntityId(entity))"
             >
                 <div class="px-2">
                     <div class="flex items-center justify-between gap-3">
@@ -19,6 +29,8 @@
                                 <UCheckbox
                                     :model-value="isEntitySelected(getEntityId(entity))"
                                     class="flex-shrink-0"
+                                    tabindex="0"
+                                    :aria-label="`Select entity: ${entity.name}`"
                                     @click.stop
                                     @change="toggleEntitySelection(getEntityId(entity))"
                                 />
@@ -75,6 +87,11 @@
                             variant="ghost"
                             size="xs"
                             class="flex-shrink-0"
+                            :aria-label="
+                                isMetadataExpanded(getEntityId(entity))
+                                    ? `Collapse metadata for ${entity.name}`
+                                    : `Expand metadata for ${entity.name}`
+                            "
                             @click.stop="toggleMetadata(getEntityId(entity))"
                         />
                     </div>
@@ -215,5 +232,22 @@ function handleRowClick(event: MouseEvent, entityId: number): void {
     }
 
     toggleMetadata(entityId);
+}
+
+function handleEntityKeydown(event: KeyboardEvent, entityId: number): void {
+    switch (event.key) {
+        case "Enter":
+        case " ":
+            // Toggle metadata on Enter or Space
+            event.preventDefault();
+            toggleMetadata(entityId);
+            break;
+        case "s":
+        case "S":
+            // Toggle selection on 's' key (like checkbox)
+            event.preventDefault();
+            toggleEntitySelection(entityId);
+            break;
+    }
 }
 </script>

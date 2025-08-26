@@ -1,5 +1,6 @@
 // Auto-imported: ref, shallowRef, shallowReactive, computed, readonly, nextTick
 import type { Entity, SearchState, ScrollState, SortState, PaginatedResponse } from "~/types/entity";
+import type { ExtendedApiError } from "~/types/api";
 
 /**
  * Entity Search Composable
@@ -244,7 +245,7 @@ export function useEntitySearch() {
             let errorMessage = "Failed to fetch entities.";
 
             if (error && typeof error === "object") {
-                const apiError = error as any;
+                const apiError = error as ExtendedApiError;
 
                 // Based on the console log, the structure is:
                 // error.details.detail.message contains the user-friendly message

@@ -1,0 +1,75 @@
+/**
+ * Component-specific CSS utilities
+ *
+ * This file contains CSS that cannot be easily converted to Tailwind utilities,
+ * such as browser-specific styles and complex selectors.
+ */
+
+/* Custom scrollbar styling for dropdown menus */
+.dropdown-menu {
+    scrollbar-width: thin;
+    scrollbar-color: #707194 transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background-color: #707194;
+    border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background-color: #707194;
+}
+
+/* Enhanced hover effects for dynamic CSS variables */
+[style*="--hover-bg-color"]:hover {
+    background-color: var(--hover-bg-color, inherit) !important;
+}
+
+[style*="--hover-color"]:hover {
+    color: var(--hover-color) !important;
+}
+
+/* Focus management for better keyboard navigation */
+.entity-card-focusable:focus {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+}
+
+/* Skip to content functionality */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: var(--color-primary-600);
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    border-radius: 4px;
+    z-index: 1000;
+}
+
+.skip-link:focus {
+    top: 6px;
+}
+
+/* Focus visible for better accessibility */
+.focus-visible:focus {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+}
+
+/* Smooth focus transitions */
+[tabindex="0"]:focus,
+button:focus,
+input:focus,
+select:focus {
+    transition: outline-color 0.15s ease-in-out, outline-offset 0.15s ease-in-out;
+}

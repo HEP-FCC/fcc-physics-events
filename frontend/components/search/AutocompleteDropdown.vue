@@ -152,11 +152,3 @@ onUnmounted(() => {
     document.removeEventListener("click", handleClickOutside);
 });
 </script>
-
-<style scoped>
-.truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-</style>

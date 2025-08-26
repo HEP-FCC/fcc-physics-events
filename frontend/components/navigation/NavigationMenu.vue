@@ -317,34 +317,3 @@ watchEffect(() => {
     });
 });
 </script>
-
-<style scoped>
-.dropdown-menu .truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-/* Custom scrollbar styling for dropdown menus */
-.dropdown-menu {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(203 213 225) transparent;
-}
-
-.dropdown-menu::-webkit-scrollbar {
-    width: 6px;
-}
-
-.dropdown-menu::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.dropdown-menu::-webkit-scrollbar-thumb {
-    background-color: rgb(203 213 225);
-    border-radius: 3px;
-}
-
-.dropdown-menu::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(148 163 184);
-}
-</style>

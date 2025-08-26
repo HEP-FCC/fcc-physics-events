@@ -6,7 +6,7 @@ import type { RedirectConfig } from "~/types/schema";
  */
 export default defineNuxtRouteMiddleware(async (to) => {
     // Only run on client-side since we're in CSR mode
-    if (process.server) {
+    if (import.meta.server) {
         return;
     }
 

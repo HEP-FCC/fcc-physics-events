@@ -5,7 +5,7 @@ import { join } from "path";
  * API endpoint to serve redirect configuration
  * GET /api/_redirects
  */
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (_event) => {
     try {
         const configPath = join(process.cwd(), "config", "redirects.json");
         const configContent = readFileSync(configPath, "utf-8");

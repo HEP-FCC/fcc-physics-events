@@ -8,21 +8,18 @@
 import { APP_CONFIG } from "~/config/app.config";
 import type { BadgeColor } from "~/config/app.config";
 
-// Common navigation types in expected order
-// TODO: Move to config
-const COMMON_NAVIGATION_ORDER = ["accelerator", "stage", "campaign", "detector", "file_type"];
-
 /**
  * Generate a consistent badge color for a navigation type
  * Uses a predictable order that doesn't change based on config loading state
  */
 export function getDeterministicBadgeColor(navType: string): BadgeColor {
     const colors = APP_CONFIG.ui.defaultBadgeColors;
+    const navigationOrder = APP_CONFIG.navigationFallback.order;
 
-    // First try to use the common order if the type exists there
-    const commonOrderIndex = COMMON_NAVIGATION_ORDER.indexOf(navType);
-    if (commonOrderIndex !== -1) {
-        return colors[commonOrderIndex % colors.length];
+    // First try to use the navigation order from config if the type exists there
+    const orderIndex = navigationOrder.indexOf(navType as (typeof navigationOrder)[number]);
+    if (orderIndex !== -1) {
+        return colors[orderIndex % colors.length];
     }
 
     // Fallback to hash-based assignment for unknown types

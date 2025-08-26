@@ -6,6 +6,8 @@
  * never-expiring cookie for persistence across page refreshes and navigation.
  */
 
+import { APP_CONFIG } from "~/config/app.config";
+
 interface MetadataPreferences {
     selectedFields: string[];
     lastUpdated: number;
@@ -32,8 +34,7 @@ export const useMetadataPreferences = () => {
         try {
             const preferenceCookie = useCookie<MetadataPreferences>(COOKIE_NAME, {
                 default: () => ({
-                    // TODO: put this into the config
-                    selectedFields: ["n-events", "cross-section", "matching-eff"],
+                    selectedFields: [...APP_CONFIG.metadata.defaultSelectedFields],
                     lastUpdated: Date.now(),
                 }),
                 secure: process.env.NODE_ENV === "production",

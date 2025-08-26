@@ -32,6 +32,34 @@ export interface ApiError {
 }
 
 /**
+ * Extended error structure that handles different API error formats
+ * Used for error handling in composables where error structure may vary
+ */
+export interface ExtendedApiError {
+    message?: string;
+    details?: {
+        detail?: {
+            message?: string;
+        };
+        message?: string;
+        user_message?: string;
+        [key: string]: unknown;
+    };
+    data?: {
+        detail?: {
+            message?: string;
+        };
+        message?: string;
+        user_message?: string;
+        details?: {
+            message?: string;
+        };
+        [key: string]: unknown;
+    };
+    [key: string]: unknown;
+}
+
+/**
  * Entity from the backend (replaces hardcoded models)
  */
 export interface Entity {

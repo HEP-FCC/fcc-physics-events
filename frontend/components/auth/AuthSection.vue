@@ -1,20 +1,20 @@
 <template>
-    <div class="auth-section">
+    <div class="flex items-center gap-4 p-2">
         <!-- Authentication controls -->
-        <div v-if="!isAuthenticated" class="login-section">
+        <div v-if="!isAuthenticated" class="flex items-center">
             <UButton
                 :loading="isLoading"
                 color="primary"
                 variant="solid"
                 :size="mobileCompact ? 'md' : 'lg'"
                 icon="i-heroicons-user-circle"
-                class="login-btn cursor-pointer"
+                class="cursor-pointer"
                 :label="mobileCompact ? undefined : isLoading ? 'Signing in...' : 'Sign in'"
                 @click="handleLogin"
             />
         </div>
 
-        <div v-else class="user-section">
+        <div v-else class="flex items-center gap-4">
             <!-- User info only mode - just display user info -->
             <div v-if="userInfoOnly" class="flex items-center gap-3">
                 <div class="text-right">
@@ -134,106 +134,3 @@ async function handleLogout() {
     await logout();
 }
 </script>
-
-<style scoped>
-.auth-section {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.5rem;
-}
-
-.login-section {
-    display: flex;
-    align-items: center;
-}
-
-.login-btn {
-    background: #0066cc;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 0.5rem 1rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
-}
-
-.login-btn:hover:not(:disabled) {
-    background: #0052a3;
-}
-
-.login-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.user-section {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.user-info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.user-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.user-email {
-    font-size: 0.8rem;
-    color: #666;
-}
-
-.logout-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    padding: 0.4rem 0.8rem;
-    cursor: pointer;
-    font-size: 0.8rem;
-    transition: background-color 0.2s;
-}
-
-.logout-btn:hover:not(:disabled) {
-    background: #c82333;
-}
-
-.logout-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-}
-
-.error-message {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    border-radius: 4px;
-    padding: 0.5rem;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.clear-error-btn {
-    background: none;
-    border: none;
-    color: #721c24;
-    cursor: pointer;
-    font-size: 1rem;
-    line-height: 1;
-    padding: 0;
-    margin-left: auto;
-}
-
-.clear-error-btn:hover {
-    color: #491217;
-}
-</style>

@@ -1,5 +1,8 @@
 <template>
     <UApp class="min-h-screen flex flex-col">
+        <!-- Skip to main content link for accessibility -->
+        <a href="#main-content" class="skip-link">Skip to main content</a>
+
         <!-- Navigation Header -->
         <header class="bg-space-50 border-space-200">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -55,7 +58,7 @@
         </header>
 
         <!-- Main Content -->
-        <main class="flex-1">
+        <main id="main-content" class="flex-1">
             <NuxtPage />
         </main>
 
@@ -105,3 +108,46 @@ onMounted(async () => {
     await checkAuthStatus();
 });
 </script>
+
+<!--
+Powered by friendship!
+                                                    /
+                                                  .7
+                                       \       , //
+                                       |\.--._/|//
+                                      /\ ) ) ).'/
+                                     /(  \  // /
+                                    /(   J`((_/ \
+                                   / ) | _\     /
+                                  /|)  \  eJ    L
+                                 |  \ L \   L   L
+                                /  \  J  `. J   L
+                                |  )   L   \/   \
+                               /  \    J   (\   /
+             _....___         |  \      \   \```
+      ,.._.-'        '''--...-||\     -. \   \
+    .'.=.'                    `         `.\ [ Y
+   /   /                                  \]  J
+  Y / Y                                    Y   L
+  | | |          \                         |   L
+  | | |           Y                        A  J
+  |   I           |                       /I\ /
+  |    \          I             \        ( |]/|
+  J     \         /._           /        -tI/ |
+   L     )       /   /'-------'J           `'-:.
+   J   .'      ,'  ,' ,     \   `'-.__          \
+    \ T      ,'  ,'   )\    /|        ';'---7   /
+     \|    ,'L  Y...-' / _.' /         \   /   /
+      J   Y  |  J    .'-'   /         ,--.(   /
+       L  |  J   L -'     .'         /  |    /\
+       |  J.  L  J     .-;.-/       |    \ .' /
+       J   L`-J   L____,.-'`        |  _.-'   |
+        L  J   L  J                  ``  J    |
+        J   L  |   L                     J    |
+         L  J  L    \                    L    \
+         |   L  ) _.'\                    ) _.'\
+         L    \('`    \                  ('`    \
+          ) _.'\`-....'                   `-....'
+         ('`    \
+          `-.___/   sk
+ -->

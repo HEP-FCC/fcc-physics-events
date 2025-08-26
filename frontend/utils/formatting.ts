@@ -3,6 +3,8 @@
  * These are stateless functions that don't depend on Vue reactivity
  */
 
+import { APP_CONFIG } from "~/config/app.config";
+
 /**
  * Format field names for display in sorting dropdown
  */
@@ -28,7 +30,7 @@ export const createEntityDownloadFilename = (entityCount: number): string => {
         .replace(/[-T:]/g, (match) => (match === "T" ? "_" : "-"));
 
     const multipleEntities = entityCount > 1 ? "entities" : "entity";
-    return `fcc_physics_entities-${entityCount}-${multipleEntities}-${timestamp}.json`; // TODO: load the fcc_physics_entities name from config
+    return `${APP_CONFIG.downloads.fileNamePrefix}-${entityCount}-${multipleEntities}-${timestamp}.json`;
 };
 
 /**

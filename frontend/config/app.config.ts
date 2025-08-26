@@ -69,6 +69,31 @@ export const APP_CONFIG = {
         // Use folder icon for all navigation items
         defaultIcon: "i-heroicons-folder" as const,
     },
+
+    /**
+     * Metadata preferences configuration
+     */
+    metadata: {
+        // Default metadata fields to display as badges/tags
+        defaultSelectedFields: ["n-events", "cross-section", "matching-eff"] as const,
+    },
+
+    /**
+     * File download configuration
+     */
+    downloads: {
+        // Prefix for downloaded file names
+        fileNamePrefix: "fcc_physics_entities" as const,
+    },
+
+    /**
+     * Navigation configuration fallbacks
+     * Used when backend navigation config is not available
+     */
+    navigationFallback: {
+        // Common navigation types in expected order
+        order: ["accelerator", "stage", "campaign", "detector", "file_type"] as const,
+    },
 } as const;
 
 /**

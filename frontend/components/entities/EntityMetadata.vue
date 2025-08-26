@@ -1157,12 +1157,7 @@ const getStatusFieldSpanClass = (value: unknown): string => {
 /* Component uses inline styles for dynamic colors via Vue's :style binding */
 /* CSS custom properties are generated from the colors.ts configuration */
 
-/* Enhanced hover effects for interactive elements */
-.group:hover {
-    background-color: var(--hover-bg-color, inherit) !important;
-}
-
-/* Ensure hover transitions are smooth */
+/* Enhanced hover transitions are now handled via global CSS */
 .group {
     transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1172,112 +1167,5 @@ const getStatusFieldSpanClass = (value: unknown): string => {
     transition-property: background-color, border-color, color;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 200ms;
-}
-
-/* Enhanced hover effects for buttons */
-[style*="--hover-color"]:hover {
-    color: var(--hover-color) !important;
-}
-
-/* Typography hierarchy following FCC design principles */
-.font-medium {
-    font-weight: 500;
-}
-
-.text-xs {
-    font-size: 0.75rem;
-    line-height: 1rem;
-}
-
-.text-sm {
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-}
-
-.text-lg {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
-}
-
-/* Grid system for responsive field layout */
-.grid-cols-12 {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-}
-
-/* Enhanced shadow system for depth and hierarchy */
-.shadow-sm {
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-}
-
-/* Border radius following FCC design system */
-.rounded {
-    border-radius: 0.25rem;
-}
-
-.rounded-lg {
-    border-radius: 0.5rem;
-}
-
-.rounded-full {
-    border-radius: 9999px;
-}
-
-/* Spacing utilities */
-.space-y-2 > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 0.5rem;
-}
-
-.gap-2 {
-    gap: 0.5rem;
-}
-
-.gap-1 {
-    gap: 0.25rem;
-}
-
-.gap-1\.5 {
-    gap: 0.375rem;
-}
-
-/* Opacity utilities for interactive states */
-.opacity-5 {
-    opacity: 0.05;
-}
-
-.opacity-10 {
-    opacity: 0.1;
-}
-
-.opacity-50 {
-    opacity: 0.5;
-}
-
-.opacity-70 {
-    opacity: 0.7;
-}
-
-.hover\:opacity-100:hover {
-    opacity: 1;
-}
-
-/* Scientific excellence visual enhancements */
-.font-mono {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-
-/* Accessibility and usability enhancements */
-.cursor-pointer {
-    cursor: pointer;
-}
-
-.cursor-not-allowed {
-    cursor: not-allowed;
-}
-
-/* Text truncation for overflow content */
-.truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 </style>
