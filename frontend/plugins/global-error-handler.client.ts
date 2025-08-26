@@ -14,42 +14,32 @@ interface UnifiedApiError {
         message?: string;
         type?: string;
         code?: string;
-        retry_after?: number;
         required_role?: string;
         validation_errors?: Record<string, string[]>;
     };
     statusCode?: number;
-    data?: any;
+    data?: Record<string, unknown>;
     headers?: Record<string, string>;
 }
 
 // Error types that backend should use consistently
 export const ERROR_TYPES = {
-    // Authentication (401)
-    TOKEN_EXPIRED: "token_expired",
-    TOKEN_INVALID: "invalid_token",
-    TOKEN_MISSING: "missing_token",
+    // Authentication (401) - Backend defined
+    AUTHENTICATION_FAILED: "authentication_failed",
     SESSION_ERROR: "session_error",
+    NO_REFRESH_TOKEN: "no_refresh_token",
+    REFRESH_FAILED: "refresh_failed",
 
-    // Authorization (403)
-    INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
-    ROLE_REQUIRED: "role_required",
-
-    // Validation (400)
+    // Validation (400) - Backend defined
     INVALID_INPUT: "invalid_input",
-    MISSING_FIELD: "missing_field",
-    INVALID_FORMAT: "invalid_format",
 
-    // Rate Limiting (429)
-    RATE_LIMITED: "rate_limited",
+    // Client errors (4xx) - Backend defined
+    NOT_FOUND: "not_found",
 
-    // Server Errors (500+)
+    // Server Errors (500+) - Backend defined
     INTERNAL_ERROR: "internal_error",
-    DATABASE_ERROR: "database_error",
-    EXTERNAL_SERVICE_ERROR: "external_service_error",
-    SERVER_UNAVAILABLE: "server_unavailable",
 
-    // Network/Connection Errors
+    // Network/Connection Errors - Frontend only
     NETWORK_ERROR: "network_error",
     CONNECTION_ERROR: "connection_error",
 } as const;
@@ -65,11 +55,11 @@ interface ErrorContext {
     sessionId?: string;
     userId?: string;
     buildId?: string;
-    promise?: Promise<any>;
+    promise?: Promise<unknown>;
     errorId?: string;
     requestId?: string;
     retryCount?: number;
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface ErrorHandlerOptions {
@@ -102,23 +92,44 @@ const errorState = reactive({
 function parseApiError(error: unknown): ErrorToastOptions {
     console.log("Parsing API error:", error);
 
-    const apiError = error as UnifiedApiError;
-    const status = apiError.status || (apiError as any).statusCode || 500;
+    let apiError: UnifiedApiError;
+
+    // Extract the actual API error object
+    if (error instanceof Error && error.message) {
+        try {
+            const parsed = JSON.parse(error.message);
+            if (typeof parsed === "object" && parsed !== null && ("status" in parsed || "statusCode" in parsed)) {
+                apiError = parsed as UnifiedApiError;
+            } else {
+                apiError = error as unknown as UnifiedApiError;
+            }
+        } catch {
+            apiError = error as unknown as UnifiedApiError;
+        }
+    } else {
+        apiError = error as UnifiedApiError;
+    }
+
+    const status = apiError.status || (apiError as UnifiedApiError).statusCode || 500;
     const errorType = apiError.details?.error;
-    const errorMessage = apiError.details?.message || apiError.message;
+
+    // Safely extract error message
+    let errorMessage: string = "An error occurred";
+    if (apiError.details?.message && typeof apiError.details.message === "string") {
+        errorMessage = apiError.details.message;
+    } else if (apiError.message && typeof apiError.message === "string") {
+        errorMessage = apiError.message;
+    } else if (apiError.details?.message) {
+        errorMessage = JSON.stringify(apiError.details.message);
+    } else if (apiError.message) {
+        errorMessage = JSON.stringify(apiError.message);
+    }
+
+    console.log("Status:", status, "Error Type:", errorType, "Message:", errorMessage);
 
     // Handle authentication errors (401)
     if (status === 401) {
         switch (errorType) {
-            case ERROR_TYPES.TOKEN_EXPIRED:
-                return {
-                    title: "Session Expired",
-                    description:
-                        "Your login session has expired. Please clear cookies and log in again to refresh your token.",
-                    color: "warning",
-                };
-            case ERROR_TYPES.TOKEN_MISSING:
-            case ERROR_TYPES.TOKEN_INVALID:
             case ERROR_TYPES.SESSION_ERROR:
                 return {
                     title: "Authentication Required",
@@ -126,6 +137,19 @@ function parseApiError(error: unknown): ErrorToastOptions {
                         "You need to log in to access this feature. If you were previously logged in, try clearing cookies and logging in again to refresh your token.",
                     color: "warning",
                 };
+            case ERROR_TYPES.NO_REFRESH_TOKEN:
+                return {
+                    title: "Session Expired",
+                    description: "Your session has expired and no refresh token is available. Please log in again.",
+                    color: "warning",
+                };
+            case ERROR_TYPES.REFRESH_FAILED:
+                return {
+                    title: "Session Refresh Failed",
+                    description: "Your session could not be refreshed. Please log in again to continue.",
+                    color: "warning",
+                };
+            case ERROR_TYPES.AUTHENTICATION_FAILED:
             default:
                 return {
                     title: "Unauthorized",
@@ -138,16 +162,25 @@ function parseApiError(error: unknown): ErrorToastOptions {
 
     // Handle authorization errors (403)
     if (status === 403) {
-        if (errorType === ERROR_TYPES.ROLE_REQUIRED) {
-            const requiredRole = apiError.details?.required_role;
+        const requiredRole = apiError.details?.required_role;
+
+        // If we have a clear error message from the backend, use it
+        if (errorMessage && errorMessage !== "An error occurred") {
             return {
                 title: "Permission Denied",
-                description: `You need ${
-                    requiredRole || "additional permissions"
-                } to perform this action. Please contact the site administrators to request access.`,
+                description: errorMessage,
                 color: "error",
             };
         }
+
+        if (requiredRole) {
+            return {
+                title: "Insufficient Permissions",
+                description: `You need the "${requiredRole}" role to access this feature. Please contact the site administrators to request the required permissions.`,
+                color: "error",
+            };
+        }
+
         return {
             title: "Permission Denied",
             description:
@@ -161,7 +194,14 @@ function parseApiError(error: unknown): ErrorToastOptions {
         if (errorType === ERROR_TYPES.INVALID_INPUT && apiError.details?.validation_errors) {
             const validationErrors = apiError.details.validation_errors;
             const fieldErrors = Object.entries(validationErrors)
-                .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(", ") : String(errors)}`)
+                .map(([field, errors]) => {
+                    const errorStr = Array.isArray(errors)
+                        ? errors.join(", ")
+                        : typeof errors === "string"
+                        ? errors
+                        : JSON.stringify(errors);
+                    return `${field}: ${errorStr}`;
+                })
                 .join("; ");
             return {
                 title: "Validation Error",
@@ -176,42 +216,27 @@ function parseApiError(error: unknown): ErrorToastOptions {
         };
     }
 
-    // Handle rate limiting (429)
-    if (status === 429) {
-        const retryAfter = apiError.details?.retry_after;
-        const retryTime = typeof retryAfter === "number" ? retryAfter : 60;
-        return {
-            title: "Rate Limited",
-            description: `Too many requests. Please wait ${retryTime} seconds before trying again.`,
-            color: "warning",
-        };
-    }
-
     // Handle not found errors (404)
     if (status === 404) {
-        return {
-            title: "Not Found",
-            description: "The requested resource was not found. It may have been deleted or moved.",
-            color: "error",
-        };
+        switch (errorType) {
+            case ERROR_TYPES.NOT_FOUND:
+            default:
+                return {
+                    title: "Not Found",
+                    description: "The requested resource was not found. It may have been deleted or moved.",
+                    color: "error",
+                };
+        }
     }
 
     // Handle server errors (500+)
     if (status >= 500) {
-        const browserShortcut = navigator.platform.toLowerCase().includes("mac") ? "⌘+⌥+I" : "F12";
-
         switch (errorType) {
-            case ERROR_TYPES.DATABASE_ERROR:
+            case ERROR_TYPES.INTERNAL_ERROR:
                 return {
-                    title: "Database Error",
+                    title: "Internal Server Error",
                     description:
-                        "A database error occurred. Please try again later or contact administrators if the problem persists.",
-                    color: "error",
-                };
-            case ERROR_TYPES.EXTERNAL_SERVICE_ERROR:
-                return {
-                    title: "Service Unavailable",
-                    description: "An external service is temporarily unavailable. Please try again in a few minutes.",
+                        "An internal server error occurred. Please try again later or contact administrators if the problem persists.",
                     color: "error",
                 };
             default:
@@ -257,19 +282,39 @@ For troubleshooting:
 
 // Helper functions
 function isApiError(error: unknown): error is UnifiedApiError {
-    return (
+    // Check if it's a direct API error object
+    if (
         typeof error === "object" &&
         error !== null &&
         ("status" in error || "statusCode" in error) &&
         "message" in error
-    );
+    ) {
+        return true;
+    }
+
+    // Check if it's an Error object with a JSON string message containing API error
+    if (error instanceof Error && error.message) {
+        try {
+            const parsed = JSON.parse(error.message);
+            return (
+                typeof parsed === "object" &&
+                parsed !== null &&
+                ("status" in parsed || "statusCode" in parsed) &&
+                "message" in parsed
+            );
+        } catch {
+            return false;
+        }
+    }
+
+    return false;
 }
 
 function isNetworkError(error: unknown): boolean {
     return (
         error instanceof TypeError ||
-        (error as any)?.name === "NetworkError" ||
-        (error as any)?.code === "NETWORK_ERROR" ||
+        (error as Error)?.name === "NetworkError" ||
+        (error as { code?: string })?.code === "NETWORK_ERROR" ||
         navigator.onLine === false
     );
 }
@@ -278,7 +323,7 @@ export default defineNuxtPlugin({
     name: "global-error-handler",
     setup(nuxtApp) {
         const toast = useToast();
-        const { login, logout } = useAuth();
+        const { login } = useAuth();
 
         const options: ErrorHandlerOptions = {
             enableConsoleLogging: true,
@@ -292,7 +337,19 @@ export default defineNuxtPlugin({
 
         // Enhanced Vue error handler with component context
         nuxtApp.vueApp.config.errorHandler = (err: unknown, instance: ComponentPublicInstance | null, info: string) => {
-            const error = err instanceof Error ? err : new Error(String(err));
+            // Try to preserve the original error object if it's an API error
+            let error: unknown;
+            if (isApiError(err)) {
+                // If it's already a properly structured API error, use it directly
+                error = err;
+            } else if (err instanceof Error) {
+                error = err;
+            } else {
+                // Only wrap non-API errors in Error constructor
+                error = new Error(
+                    typeof err === "string" ? err : err && typeof err === "object" ? JSON.stringify(err) : String(err),
+                );
+            }
             const context: ErrorContext = {
                 component: instance?.$options.name || instance?.$options.__name || "Unknown",
                 lifecycle: info,
@@ -361,7 +418,7 @@ export default defineNuxtPlugin({
 
             // Check for network errors
             if (isNetworkError(error)) {
-                return handleNetworkError(error, context);
+                return handleNetworkError();
             }
 
             // Check if it's an API error from Vue components or unhandled promises
@@ -370,7 +427,7 @@ export default defineNuxtPlugin({
             }
 
             // Handle generic JavaScript errors
-            return handleGenericError(error, contextName, context);
+            return handleGenericError(error);
         }
 
         function handleApiError(error: UnifiedApiError, contextName: string, context?: ErrorContext): boolean {
@@ -378,24 +435,19 @@ export default defineNuxtPlugin({
 
             // Handle authentication errors (401)
             if (error.status === 401) {
-                return handleAuthError(error, context);
+                return handleAuthError(error);
             }
 
             // Handle authorization errors (403)
             if (error.status === 403) {
-                return handleAuthorizationError(error, context);
-            }
-
-            // Handle rate limiting (429)
-            if (error.status === 429) {
-                return handleRateLimitError(error, context);
+                return handleAuthorizationError(error);
             }
 
             // Handle retryable server errors
             if (options.retryableStatuses?.includes(error.status)) {
                 const shouldRetry = checkRetryEligibility(requestKey, context);
                 if (shouldRetry) {
-                    return scheduleRetry(error, requestKey, context);
+                    return scheduleRetry(error, requestKey);
                 }
             }
 
@@ -411,11 +463,9 @@ export default defineNuxtPlugin({
             return true;
         }
 
-        function handleAuthError(error: UnifiedApiError, context?: ErrorContext): boolean {
+        function handleAuthError(error: UnifiedApiError): boolean {
             // Clear any existing retry counters for auth errors
             errorState.retryCounters.clear();
-
-            const toastOptions = parseApiError(error);
 
             if (options.enableToastNotifications) {
                 const toastOptions = parseApiError(error);
@@ -433,7 +483,7 @@ export default defineNuxtPlugin({
             return true;
         }
 
-        function handleAuthorizationError(error: UnifiedApiError, context?: ErrorContext): boolean {
+        function handleAuthorizationError(error: UnifiedApiError): boolean {
             if (options.enableToastNotifications) {
                 const toastOptions = parseApiError(error);
                 toast.add({
@@ -444,23 +494,7 @@ export default defineNuxtPlugin({
             return true;
         }
 
-        function handleRateLimitError(error: UnifiedApiError, context?: ErrorContext): boolean {
-            const retryAfter = error.details?.retry_after;
-            const retryTime = typeof retryAfter === "number" ? retryAfter : 60;
-            const requestKey = context?.route || "unknown";
-
-            // Store rate limit reset time
-            errorState.rateLimitResets.set(requestKey, Date.now() + retryTime * 1000);
-
-            if (options.enableToastNotifications) {
-                const toastOptions = parseApiError(error);
-                toast.add(toastOptions);
-            }
-
-            return true;
-        }
-
-        function handleNetworkError(error: unknown, context?: ErrorContext): boolean {
+        function handleNetworkError(): boolean {
             errorState.lastNetworkError = new Date();
 
             if (options.enableToastNotifications) {
@@ -476,8 +510,31 @@ export default defineNuxtPlugin({
             return true;
         }
 
-        function handleGenericError(error: unknown, contextName: string, context?: ErrorContext): boolean {
-            const errorMessage = error instanceof Error ? error.message : String(error);
+        function handleGenericError(error: unknown): boolean {
+            let errorMessage: string;
+
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === "string") {
+                errorMessage = error;
+            } else if (error && typeof error === "object") {
+                // Try to extract meaningful information from error objects
+                const errorObj = error as Record<string, unknown>;
+                if (errorObj.message && typeof errorObj.message === "string") {
+                    errorMessage = errorObj.message;
+                } else if (errorObj.details && typeof errorObj.details === "object") {
+                    const details = errorObj.details as Record<string, unknown>;
+                    if (details.message && typeof details.message === "string") {
+                        errorMessage = details.message;
+                    } else {
+                        errorMessage = JSON.stringify(errorObj, null, 2);
+                    }
+                } else {
+                    errorMessage = JSON.stringify(errorObj, null, 2);
+                }
+            } else {
+                errorMessage = String(error);
+            }
 
             if (options.enableToastNotifications) {
                 toast.add({
@@ -508,7 +565,7 @@ export default defineNuxtPlugin({
             return currentRetries < maxRetries;
         }
 
-        function scheduleRetry(error: UnifiedApiError, requestKey: string, context?: ErrorContext): boolean {
+        function scheduleRetry(error: UnifiedApiError, requestKey: string): boolean {
             const currentRetries = errorState.retryCounters.get(requestKey) || 0;
             const newRetryCount = currentRetries + 1;
 

@@ -19,9 +19,9 @@
                             :color="currentPath[type] ? 'primary' : 'neutral'"
                             :variant="currentPath[type] ? 'solid' : 'ghost'"
                             trailing-icon="i-heroicons-chevron-down-20-solid"
-                            @click="handleToggleDropdown(type)"
                             class="transition-all duration-150 cursor-pointer"
                             size="lg"
+                            @click="handleToggleDropdown(type)"
                         >
                             <!-- Conditional icon: loading spinner or folder -->
                             <UIcon
@@ -90,7 +90,7 @@
                                             <div class="flex items-center text-xs">
                                                 <div
                                                     class="animate-spin rounded-full h-3 w-3 border border-space-300 border-t-transparent mr-2"
-                                                ></div>
+                                                />
                                                 Loading...
                                             </div>
                                         </div>
@@ -126,7 +126,6 @@ const {
     dropdowns,
     navigationOrder,
     loadDropdownData,
-    loadDropdownCascade,
     loadNavigationWithPriority,
     toggleDropdown,
     closeAllDropdowns,

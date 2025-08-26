@@ -6,7 +6,7 @@ interface User {
     preferred_username?: string;
     cern_roles?: string[];
     groups?: string[];
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 interface AuthState {
@@ -65,9 +65,9 @@ export function useAuth() {
             console.error("Authentication check failed:", error);
 
             // Distinguish between different types of errors
-            const apiError = error as any;
-            const status = apiError?.status || apiError?.statusCode || 500;
-            const errorType = apiError?.details?.error_type;
+            const apiError = error as Record<string, unknown>;
+            const status = (apiError?.status as number) || (apiError?.statusCode as number) || 500;
+            const errorType = (apiError?.details as Record<string, unknown>)?.error_type;
 
             // Only set authentication error for actual auth failures, not server/network issues
             if (status === 401 || status === 403 || errorType === "authentication_error") {
@@ -167,7 +167,7 @@ export function useAuth() {
             }
 
             throw new Error("No access token available. Please login.");
-        } catch (error) {
+        } catch {
             throw new Error("No access token available. Please login.");
         }
     }

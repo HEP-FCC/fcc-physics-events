@@ -7,8 +7,7 @@
 
 import type { Entity } from "~/types/entity";
 import type { BadgeColor } from "~/config/app.config";
-import { getBadgeColorWithFallback, getDeterministicBadgeColor } from "~/utils/badgeColors";
-import { APP_CONFIG } from "~/config/app.config";
+import { getDeterministicBadgeColor } from "~/utils/badgeColors";
 
 interface BadgeInfo {
     key: string;

@@ -57,14 +57,17 @@ export function useApiClient() {
                     console.warn("Token refresh failed:", response.message);
                     return false;
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error("Token refresh failed:", error);
 
                 // Check if it's a 401 error indicating refresh token is also expired
-                if (error?.status === 401 || error?.statusCode === 401) {
-                    console.log("Refresh token expired, redirecting to login...");
-                    // Clear any existing auth state and redirect to login
-                    await navigateTo(`${baseUrl}/login`);
+                if (error && typeof error === "object" && ("status" in error || "statusCode" in error)) {
+                    const statusError = error as { status?: number; statusCode?: number };
+                    if (statusError.status === 401 || statusError.statusCode === 401) {
+                        console.log("Refresh token expired, redirecting to login...");
+                        // Clear any existing auth state and redirect to login
+                        await navigateTo(`${baseUrl}/login`);
+                    }
                 }
 
                 return false;
@@ -131,8 +134,8 @@ export function useApiClient() {
                 // Determine error type for better error handling
                 const isNetworkError =
                     error instanceof TypeError ||
-                    (error as any)?.name === "NetworkError" ||
-                    (error as any)?.code === "NETWORK_ERROR" ||
+                    errorObj?.name === "NetworkError" ||
+                    errorObj?.code === "NETWORK_ERROR" ||
                     navigator.onLine === false;
 
                 const isServerError = status >= 500 && status < 600;
@@ -360,7 +363,7 @@ export function useApiClient() {
     /**
      * Generic GET method using the enhanced typedFetch with automatic token refresh
      */
-    const apiGet = async <T>(url: string, query?: Record<string, any>): Promise<T> => {
+    const apiGet = async <T>(url: string, query?: Record<string, string | number | boolean>): Promise<T> => {
         return typedFetch<T>(url, {
             method: "GET",
             query,

@@ -47,7 +47,7 @@ export const useSearchAutocomplete = () => {
     ];
 
     // Boolean operators
-    const booleanOperators = [
+    const _booleanOperators = [
         { value: "AND", description: "logical AND" },
         { value: "OR", description: "logical OR" },
         { value: "NOT", description: "logical NOT" },
@@ -168,7 +168,7 @@ export const useSearchAutocomplete = () => {
         const segments = trimmed.split(/\b(AND|OR|NOT)\b/i);
 
         // Get the last segment (what we're currently working on)
-        let currentSegment = segments[segments.length - 1].trim();
+        const currentSegment = segments[segments.length - 1].trim();
 
         // If the current segment is empty and the previous token was a boolean operator,
         // suggest field names
@@ -239,7 +239,6 @@ export const useSearchAutocomplete = () => {
 
         if (fieldMatch) {
             const fieldName = fieldMatch[1];
-            const hasTrailingSpace = fieldMatch[2].length > 0;
 
             // Check if this is a valid field name
             const isValidField = fieldNames.value.some((f) => f.toLowerCase() === fieldName.toLowerCase());

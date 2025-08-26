@@ -20,7 +20,7 @@ const isLoaded = ref(false);
 const isLoading = ref(false);
 
 export const useAppConfiguration = () => {
-    const { getSchemaConfig, baseUrl } = useApiClient();
+    const { baseUrl } = useApiClient();
 
     // Check API availability
     const apiAvailable = computed(() => !!baseUrl);

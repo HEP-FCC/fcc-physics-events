@@ -5,7 +5,7 @@
 
         <!-- Search Controls -->
         <SearchControls
-            :key="`search-controls-stable`"
+            key="search-controls-stable"
             v-model:search-query="search.userSearchQuery.value"
             :search-placeholder-text="search.searchPlaceholderText.value"
             :show-filter-note="search.showFilterNote.value"
@@ -170,9 +170,6 @@ const props = withDefaults(defineProps<Props>(), {
     routeParams: () => [],
 });
 
-// Dynamic navigation composable
-const { parseRouteToPath } = useDynamicNavigation();
-
 // Composables
 const search = useEntitySearch();
 const selection = useEntitySelection();
@@ -199,16 +196,6 @@ const handleScroll = () => {
 
 // Reactive state for duplicate search prevention
 const lastSearchKey = ref<string>("");
-
-// Computed current path from route params (for watcher consistency)
-const currentPath = computed(() => {
-    try {
-        return parseRouteToPath(props.routeParams);
-    } catch (error) {
-        console.error("Error parsing route to path:", error);
-        return {};
-    }
-});
 
 // Memoized selection state computations
 const allEntitiesSelected = computed(() => selection.getAllEntitiesSelected(search.entities.value as Entity[]));

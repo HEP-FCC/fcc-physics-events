@@ -87,7 +87,7 @@ interface Props {
     logoutOnly?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     mobileCompact: false,
     userInfoOnly: false,
     logoutOnly: false,

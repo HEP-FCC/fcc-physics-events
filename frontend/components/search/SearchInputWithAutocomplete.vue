@@ -40,6 +40,16 @@
 </template>
 
 <script setup lang="ts">
+// Imports
+import AutocompleteDropdown from "./AutocompleteDropdown.vue";
+
+// Types
+interface SuggestionItem {
+    value: string;
+    type: "field" | "operator" | "value";
+    description?: string;
+}
+
 interface Props {
     modelValue: string;
     placeholder?: string;
@@ -48,9 +58,7 @@ interface Props {
 
 interface Emits {
     (e: "update:modelValue", value: string): void;
-    (e: "enter"): void;
-    (e: "focus"): void;
-    (e: "blur"): void;
+    (e: "enter" | "focus" | "blur"): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -59,9 +67,6 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
-
-// Imports
-import AutocompleteDropdown from "./AutocompleteDropdown.vue";
 
 // Composables
 const autocomplete = useSearchAutocomplete();
@@ -89,6 +94,7 @@ const inputElement = computed(() => {
 
     // For UInput component, we need to find the actual input element
     if ("$el" in element) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const uInputEl = (element as any).$el;
         return uInputEl?.querySelector("input") || uInputEl || null;
     }
@@ -373,7 +379,7 @@ const resetAutocompleteState = () => {
     autocomplete.setSelectedIndex(-1);
 };
 
-const handleSuggestionSelect = (suggestion: any) => {
+const handleSuggestionSelect = (suggestion: SuggestionItem) => {
     applySuggestion(suggestion);
 };
 
@@ -386,7 +392,7 @@ const handleSuggestionHighlight = (index: number) => {
     }
 };
 
-const applySuggestion = (suggestion: any) => {
+const applySuggestion = (suggestion: SuggestionItem) => {
     const result = autocomplete.applySuggestion(inputValue.value, cursorPosition.value, suggestion);
 
     inputValue.value = result.newQuery;

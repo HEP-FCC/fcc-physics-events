@@ -117,14 +117,14 @@ class CERNAuthenticator:
     @staticmethod
     def jwt_encode_str(string: str) -> str:
         return jwt.encode(
-            {"data": string}, config["general.SECRET_KEY"], algorithm="HS256"
+            {"data": string}, config["general.application_secret_key"], algorithm="HS256"
         )
 
     @staticmethod
     def jwt_decode_str(string: str) -> str:
         decoded_payload = jwt.decode(
             string,
-            config["general.SECRET_KEY"],
+            config["general.application_secret_key"],
             algorithms=["HS256"],
             options={"verify_signature": True, "verify_exp": False},
         )

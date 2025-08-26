@@ -69,12 +69,10 @@ import AuthSection from "~/components/auth/AuthSection.vue";
 import AppFooter from "~/components/AppFooter.vue";
 import ContactModal from "~/components/ContactModal.vue";
 
-// Auto-imported: useAuth, useDynamicNavigation, useAppConfiguration, useRouter
-
 // Check authentication status on app initialization
 const { checkAuthStatus, user } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
-const { appTitle, mainTableDisplayName } = useAppConfiguration();
+const { appTitle } = useAppConfiguration();
 const router = useRouter();
 const route = useRoute();
 
@@ -100,7 +98,7 @@ const handleLogoClick = async (event: Event) => {
 };
 
 onMounted(async () => {
-    // Initialize navigation configuration globally (early initialization for better UX)
+    // Initialize navigation configuration globally
     await initializeNavigation();
 
     // Check authentication status

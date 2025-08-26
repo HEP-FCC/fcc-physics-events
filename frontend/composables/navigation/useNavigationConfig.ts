@@ -184,7 +184,7 @@ export const useNavigationConfig = () => {
             });
 
             // Wait for all preload operations to complete
-            const results = await Promise.allSettled(preloadPromises);
+            const _results = await Promise.allSettled(preloadPromises);
         } catch (error) {
             console.warn("Error during dropdown preloading:", error);
         }

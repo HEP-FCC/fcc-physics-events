@@ -139,9 +139,9 @@ export const useMetadataPreferences = () => {
     /**
      * Get metadata badges for an entity based on selected preferences
      */
-    const getMetadataBadges = (
-        entity: any,
-    ): Array<{
+    const getMetadataBadges = (entity: {
+        metadata?: Record<string, unknown>;
+    }): Array<{
         key: string;
         label: string;
         value: string;
@@ -152,7 +152,7 @@ export const useMetadataPreferences = () => {
         }
 
         return globalSelectedFields.value.map((fieldName: string) => {
-            const value = entity.metadata[fieldName];
+            const value = entity.metadata?.[fieldName];
             const displayValue = value !== undefined && value !== null ? String(value) : "NONE";
 
             return {
@@ -167,7 +167,7 @@ export const useMetadataPreferences = () => {
     /**
      * Get all available metadata fields from a collection of entities - optimized
      */
-    const getAvailableFields = (entities: any[]): string[] => {
+    const getAvailableFields = (entities: Array<{ metadata?: Record<string, unknown> }>): string[] => {
         const fieldsSet = new Set<string>();
 
         entities.forEach((entity) => {
@@ -188,13 +188,13 @@ export const useMetadataPreferences = () => {
     /**
      * Get metadata fields that are currently locked across entities - optimized
      */
-    const getLockedFields = (entities: any[]): Set<string> => {
+    const getLockedFields = (entities: Array<{ metadata?: Record<string, unknown> }>): Set<string> => {
         const lockedFields = new Set<string>();
 
         entities.forEach((entity) => {
             if (entity.metadata) {
                 Object.keys(entity.metadata).forEach((key) => {
-                    if (key.includes("__lock__") && entity.metadata[key]) {
+                    if (key.includes("__lock__") && entity.metadata?.[key]) {
                         const fieldName = key.replace("__", "").replace("__lock__", "");
                         lockedFields.add(fieldName);
                     }

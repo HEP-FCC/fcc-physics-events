@@ -1,8 +1,8 @@
 <template>
     <div
+        v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing, lockStatesForTemplate]"
         class="rounded border-t bg-white"
         style="border-color: var(--theme-light-border-primary)"
-        v-memo="[props.entityId, Object.keys(props.metadata).length, editState?.isEditing, lockStatesForTemplate]"
     >
         <!-- Editing Mode -->
         <div v-if="editState?.isEditing" class="p-6">
@@ -375,7 +375,6 @@ interface Props {
 interface Emits {
     (e: "enterEdit", entityId: number, metadata: Record<string, unknown>): void;
     (e: "cancelEdit" | "saveMetadata", entityId: number, editedJson?: string): void;
-    (e: "refreshEntity", entityId: number): void;
 }
 
 const props = defineProps<Props>();
@@ -520,17 +519,6 @@ const updateLockStatesForTemplate = () => {
 
 // Watch for changes and update template state
 watch([localLockStates, () => props.metadata], updateLockStatesForTemplate, { deep: true, immediate: true });
-
-// Keep the old computed for backward compatibility but base it on the new one
-const lockedFieldsSet = computed(() => {
-    const lockedFields = new Set<string>();
-    Object.entries(lockStatesForTemplate.value).forEach(([fieldName, isLocked]) => {
-        if (isLocked) {
-            lockedFields.add(fieldName);
-        }
-    });
-    return lockedFields;
-});
 
 const isFieldLocked = (fieldName: string): boolean => {
     return !!lockStatesForTemplate.value[fieldName];
@@ -865,52 +853,9 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
     });
 });
 
-// Group fields by priority for desktop layout
-const getGroupedFieldsComputed = computed(() => {
-    const allFields = getAllFieldsComputed.value;
-    const groups: Array<{ priority: number; fields: UnifiedField[] }> = [];
-
-    // Group by priority for visual separation
-    const groupMap = new Map<number, UnifiedField[]>();
-    allFields.forEach((field) => {
-        if (!groupMap.has(field.priority)) {
-            groupMap.set(field.priority, []);
-        }
-        groupMap.get(field.priority)!.push(field);
-    });
-
-    // Convert to array format expected by template
-    Array.from(groupMap.entries())
-        .sort(([a], [b]) => a - b)
-        .forEach(([priority, fields]) => {
-            groups.push({ priority, fields });
-        });
-
-    return groups;
-});
-
 // UNIFIED STYLING FUNCTIONS - Preference for Tailwind classes over CSS variables
 
-// Helper function to generate Tailwind class names for custom colors
-const getFieldColorClasses = (field: UnifiedField) => {
-    const semanticColor = getSemanticColorForFieldType(resolveFieldSemanticColor(field));
-    return {
-        bg50: `bg-${semanticColor}-50`,
-        bg100: `bg-${semanticColor}-100`,
-        bg300: `bg-${semanticColor}-300`,
-
-        border200: `border-${semanticColor}-200`,
-
-        text600: `text-${semanticColor}-600`,
-        text700: `text-${semanticColor}-700`,
-        text800: `text-${semanticColor}-800`,
-
-        hoverBg100: `hover:bg-${semanticColor}-100`,
-        hoverText700: `hover:text-${semanticColor}-700`,
-    };
-};
-
-const getUnifiedIconContainerClass = (field: UnifiedField): string => {
+const getUnifiedIconContainerClass = (_field: UnifiedField): string => {
     return "flex-shrink-0 flex items-center justify-center w-4 h-4 rounded";
 };
 
@@ -1001,7 +946,7 @@ const getUnifiedFieldColorClass = (): string => {
     return "group relative overflow-hidden rounded border transition-colors duration-200 shadow-sm";
 };
 
-const getUnifiedFieldStyle = (field: UnifiedField, isHeader: Boolean = false): Record<string, string> => {
+const getUnifiedFieldStyle = (field: UnifiedField, isHeader: boolean = false): Record<string, string> => {
     const colors = getFieldColorsMemoized(field);
 
     if (field.key === "path" || field.key === "comment" || field.key == "description") {

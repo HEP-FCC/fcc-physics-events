@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Entity, ScrollState, SortState, SearchState } from "~/types/entity";
+import type { Entity } from "~/types/entity";
 import type { SelectionState, MetadataEditState } from "~/types/api";
 import EntityMetadata from "./EntityMetadata.vue";
 
@@ -112,24 +112,15 @@ import EntityMetadata from "./EntityMetadata.vue";
 
 interface Props {
     entities: Entity[];
-    scrollState: ScrollState;
-    sortState: SortState;
     selectionState: SelectionState;
-    searchState: SearchState;
     metadataEditState: Record<number, MetadataEditState>;
-    infiniteScrollEnabled: boolean;
-    sortingFieldOptions: Array<{ label: string; value: string }>;
-    currentDisplayRange: { start: number; end: number; total: number };
-    shouldShowLoadingIndicator: boolean;
-    shouldShowCompletionMessage: boolean;
     activeFilters?: Record<string, string>;
 }
 
 interface Emits {
-    (e: "toggleEntitySelection" | "toggleMetadata" | "cancelEdit", entityId: number): void;
+    (e: "toggleEntitySelection" | "toggleMetadata" | "cancelEdit" | "refreshEntity", entityId: number): void;
     (e: "saveMetadata", entityId: number, editedJson?: string): void;
     (e: "enterEditMode", entityId: number, metadata: Record<string, unknown>): void;
-    (e: "refreshEntity", entityId: number): void;
 }
 
 const props = defineProps<Props>();

@@ -75,7 +75,7 @@ interface Props {
     iconOnly?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     iconOnly: false,
 });
 

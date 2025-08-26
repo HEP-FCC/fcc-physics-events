@@ -48,7 +48,7 @@ export function useEntitySearch() {
     let isLoadingLock = false;
 
     // Track when initial search has completed and stabilized
-    let hasCompletedInitialSearch = false;
+    let _hasCompletedInitialSearch = false;
 
     // Track when infinite scroll should be active (delayed after initial search)
     const isInfiniteScrollActive = ref(false);
@@ -249,7 +249,7 @@ export function useEntitySearch() {
             if (!currentRequestController?.signal.aborted) {
                 if (isInitialLoad) {
                     searchState.isLoading = false;
-                    hasCompletedInitialSearch = true;
+                    _hasCompletedInitialSearch = true;
                     // Enable infinite scroll when initial search has results
                     if (entities.value.length > 0) {
                         // Use nextTick to ensure DOM is updated before enabling infinite scroll

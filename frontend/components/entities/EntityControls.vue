@@ -30,7 +30,7 @@
                 </UButton>
             </UDropdownMenu>
 
-            <div class="h-6 w-px bg-deep-blue-400"></div>
+            <div class="h-6 w-px bg-deep-blue-400"/>
 
             <UButton
                 :icon="allMetadataExpanded ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"

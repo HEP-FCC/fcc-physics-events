@@ -210,6 +210,9 @@
 </template>
 
 <script setup lang="ts">
+// Import Schema Viewer component
+import SearchInputWithAutocomplete from "./SearchInputWithAutocomplete.vue";
+
 interface Props {
     searchQuery: string;
     searchPlaceholderText: string;
@@ -226,9 +229,6 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
-
-// Import Schema Viewer component
-import SearchInputWithAutocomplete from "./SearchInputWithAutocomplete.vue";
 
 // Search query model with emit on update
 const searchQuery = computed({
@@ -258,13 +258,6 @@ function showSuccessNotification(): void {
     setTimeout(() => {
         showLinkCopiedFeedback.value = false;
     }, 2000);
-}
-
-/**
- * Toggle help tooltip visibility
- */
-function toggleHelpTooltip(): void {
-    showHelpTooltip.value = !showHelpTooltip.value;
 }
 
 /**
