@@ -33,7 +33,7 @@ function loadRedirectConfig(): RedirectConfig {
  */
 export default defineEventHandler(async (event) => {
     // Only handle GET requests for HTML pages
-    if (getMethod(event) !== "GET") {
+    if (event.method !== "GET") {
         return;
     }
 
