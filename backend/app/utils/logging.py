@@ -14,7 +14,7 @@ import structlog
 from app.utils.config import get_config
 
 config = get_config()
-LOG_LEVEL = config.get("general.log_level", "INFO").upper()
+LOG_LEVEL = config.get("general.log_level", "INFO").strip().upper()
 
 # Flag to track if logging has been configured
 _logging_configured = False

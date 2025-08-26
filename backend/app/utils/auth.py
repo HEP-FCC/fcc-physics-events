@@ -3,23 +3,14 @@ Production-ready authentication module for CERN SSO integration.
 Handles JWT token validation, CERN OAuth introspection, and secure token management.
 """
 
-import logging
 from typing import Any
 
-import aiohttp
-import httpx
 import jwt
 from authlib.integrations.starlette_client import OAuth
 from fastapi import HTTPException, Request, Response, status
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from app.utils.config import get_config
+from app.utils.http_client import create_http_client
 from app.utils.logging import get_logger
 
 # Load configuration
@@ -45,21 +36,12 @@ class CERNAuthenticator:
         self.jwks_keys: dict[str, Any] | None = None
         self.config_cache_time: float = 0.0
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type(httpx.RequestError),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-    )
     async def _fetch_with_retry(
         self, url: str, timeout: float = 10.0
     ) -> dict[str, Any]:
-        """Fetch data from URL with retry logic using tenacity."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=timeout)
-            response.raise_for_status()
-            result: dict[str, Any] = response.json()
-            return result
+        """Fetch JSON data from URL with retry logic using our retrying HTTP client."""
+        async with create_http_client() as http_client:
+            return await http_client.get_json(url, timeout=timeout)
 
     async def get_jwks_keys(self) -> dict[str, Any]:
         # First fetch OIDC config, then use it to fetch JWKS keys
@@ -79,9 +61,9 @@ class CERNAuthenticator:
 
         introspection_endpoint = oidc_config["introspection_endpoint"]
 
-        # TODO: post with retry, or rather better retrying client
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
+        # Use our retrying HTTP client for the introspection request
+        async with create_http_client() as http_client:
+            async with await http_client.post(
                 introspection_endpoint,
                 data={
                     "token": token,
@@ -90,19 +72,18 @@ class CERNAuthenticator:
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=10.0,
-            )
-            response.raise_for_status()
-            user_data: dict[str, Any] = response.json()
+            ) as response:
+                user_data: dict[str, Any] = await response.json()
 
-            username = user_data.get("preferred_username", "unknown")
-            if not user_data["active"]:
-                # When CERN tokens become inactive, it's typically due to expiration
-                raise jwt.ExpiredSignatureError(
-                    f"Auth token for user {username} has expired."
-                )
+                username = user_data.get("preferred_username", "unknown")
+                if not user_data["active"]:
+                    # When CERN tokens become inactive, it's typically due to expiration
+                    raise jwt.ExpiredSignatureError(
+                        f"Auth token for user {username} has expired."
+                    )
 
-            logger.info(f"Successfully introspected token for user: {username}")
-            return user_data
+                logger.info(f"Successfully introspected token for user: {username}")
+                return user_data
 
     async def validate_user_from_token(self, token: str) -> dict[str, Any]:
         user_data = await self.introspect_token(token)
@@ -117,7 +98,9 @@ class CERNAuthenticator:
     @staticmethod
     def jwt_encode_str(string: str) -> str:
         return jwt.encode(
-            {"data": string}, config["general.application_secret_key"], algorithm="HS256"
+            {"data": string},
+            config["general.application_secret_key"],
+            algorithm="HS256",
         )
 
     @staticmethod
@@ -155,10 +138,9 @@ async def load_cern_endpoints() -> None:
     """Load CERN OIDC well-known endpoint data at startup."""
     global CERN_ENDPOINTS
     if not CERN_ENDPOINTS:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(CERN_OIDC_URL) as response:
-                response.raise_for_status()
-                CERN_ENDPOINTS.update(await response.json())
+        async with create_http_client() as http_client:
+            endpoint_data = await http_client.get_json(CERN_OIDC_URL)
+            CERN_ENDPOINTS.update(endpoint_data)
 
 
 async def try_refresh_token(refresh_token: str) -> dict[str, Any] | None:
@@ -179,9 +161,9 @@ async def try_refresh_token(refresh_token: str) -> dict[str, Any] | None:
         if not CERN_ENDPOINTS:
             await load_cern_endpoints()
 
-        # Use manual aiohttp approach for token refresh to handle nonce properly
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
+        # Use our retrying HTTP client for token refresh
+        async with create_http_client() as http_client:
+            async with await http_client.post(
                 # Use the token endpoint from well-known OIDC configuration
                 url=CERN_ENDPOINTS["token_endpoint"],
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -299,27 +281,27 @@ async def validate_token_and_get_user(
         else:
             # If no cern_roles in introspection, try userinfo endpoint
             try:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(
+                async with create_http_client() as http_client:
+                    async with await http_client.get(
                         "https://auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo",
                         headers={"Authorization": f"Bearer {access_token}"},
                         timeout=10.0,
-                    )
-                    if response.status_code == 200:
-                        userinfo_data = response.json()
-                        if "cern_roles" in userinfo_data:
-                            userinfo["cern_roles"] = userinfo_data["cern_roles"]
-                            logger.debug(
-                                "Added CERN roles from userinfo endpoint: %s",
-                                userinfo.get("cern_roles", []),
-                            )
-                        # Also check for groups
-                        if "groups" in userinfo_data:
-                            userinfo["groups"] = userinfo_data["groups"]
-                            logger.debug(
-                                "Added groups from userinfo endpoint: %s",
-                                userinfo.get("groups", []),
-                            )
+                    ) as response:
+                        if response.status == 200:
+                            userinfo_data = await response.json()
+                            if "cern_roles" in userinfo_data:
+                                userinfo["cern_roles"] = userinfo_data["cern_roles"]
+                                logger.debug(
+                                    "Added CERN roles from userinfo endpoint: %s",
+                                    userinfo.get("cern_roles", []),
+                                )
+                            # Also check for groups
+                            if "groups" in userinfo_data:
+                                userinfo["groups"] = userinfo_data["groups"]
+                                logger.debug(
+                                    "Added groups from userinfo endpoint: %s",
+                                    userinfo.get("groups", []),
+                                )
             except Exception as e:
                 logger.warning(f"Failed to fetch from userinfo endpoint: {e}")
     except Exception as e:
