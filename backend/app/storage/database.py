@@ -1196,6 +1196,7 @@ class Database:
         primary_key_column: str,
         entity_id: int,
         user_info: dict[str, Any] | None = None,
+        force_override: bool = False,
     ) -> tuple[list[str], list[str | int]]:
         """Prepare update fields and values for the update query."""
         # Always update updated_at for any operation
@@ -1216,7 +1217,12 @@ class Database:
 
             if field_name == "metadata" and isinstance(field_value, dict):
                 processed_value = await self._process_metadata_field(
-                    conn, field_value, entity_id, main_table, primary_key_column
+                    conn,
+                    field_value,
+                    entity_id,
+                    main_table,
+                    primary_key_column,
+                    force_override,
                 )
             else:
                 processed_value = field_value
@@ -1296,15 +1302,24 @@ class Database:
         entity_id: int,
         main_table: str,
         primary_key_column: str,
+        force_override: bool = False,
     ) -> str:
         """Process metadata field with locked field handling."""
         current_metadata = await self._get_current_metadata(
             conn, entity_id, main_table, primary_key_column
         )
 
-        merged_metadata = self._merge_metadata_with_locks(current_metadata, field_value)
+        if force_override:
+            # For force override, merge without respecting locks
+            merged_metadata = self._merge_metadata_force_override(
+                current_metadata, field_value
+            )
+        else:
+            merged_metadata = self._merge_metadata_with_locks(
+                current_metadata, field_value
+            )
 
-        self._log_metadata_processing(current_metadata, field_value, merged_metadata)
+        logger.debug(f"Final merged metadata keys: {list(merged_metadata.keys())}")
 
         filtered_metadata = self._filter_empty_metadata_values(merged_metadata)
         return json.dumps(filtered_metadata)
@@ -1410,26 +1425,18 @@ class Database:
                 merged_metadata.pop(key, None)
                 logger.debug(f"Explicit unlock - removing field: {key}")
 
-    def _log_metadata_processing(
-        self,
-        current_metadata: dict[str, Any],
-        field_value: dict[str, Any],
-        merged_metadata: dict[str, Any],
-    ) -> None:
-        """Log metadata processing information."""
-        logger.info(
-            f"Database update_entity - Current metadata keys: {list(current_metadata.keys())}"
-        )
-        logger.info(
-            f"Database update_entity - Update data keys: {list(field_value.keys())}"
-        )
-        logger.info(
-            f"Database update_entity - Current lock fields: {[k for k in current_metadata.keys() if '__lock__' in k]}"
-        )
-        logger.debug(f"Final merged metadata keys: {list(merged_metadata.keys())}")
-        logger.info(
-            f"Database update_entity - Final lock fields: {[k for k in merged_metadata.keys() if '__lock__' in k]}"
-        )
+    def _merge_metadata_force_override(
+        self, current_metadata: dict[str, Any], new_metadata: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Merge metadata with force override - ignore all lock constraints."""
+        merged_metadata = current_metadata.copy()
+
+        # Apply all updates from new_metadata, ignoring lock status
+        for key, value in new_metadata.items():
+            merged_metadata[key] = value
+            logger.debug(f"Force override - updating field: {key}")
+
+        return merged_metadata
 
     async def _execute_update_query(
         self,
@@ -1561,6 +1568,365 @@ class Database:
                 except Exception as e:
                     logger.error(f"Error deleting entities: {e}")
                     raise RuntimeError(f"Failed to delete entities: {str(e)}")
+
+    async def bulk_override_entities(
+        self,
+        entities: list[dict[str, Any]],
+        user_info: dict[str, Any] | None = None,
+        force_override: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Bulk override entities with field locking and transaction management.
+
+        Args:
+            entities: List of entity dictionaries to update
+            user_info: User information for audit logging
+            force_override: If True, ignore field locks and force the update
+
+        Returns:
+            Dictionary with operation results, including lock conflicts if any
+        """
+        main_table = self.config["application"]["main_table"]
+
+        async with self.session() as conn:
+            primary_key_column = await self._get_main_table_primary_key(
+                conn, main_table
+            )
+
+            # Use a transaction for atomicity
+            async with conn.transaction():
+                lock_conflicts = []
+                entities_to_update = []
+
+                # Phase 1: Resolve UUIDs and check locks
+                for entity_data in entities:
+                    try:
+                        # Try to resolve entity by UUID or compute UUID
+                        resolved_entity = await self._resolve_entity_for_override(
+                            conn, entity_data, main_table, primary_key_column
+                        )
+
+                        if not resolved_entity:
+                            continue  # Skip entities that can't be resolved
+
+                        entity_id = resolved_entity["entity_id"]
+                        entity_uuid = resolved_entity["entity_uuid"]
+
+                        # Check for lock conflicts
+                        current_entity = await self._get_entity_with_metadata(
+                            conn, entity_id, main_table, primary_key_column
+                        )
+
+                        if not current_entity:
+                            continue
+
+                        # Extract metadata and check locks for fields being updated
+                        # Parse metadata if it's a string (JSON)
+                        raw_metadata = current_entity.get("metadata", {})
+                        if isinstance(raw_metadata, str):
+                            try:
+                                current_metadata = json.loads(raw_metadata)
+                            except (json.JSONDecodeError, TypeError):
+                                current_metadata = {}
+                        elif isinstance(raw_metadata, dict):
+                            current_metadata = raw_metadata
+                        else:
+                            current_metadata = {}
+
+                        conflicted_fields = {}
+
+                        # Only check for lock conflicts if force_override is False
+                        if not force_override:
+                            for field_name in entity_data.keys():
+                                if field_name in ["uuid"]:  # Skip special fields
+                                    continue
+
+                                lock_field_name = f"__{field_name}__lock__"
+                                if current_metadata.get(lock_field_name):
+                                    conflicted_fields[field_name] = {
+                                        "locked": True,
+                                        "current_value": current_metadata.get(
+                                            field_name
+                                        ),
+                                        "attempted_value": entity_data[field_name],
+                                    }
+
+                        if conflicted_fields and not force_override:
+                            # Add to conflict list
+                            lock_conflicts.append(
+                                {
+                                    "entity_id": entity_id,
+                                    "entity_uuid": entity_uuid,
+                                    "locked_fields": conflicted_fields,
+                                    "entity_data": current_entity,
+                                }
+                            )
+                        else:
+                            # Add to update list (either no conflicts or force_override is True)
+                            entities_to_update.append(
+                                {
+                                    "entity_id": entity_id,
+                                    "entity_uuid": entity_uuid,
+                                    "update_data": entity_data,
+                                }
+                            )
+
+                    except Exception as e:
+                        logger.error(f"Error processing entity {entity_data}: {e}")
+                        continue
+
+                # If any lock conflicts and force_override is False, rollback and return conflicts
+                if lock_conflicts and not force_override:
+                    # Transaction will automatically rollback
+                    return {
+                        "success": False,
+                        "message": f"Lock conflicts detected for {len(lock_conflicts)} entities. No changes were made.",
+                        "entities_processed": 0,
+                        "lock_conflicts": lock_conflicts,
+                    }
+
+                # Phase 2: Apply updates and create locks
+                updated_entities = []
+
+                for entity_update in entities_to_update:
+                    try:
+                        entity_id = entity_update["entity_id"]
+                        update_data = entity_update["update_data"].copy()
+
+                        # Remove UUID from update data if present
+                        update_data.pop("uuid", None)
+
+                        # Get valid table columns to separate table fields from metadata fields
+                        valid_columns = await self._get_valid_table_columns(
+                            conn, main_table
+                        )
+
+                        # Separate table columns from metadata fields
+                        table_fields = {}
+                        metadata_fields = {}
+
+                        for field_name, field_value in update_data.items():
+                            if field_name in valid_columns:
+                                table_fields[field_name] = field_value
+                            else:
+                                metadata_fields[field_name] = field_value
+
+                        logger.info(
+                            f"Field separation - Table fields: {list(table_fields.keys())}, Metadata fields: {list(metadata_fields.keys())}"
+                        )
+
+                        # Prepare the properly structured update data
+                        structured_update_data = table_fields.copy()
+
+                        # If we have metadata fields to update, add them to the metadata structure
+                        if metadata_fields:
+                            if "metadata" not in structured_update_data:
+                                structured_update_data["metadata"] = {}
+
+                            # Add the individual metadata fields
+                            for field_name, field_value in metadata_fields.items():
+                                structured_update_data["metadata"][field_name] = (
+                                    field_value
+                                )
+
+                        # Create locks for all fields being updated (both table and metadata fields)
+                        if "metadata" not in structured_update_data:
+                            structured_update_data["metadata"] = {}
+
+                        # Add lock fields for each field being updated
+                        all_field_names = list(table_fields.keys()) + list(
+                            metadata_fields.keys()
+                        )
+                        for field_name in all_field_names:
+                            lock_field_name = f"__{field_name}__lock__"
+                            if isinstance(structured_update_data["metadata"], dict):
+                                structured_update_data["metadata"][lock_field_name] = (
+                                    True
+                                )
+                            else:
+                                # Handle case where metadata is not a dict
+                                structured_update_data["metadata"] = {
+                                    lock_field_name: True
+                                }
+
+                        logger.info(
+                            f"Final structured update data: {structured_update_data}"
+                        )
+
+                        # Update the entity using existing update logic
+                        update_fields, values = await self._prepare_update_fields(
+                            conn,
+                            structured_update_data,
+                            main_table,
+                            primary_key_column,
+                            entity_id,
+                            user_info,
+                            force_override,
+                        )
+
+                        await self._execute_update_query(
+                            conn,
+                            update_fields,
+                            values,
+                            entity_id,
+                            primary_key_column,
+                            main_table,
+                            user_info,
+                        )
+
+                        # Get updated entity for response
+                        updated_entity = await self._get_entity_with_metadata(
+                            conn, entity_id, main_table, primary_key_column
+                        )
+
+                        if updated_entity:
+                            updated_entities.append(updated_entity)
+
+                    except Exception as e:
+                        logger.error(
+                            f"Error updating entity {entity_update['entity_id']}: {e}"
+                        )
+                        # On any error, let the transaction rollback
+                        raise
+
+                force_override_msg = (
+                    " (force override enabled)" if force_override else ""
+                )
+                logger.info(
+                    f"Successfully updated {len(updated_entities)} entities in bulk override operation{force_override_msg} by user {user_info.get('preferred_username', 'unknown') if user_info else 'unknown'}"
+                )
+
+                success_message = (
+                    f"Successfully updated {len(updated_entities)} entities"
+                )
+                if force_override:
+                    success_message += " with force override (bypassed field locks)"
+                else:
+                    success_message += " with field locks applied"
+
+                return {
+                    "success": True,
+                    "message": success_message,
+                    "entities_processed": len(updated_entities),
+                    "updated_entities": updated_entities,
+                }
+
+    async def _resolve_entity_for_override(
+        self,
+        conn: asyncpg.Connection,
+        entity_data: dict[str, Any],
+        main_table: str,
+        primary_key_column: str,
+    ) -> dict[str, Any] | None:
+        """
+        Resolve entity ID and UUID for override operation.
+
+        Returns dict with entity_id and entity_uuid, or None if not resolvable.
+        """
+        # Case 1: UUID provided directly
+        if "uuid" in entity_data:
+            entity_uuid = entity_data["uuid"]
+            query = (
+                f"SELECT {primary_key_column}, uuid FROM {main_table} WHERE uuid = $1"
+            )
+            result = await conn.fetchrow(query, entity_uuid)
+
+            if result:
+                return {
+                    "entity_id": result[primary_key_column],
+                    "entity_uuid": result["uuid"],
+                }
+            else:
+                logger.warning(f"Entity with UUID {entity_uuid} not found")
+                return None
+
+        # Case 2: Compute UUID from available properties
+        try:
+            # Get the navigation table info to compute UUID
+            schema_discovery = await get_schema_discovery(conn)
+            navigation_analysis = await schema_discovery.analyze_navigation_structure(
+                main_table
+            )
+
+            # Extract foreign key values for UUID computation
+            foreign_key_ids = {}
+            entity_name = entity_data.get("name")
+
+            if not entity_name:
+                logger.warning("Cannot compute UUID: 'name' field is required")
+                return None
+
+            # Map entity data to foreign key IDs
+            for entity_key, nav_info in navigation_analysis[
+                "navigation_tables"
+            ].items():
+                # entity_key is like "accelerator", "stage", etc.
+                # nav_info contains "table_name", "foreign_key_column", etc.
+
+                if entity_key in entity_data:
+                    table_name = nav_info["table_name"]
+                    primary_key_col = nav_info.get(
+                        "primary_key", "id"
+                    )  # Default to 'id'
+                    foreign_key_col = nav_info["foreign_key_column"]
+
+                    # Look up the ID for this entity
+                    lookup_query = (
+                        f"SELECT {primary_key_col} FROM {table_name} WHERE name = $1"
+                    )
+                    lookup_result = await conn.fetchrow(
+                        lookup_query, entity_data[entity_key]
+                    )
+
+                    if lookup_result:
+                        foreign_key_ids[foreign_key_col] = lookup_result[
+                            primary_key_col
+                        ]
+                    else:
+                        logger.warning(
+                            f"Cannot find {entity_key} with name '{entity_data[entity_key]}'"
+                        )
+                        return None
+
+            # Generate UUID using the same logic as dataset creation
+            computed_uuid = str(generate_dataset_uuid(entity_name, **foreign_key_ids))
+
+            # Look up entity by computed UUID
+            query = (
+                f"SELECT {primary_key_column}, uuid FROM {main_table} WHERE uuid = $1"
+            )
+            result = await conn.fetchrow(query, computed_uuid)
+
+            if result:
+                return {
+                    "entity_id": result[primary_key_column],
+                    "entity_uuid": result["uuid"],
+                }
+            else:
+                logger.warning(f"Entity with computed UUID {computed_uuid} not found")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error computing UUID for entity {entity_data}: {e}")
+            return None
+
+    async def _get_entity_with_metadata(
+        self,
+        conn: asyncpg.Connection,
+        entity_id: int,
+        main_table: str,
+        primary_key_column: str,
+    ) -> dict[str, Any] | None:
+        """Get entity with full metadata for lock checking."""
+        query = f"""
+            SELECT * FROM {main_table}
+            WHERE {primary_key_column} = $1
+        """
+        result = await conn.fetchrow(query, entity_id)
+
+        if result:
+            return dict(result)
+        return None
 
     async def get_sorting_fields(self) -> dict[str, Any]:
         """

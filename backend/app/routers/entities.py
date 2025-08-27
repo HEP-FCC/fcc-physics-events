@@ -11,7 +11,6 @@ from fastapi import (
     HTTPException,
     Query,
     Request,
-    UploadFile,
     status,
 )
 from pydantic import BaseModel
@@ -413,44 +412,82 @@ async def delete_entities(
         )
 
 
-# TODO: require jwt token auth to this method
-@router.post("/entity")
-async def upload_fcc_dict(file: UploadFile) -> dict[str, Any]:
-    """Upload and import an FCC dictionary JSON file."""
+class EntityOverrideResponse(BaseModel):
+    """Response model for bulk entity override operations."""
 
-    # Type check for the uploaded file
-    if not isinstance(file, UploadFile):
-        raise HTTPException(status_code=400, detail="Invalid file upload")
+    success: bool
+    message: str
+    updated_count: int = 0
+    lock_conflicts: list[dict[str, Any]] = []
+    updated_entities: list[dict[str, Any]] = []
 
-    if database is None:
-        raise HTTPException(status_code=500, detail="Database not initialized")
 
-    # Validate file type
-    if not file.filename or not file.filename.endswith(".json"):
-        raise HTTPException(status_code=400, detail="Only JSON files are supported")
+@router.post("/override", response_model=EntityOverrideResponse)
+async def override_entities(
+    entities: list[dict[str, Any]],
+    force_override: bool = Query(
+        False, description="Force override even if fields are locked"
+    ),
+    user: dict[str, Any] = Depends(AuthDependency("authorized")),
+) -> EntityOverrideResponse:
+    """
+    Bulk entity override endpoint with standard authentication and field locking.
+
+    Accepts a list of entity dictionaries to update. Each entity can either:
+    1. Include a 'uuid' field to match against existing entities
+    2. Include enough fields to compute a UUID based on available properties
+
+    All field updates are performed within a single transaction. If any entity
+    has locked fields that conflict with the update, the entire operation is
+    rolled back and detailed lock information is returned, unless force_override
+    is set to True.
+
+    Requires 'authorized' role for access.
+
+    Args:
+        entities: List of entity dictionaries with fields to update
+        force_override: If True, ignore field locks and force the update
+        user: Authenticated user data (injected by AuthDependency)
+
+    Returns:
+        EntityOverrideResponse with success status and either updated entities
+        or detailed lock conflict information
+    """
 
     try:
-        # Read file content
-        content = await file.read()
+        logger.info(
+            f"User {user.get('preferred_username', 'unknown')} attempting bulk override of {len(entities)} entities (force_override={force_override})."
+        )
 
-        if not content.strip():
-            raise HTTPException(status_code=400, detail="File is empty")
+        # Validate that entities list is not empty
+        if not entities:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No entities provided for override operation",
+            )
 
-        # Import using the database import function
-        await database.import_fcc_dict(content)
+        # Perform bulk override operation
+        result = await database.bulk_override_entities(
+            entities, user_info=user, force_override=force_override
+        )
 
-        return {
-            "status": "success",
-            "message": f"Successfully imported FCC dictionary from {file.filename}",
-            "filename": file.filename,
-        }
+        return EntityOverrideResponse(
+            success=result["success"],
+            message=result["message"],
+            updated_count=result.get("entities_processed", 0),
+            lock_conflicts=result.get("lock_conflicts", []),
+            updated_entities=result.get("updated_entities", []),
+        )
 
     except ValueError as e:
-        logger.error(f"Import validation error for {file.filename}: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Validation error in bulk override: {e}")
+        raise validation_error(error_type="validation_error", message=str(e))
     except Exception as e:
-        logger.error(f"Import error for {file.filename}: {e}")
-        raise HTTPException(status_code=500, detail="Import failed due to server error")
+        logger.error(f"Bulk override operation failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during bulk override operation",
+        )
 
 
 @router.post("/search")

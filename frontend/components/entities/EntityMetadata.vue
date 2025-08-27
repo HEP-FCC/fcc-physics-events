@@ -197,7 +197,8 @@
                                                             ? 'i-heroicons-lock-closed'
                                                             : 'i-heroicons-lock-open'
                                                     "
-                                                    :color="isFieldLocked(field.key) ? 'warning' : 'neutral'"
+                                                    color="primary"
+                                                    class="cursor-pointer"
                                                     variant="ghost"
                                                     size="xs"
                                                     :loading="pendingLockChanges.has(field.key)"
@@ -210,6 +211,7 @@
                                             <UTooltip text="Copy field value">
                                                 <UButton
                                                     icon="i-heroicons-clipboard"
+                                                    class="cursor-pointer"
                                                     color="neutral"
                                                     variant="ghost"
                                                     size="xs"
@@ -291,7 +293,7 @@
                                                             ? 'i-heroicons-lock-closed'
                                                             : 'i-heroicons-lock-open'
                                                     "
-                                                    :color="isFieldLocked(field.key) ? 'eco' : 'neutral'"
+                                                    color="primary"
                                                     variant="ghost"
                                                     size="xs"
                                                     :padded="false"
