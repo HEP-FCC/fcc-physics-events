@@ -41,7 +41,7 @@ SCHEMA_ADVISORY_LOCK_ID = int(
 # identifier and version. For versioning: FCCv01 -> this namespace, FCCv02 -> different namespace.
 ENTITY_UUID_NAMESPACE = uuid.uuid5(
     uuid.NAMESPACE_DNS,
-    config.get("database.entity_uuid_namespace", "fcc-physics-events.v01"),
+    config.get("database.entity_uuid_namespace", "entity_uuid_namespace.v01"),
 )
 
 
@@ -230,7 +230,9 @@ class Database:
                 primary_key_column = await self._get_main_table_primary_key(
                     conn, main_table
                 )
-                base_mapping = self._create_base_mapping(primary_key_column)
+                base_mapping = await self._create_base_mapping(
+                    conn, main_table, primary_key_column
+                )
                 navigation_mapping = await self._create_navigation_mapping(
                     conn, main_table
                 )
@@ -241,18 +243,57 @@ class Database:
         except Exception as e:
             logger.error(f"Failed to generate dynamic schema mapping: {e}")
             # Return base mapping on failure
-            return self._create_base_mapping("dataset_id")  # Fallback primary key
+            return {
+                "dataset_id": "d.entity_id",  # Fallback primary key
+                "name": "d.name",
+                "uuid": "d.uuid",
+                "metadata": "d.metadata",
+                "metadata_text": "jsonb_values_to_text(d.metadata)",
+                "created_at": "d.created_at",
+                "updated_at": "d.updated_at",
+                "last_edited_at": "d.last_edited_at",
+                "edited_by_name": "d.edited_by_name",
+            }
 
-    def _create_base_mapping(self, primary_key_column: str) -> dict[str, str]:
-        """Create base field mappings for common dataset fields."""
-        return {
-            "name": "d.name",
-            "metadata": "d.metadata",
-            "metadata_text": "jsonb_values_to_text(d.metadata)",
-            primary_key_column: f"d.{primary_key_column}",
-            "created_at": "d.created_at",
-            "last_edited_at": "d.last_edited_at",
-        }
+    async def _create_base_mapping(
+        self, conn: asyncpg.Connection, main_table: str, primary_key_column: str
+    ) -> dict[str, str]:
+        """Create base field mappings dynamically from the database schema."""
+        try:
+            # Get all columns from the main table
+            valid_columns = await self._get_valid_table_columns(conn, main_table)
+
+            base_mapping = {}
+
+            # Add all table columns dynamically
+            for column_name in valid_columns:
+                base_mapping[column_name] = f"d.{column_name}"
+
+            # Add special computed fields
+            if "metadata" in valid_columns:
+                base_mapping["metadata_text"] = "jsonb_values_to_text(d.metadata)"
+
+            logger.debug(
+                f"Generated dynamic base mapping with {len(base_mapping)} fields: {list(base_mapping.keys())}"
+            )
+            return base_mapping
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to create dynamic base mapping, falling back to hardcoded mapping: {e}"
+            )
+            # Fallback to the original hardcoded mapping
+            return {
+                "name": "d.name",
+                "uuid": "d.uuid",
+                "metadata": "d.metadata",
+                "metadata_text": "jsonb_values_to_text(d.metadata)",
+                primary_key_column: f"d.{primary_key_column}",
+                "created_at": "d.created_at",
+                "updated_at": "d.updated_at",
+                "last_edited_at": "d.last_edited_at",
+                "edited_by_name": "d.edited_by_name",
+            }
 
     async def _create_navigation_mapping(
         self, conn: asyncpg.Connection, main_table: str

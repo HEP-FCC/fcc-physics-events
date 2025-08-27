@@ -740,33 +740,44 @@ class QueryParser:
         main_table = config["application"]["main_table"]
 
         try:
-            # Get top-level metadata fields
+            # Get top-level metadata fields, excluding lock fields
             metadata_query = f"""
-                SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
-                FROM {main_table}
-                WHERE metadata IS NOT NULL
-                AND metadata != 'null'::jsonb
+                WITH metadata_keys AS (
+                    SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
+                    FROM {main_table}
+                    WHERE metadata IS NOT NULL
+                    AND metadata != 'null'::jsonb
+                )
+                SELECT metadata_key
+                FROM metadata_keys
+                WHERE metadata_key NOT LIKE '__%__lock__'
                 ORDER BY metadata_key
             """
 
-            # Get nested metadata fields (one level deep)
+            # Get nested metadata fields (one level deep), excluding lock fields
             nested_metadata_query = f"""
-                SELECT DISTINCT
-                    parent_key || '.' || child_key as nested_key
-                FROM (
-                    SELECT
-                        parent_key,
-                        jsonb_object_keys(parent_value) as child_key
+                WITH nested_keys AS (
+                    SELECT DISTINCT
+                        parent_key || '.' || child_key as nested_key
                     FROM (
                         SELECT
-                            key as parent_key,
-                            value as parent_value
-                        FROM {main_table}, jsonb_each(metadata)
-                        WHERE metadata IS NOT NULL
-                        AND metadata != 'null'::jsonb
-                        AND jsonb_typeof(value) = 'object'
-                    ) nested_objects
-                ) nested_keys
+                            parent_key,
+                            jsonb_object_keys(parent_value) as child_key
+                        FROM (
+                            SELECT
+                                key as parent_key,
+                                value as parent_value
+                            FROM {main_table}, jsonb_each(metadata)
+                            WHERE metadata IS NOT NULL
+                            AND metadata != 'null'::jsonb
+                            AND jsonb_typeof(value) = 'object'
+                        ) nested_objects
+                    ) expanded_keys
+                )
+                SELECT nested_key
+                FROM nested_keys
+                WHERE nested_key NOT LIKE '__%__lock__%'
+                AND nested_key NOT LIKE '%__lock__'
                 ORDER BY nested_key
             """
 
@@ -781,16 +792,22 @@ class QueryParser:
                     # Then get nested keys
                     nested_keys = await conn.fetch(nested_metadata_query)
 
-                # Combine all metadata field names
+                # Combine all metadata field names, with additional filtering for lock fields
                 all_fields = set()
 
-                # Add top-level fields
+                # Add top-level fields (with extra filtering as safeguard)
                 for row in metadata_keys:
-                    all_fields.add(row["metadata_key"])
+                    field_name = row["metadata_key"]
+                    if not (
+                        field_name.startswith("__") and field_name.endswith("__lock__")
+                    ):
+                        all_fields.add(field_name)
 
-                # Add nested fields
+                # Add nested fields (with extra filtering as safeguard)
                 for row in nested_keys:
-                    all_fields.add(row["nested_key"])
+                    field_name = row["nested_key"]
+                    if "__lock__" not in field_name:
+                        all_fields.add(field_name)
 
                 logger.debug(
                     f"Found {len(all_fields)} available metadata fields: {sorted(all_fields)}"
