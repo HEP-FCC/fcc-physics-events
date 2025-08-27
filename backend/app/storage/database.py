@@ -2004,36 +2004,47 @@ class Database:
     async def _fetch_metadata_keys(
         self, conn: asyncpg.Connection, main_table: str
     ) -> list[dict]:
-        """Fetch metadata field keys."""
+        """Fetch metadata field keys, excluding lock fields."""
         return await conn.fetch(f"""
-            SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
-            FROM {main_table}
-            WHERE metadata IS NOT NULL
-            AND metadata != 'null'::jsonb
+            WITH metadata_keys AS (
+                SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
+                FROM {main_table}
+                WHERE metadata IS NOT NULL
+                AND metadata != 'null'::jsonb
+            )
+            SELECT metadata_key
+            FROM metadata_keys
+            WHERE metadata_key NOT LIKE '__%__lock__'
             ORDER BY metadata_key
         """)
 
     async def _fetch_nested_metadata_keys(
         self, conn: asyncpg.Connection, main_table: str
     ) -> list[dict]:
-        """Fetch nested metadata field keys."""
+        """Fetch nested metadata field keys, excluding lock fields."""
         return await conn.fetch(f"""
-            SELECT DISTINCT
-                parent_key || '.' || child_key as nested_key
-            FROM (
-                SELECT
-                    parent_key,
-                    jsonb_object_keys(parent_value) as child_key
+            WITH nested_keys AS (
+                SELECT DISTINCT
+                    parent_key || '.' || child_key as nested_key
                 FROM (
                     SELECT
-                        key as parent_key,
-                        value as parent_value
-                    FROM {main_table}, jsonb_each(metadata)
-                    WHERE metadata IS NOT NULL
-                    AND metadata != 'null'::jsonb
-                    AND jsonb_typeof(value) = 'object'
-                ) nested_objects
-            ) nested_keys
+                        parent_key,
+                        jsonb_object_keys(parent_value) as child_key
+                    FROM (
+                        SELECT
+                            key as parent_key,
+                            value as parent_value
+                        FROM {main_table}, jsonb_each(metadata)
+                        WHERE metadata IS NOT NULL
+                        AND metadata != 'null'::jsonb
+                        AND jsonb_typeof(value) = 'object'
+                    ) nested_objects
+                ) expanded_keys
+            )
+            SELECT nested_key
+            FROM nested_keys
+            WHERE nested_key NOT LIKE '__%__lock__%'
+            AND nested_key NOT LIKE '%__lock__'
             ORDER BY nested_key
         """)
 
@@ -2084,25 +2095,29 @@ class Database:
         return joined_fields
 
     def _build_metadata_fields(self, metadata_keys: list[dict]) -> list[str]:
-        """Build metadata fields list."""
+        """Build metadata fields list, filtering out lock fields."""
         metadata_fields = []
         for row in metadata_keys:
             key = row["metadata_key"]
-            # Only add the prefixed version to avoid duplicates
-            metadata_fields.append(
-                f"metadata.{key}"
-            )  # Prefixed access (e.g., "metadata.cross-section")
+            # Double-check to exclude lock fields (in case SQL filter missed any)
+            if not (key.startswith("__") and key.endswith("__lock__")):
+                # Only add the prefixed version to avoid duplicates
+                metadata_fields.append(
+                    f"metadata.{key}"
+                )  # Prefixed access (e.g., "metadata.cross-section")
         return metadata_fields
 
     def _build_nested_fields(self, nested_metadata_keys: list[dict]) -> list[str]:
-        """Build nested metadata fields list."""
+        """Build nested metadata fields list, filtering out lock fields."""
         nested_fields = []
         for row in nested_metadata_keys:
             key = row["nested_key"]
-            # Only add the prefixed version to avoid duplicates
-            nested_fields.append(
-                f"metadata.{key}"
-            )  # Prefixed access (e.g., "metadata.process.name")
+            # Double-check to exclude lock fields (in case SQL filter missed any)
+            if "__lock__" not in key:
+                # Only add the prefixed version to avoid duplicates
+                nested_fields.append(
+                    f"metadata.{key}"
+                )  # Prefixed access (e.g., "metadata.process.name")
         return nested_fields
 
     def _combine_and_sort_fields(

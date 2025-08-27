@@ -29,11 +29,12 @@ QUERY_LANGUAGE_GRAMMAR = r"""
     comparison: field OP value?
     field: IDENTIFIER ("." IDENTIFIER)*
     value: simple_value
-    simple_value: QUOTED_STRING | SIGNED_NUMBER | IDENTIFIER | ASTERISK
+    simple_value: QUOTED_STRING | UUID | SIGNED_NUMBER | IDENTIFIER | ASTERISK
     AND.2: "AND"
     OR.2: "OR"
     NOT.2: "NOT"
     IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_-]*/
+    UUID: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/
     ASTERISK: "*"
     OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "!:" | "=~" | "!~" | "#"
     QUOTED_STRING: /"[^"]*"/ | /'[^']*'/
@@ -373,6 +374,8 @@ class AstTransformer(Transformer[Token, AstNode]):
                 return float(v.value) if "." in v.value else int(v.value)
             if v.type == "IDENTIFIER":
                 return str(v.value)
+            if v.type == "UUID":
+                return str(v.value)
             if v.type == "ASTERISK":
                 return "*"
         return str(v)
@@ -630,12 +633,22 @@ class SqlTranslator:
         Returns:
             A SQL condition string for this field
         """
-        if is_quoted:
-            # For quoted strings, use regex pattern matching (case-insensitive)
-            return f"{field_name} ~* {placeholder}"
+        # Handle UUID fields specially - cast to text for string operations
+        if "uuid" in field_name.lower():
+            if is_quoted:
+                # For quoted strings, use regex pattern matching (case-insensitive)
+                return f"{field_name}::text ~* {placeholder}"
+            else:
+                # For unquoted terms, use case-insensitive substring search
+                return f"{field_name}::text ILIKE '%' || {placeholder} || '%'"
         else:
-            # For unquoted terms, use case-insensitive substring search
-            return f"{field_name} ILIKE '%' || {placeholder} || '%'"
+            # Regular field handling
+            if is_quoted:
+                # For quoted strings, use regex pattern matching (case-insensitive)
+                return f"{field_name} ~* {placeholder}"
+            else:
+                # For unquoted terms, use case-insensitive substring search
+                return f"{field_name} ILIKE '%' || {placeholder} || '%'"
 
     def _build_global_search_clause(
         self,
@@ -868,6 +881,7 @@ class QueryParser:
         """Build dynamic global search fields for navigation entities."""
         global_search_fields = [
             "d.name",  # Dataset name
+            "d.uuid",  # Dataset UUID
             "jsonb_values_to_text(d.metadata)",  # Metadata values
         ]
 
@@ -910,7 +924,7 @@ class QueryParser:
         logger.debug("Search extracted term: '%s' (quoted: %s)", search_term, is_quoted)
 
         # Build the field list for search
-        field_list = ["d.name", "jsonb_values_to_text(d.metadata)"] + [
+        field_list = ["d.name", "d.uuid", "jsonb_values_to_text(d.metadata)"] + [
             f"{self.entity_aliases[entity_key]}.{table_info['name_column']}"
             for entity_key, table_info in self.navigation_analysis[
                 "navigation_tables"
