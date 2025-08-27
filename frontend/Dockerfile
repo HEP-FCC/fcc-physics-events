@@ -19,7 +19,7 @@ RUN yarn run build
 
 # Build Stage 2
 
-FROM node:22-alpine
+FROM node:22-alpine3.22
 WORKDIR /app
 
 # Only `.output` folder is needed from the build stage
