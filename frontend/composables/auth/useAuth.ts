@@ -34,6 +34,13 @@ export function useAuth() {
         }),
     );
 
+    // Check if auth is disabled based on user object
+    const isAuthDisabled = computed(() => {
+        return (
+            authState.value.user && typeof authState.value.user === "object" && "auth_disabled" in authState.value.user
+        );
+    });
+
     // Check auth status on app startup (only in client-side components)
     const checkAuthOnMount = () => {
         if (getCurrentInstance()) {
@@ -91,6 +98,12 @@ export function useAuth() {
      * Initiate login flow - redirects to CERN OAuth
      */
     function login(): void {
+        // Don't attempt login if auth is disabled
+        if (isAuthDisabled.value) {
+            console.log("Authentication is disabled, login not available");
+            return;
+        }
+
         authState.value.error = null;
         initiateLogin();
     }
@@ -99,6 +112,12 @@ export function useAuth() {
      * Logout user and clear cookie
      */
     async function logout(): Promise<void> {
+        // Don't attempt logout if auth is disabled
+        if (isAuthDisabled.value) {
+            console.log("Authentication is disabled, logout not available");
+            return;
+        }
+
         authState.value.isLoading = true;
         authState.value.error = null;
 
@@ -219,6 +238,7 @@ export function useAuth() {
         user: readonly(computed(() => authState.value.user)),
         isLoading: readonly(computed(() => authState.value.isLoading)),
         error: readonly(computed(() => authState.value.error)),
+        isAuthDisabled: readonly(isAuthDisabled),
 
         // Methods
         checkAuthStatus,

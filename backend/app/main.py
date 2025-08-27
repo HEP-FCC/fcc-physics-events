@@ -37,7 +37,13 @@ async def lifespan(_: FastAPI) -> Any:
 
     # Run startup tasks sequentially for better reliability
     await database.setup(config)
-    await load_cern_endpoints()
+
+    # Only load CERN endpoints if authentication is enabled
+    if config.get("auth.enabled", True):
+        logger.info("Authentication is enabled, loading CERN endpoints...")
+        await load_cern_endpoints()
+    else:
+        logger.info("Authentication is disabled, skipping CERN endpoint loading")
 
     # Query parser setup depends on database being ready
     await query_parser.setup()
@@ -59,15 +65,21 @@ app = FastAPI(
 )
 
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=config.get("general.application_secret_key"),
-    https_only=config.get("general.https_only").lower() == "true",
-    same_site="lax",
-    max_age=3600,
-    session_cookie="fcc-physics-events-web",
-    domain=None,  # Allow cookies to work on localhost and other domains
-)
+# Only add session middleware if auth is enabled or if we have a secret key
+if config.get("auth.enabled", True) and config.get("general.application_secret_key"):
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=config.get("general.application_secret_key"),
+        https_only=config.get("general.https_only").lower() == "true",
+        same_site="lax",
+        max_age=3600,
+        session_cookie="fcc-physics-events-web",
+        domain=None,  # Allow cookies to work on localhost and other domains
+    )
+else:
+    logger.info(
+        "Session middleware disabled - auth is disabled or no secret key provided"
+    )
 
 app.add_middleware(
     CORSMiddleware,

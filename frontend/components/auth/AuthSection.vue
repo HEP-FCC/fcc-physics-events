@@ -1,7 +1,7 @@
 <template>
     <div class="flex items-center gap-4 p-2">
-        <!-- Authentication controls -->
-        <div v-if="!isAuthenticated" class="flex items-center">
+        <!-- Authentication controls - only show if auth is enabled -->
+        <div v-if="showAuthControls && !isAuthenticated" class="flex items-center">
             <UButton
                 :loading="isLoading"
                 color="primary"
@@ -14,7 +14,7 @@
             />
         </div>
 
-        <div v-else class="flex items-center gap-4">
+        <div v-else-if="showAuthControls && isAuthenticated" class="flex items-center gap-4">
             <!-- User info only mode - just display user info -->
             <div v-if="userInfoOnly" class="flex items-center gap-3">
                 <div class="text-right">
@@ -95,13 +95,16 @@ withDefaults(defineProps<Props>(), {
     logoutOnly: false,
 });
 
-const { authState, login, logout, clearError } = useAuth();
+const { authState, login, logout, clearError, isAuthDisabled } = useAuth();
 
 // Computed properties for easy access
 const isAuthenticated = computed(() => authState.value.isAuthenticated);
 const user = computed(() => authState.value.user);
 const isLoading = computed(() => authState.value.isLoading);
 const error = computed(() => authState.value.error);
+
+// Show authentication controls only if auth is enabled
+const showAuthControls = computed(() => !isAuthDisabled.value);
 
 // Computed display name - just the full name
 const displayName = computed(() => {

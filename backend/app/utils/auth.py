@@ -138,9 +138,14 @@ async def load_cern_endpoints() -> None:
     """Load CERN OIDC well-known endpoint data at startup."""
     global CERN_ENDPOINTS
     if not CERN_ENDPOINTS:
-        async with create_http_client() as http_client:
-            endpoint_data = await http_client.get_json(CERN_OIDC_URL)
-            CERN_ENDPOINTS.update(endpoint_data)
+        try:
+            async with create_http_client() as http_client:
+                endpoint_data = await http_client.get_json(CERN_OIDC_URL)
+                CERN_ENDPOINTS.update(endpoint_data)
+                logger.info("Successfully loaded CERN OIDC endpoints")
+        except Exception as e:
+            logger.error(f"Failed to load CERN endpoints: {e}")
+            raise
 
 
 async def try_refresh_token(refresh_token: str) -> dict[str, Any] | None:
@@ -554,12 +559,32 @@ class AuthDependency:
 
         Returns:
             User information dictionary if authenticated and authorized, or generic
-            unauthenticated user dict if required_role is None
+            unauthenticated user dict if required_role is None or auth is disabled
 
         Raises:
-            HTTPException: If authentication or authorization fails (when required_role is not None)
+            HTTPException: If authentication or authorization fails (when auth is enabled and required_role is not None)
         """
         try:
+            # Get configuration to check if auth is enabled
+            config = get_config()
+            auth_enabled = config.get("auth.enabled", True)
+
+            # If auth is disabled globally, return a generic unauthenticated user
+            if not auth_enabled:
+                logger.debug(
+                    "Authentication is disabled globally, returning generic user"
+                )
+                return {
+                    "preferred_username": "Unauthenticated user",
+                    "email": "unauthenticated@example.com",
+                    "name": "Unauthenticated user",
+                    "groups": [],
+                    "roles": [],
+                    "authenticated": False,
+                    "sub": "unauthenticated",
+                    "auth_disabled": True,
+                }
+
             # If no role is required, return a generic unauthenticated user
             if self.required_role is None:
                 logger.debug("No authentication required, returning generic user")
@@ -574,10 +599,25 @@ class AuthDependency:
                 }
 
             # Get configuration and setup OAuth client
-            config = get_config()
             CERN_CLIENT_ID = config.get("general.cern_client_id")
             CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
             CERN_OIDC_URL = config.get("auth.cern_oidc_url")
+
+            # Check if required auth configuration is available
+            if not CERN_CLIENT_ID or not CERN_CLIENT_SECRET or not CERN_OIDC_URL:
+                logger.warning(
+                    "Auth is enabled but required configuration is missing, returning unauthenticated user"
+                )
+                return {
+                    "preferred_username": "Unauthenticated user",
+                    "email": "unauthenticated@example.com",
+                    "name": "Unauthenticated user",
+                    "groups": [],
+                    "roles": [],
+                    "authenticated": False,
+                    "sub": "unauthenticated",
+                    "config_missing": True,
+                }
 
             oauth = OAuth()
             oauth.register(

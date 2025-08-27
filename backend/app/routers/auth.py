@@ -38,17 +38,24 @@ def init_dependencies(db: Database) -> None:
     database = db
 
 
-# OAuth setup
-oauth = OAuth()
-oauth.register(
-    name="provider",
-    server_metadata_url=CERN_OIDC_URL,
-    client_id=CERN_CLIENT_ID,
-    client_secret=CERN_CLIENT_SECRET,
-    client_kwargs={
-        "scope": "openid email profile",
-    },
-)
+# OAuth setup - only if auth is enabled and config is available
+oauth = None
+if (
+    config.get("auth.enabled", True)
+    and CERN_CLIENT_ID
+    and CERN_CLIENT_SECRET
+    and CERN_OIDC_URL
+):
+    oauth = OAuth()
+    oauth.register(
+        name="provider",
+        server_metadata_url=CERN_OIDC_URL,
+        client_id=CERN_CLIENT_ID,
+        client_secret=CERN_CLIENT_SECRET,
+        client_kwargs={
+            "scope": "openid email profile",
+        },
+    )
 
 redirect_uri = config.get("general.cern_redirect_uri")
 
@@ -75,6 +82,25 @@ async def refresh_auth_token(request: Request, response: Response) -> JSONRespon
     Raises:
         HTTPException: 401 if no refresh token or refresh fails
     """
+
+    # If auth is disabled, return success without doing anything
+    if not config.get("auth.enabled", True):
+        return JSONResponse(
+            content={
+                "status": "success",
+                "message": "Authentication is disabled, no token refresh needed",
+                "expires_in": 3600,
+            }
+        )
+
+    # If OAuth is not configured, return error
+    if oauth is None:
+        logger.error("Auth is enabled but OAuth is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication is not properly configured",
+        )
+
     try:
         logger.debug("Processing token refresh request")
 
@@ -170,6 +196,20 @@ async def refresh_auth_token(request: Request, response: Response) -> JSONRespon
 @router.get("/login")
 async def login(request: Request) -> Any:
     """Initiate OAuth login with CERN."""
+
+    # If auth is disabled, redirect to frontend
+    if not config.get("auth.enabled", True):
+        logger.info("Auth is disabled, redirecting to frontend")
+        return RedirectResponse(url=FRONTEND_URL)
+
+    # If OAuth is not configured, return error
+    if oauth is None:
+        logger.error("Auth is enabled but OAuth is not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication is not properly configured",
+        )
+
     request.session.clear()
     return await oauth.provider.authorize_redirect(request, redirect_uri)
 
@@ -177,6 +217,16 @@ async def login(request: Request) -> Any:
 @router.get("/auth")
 async def auth(request: Request) -> Any:
     """OAuth callback route for authentication."""
+
+    # If auth is disabled, redirect to frontend
+    if not config.get("auth.enabled", True):
+        logger.info("Auth is disabled, redirecting to frontend")
+        return RedirectResponse(url=FRONTEND_URL)
+
+    # If OAuth is not configured, return error
+    if oauth is None:
+        logger.error("Auth is enabled but OAuth is not configured")
+        return RedirectResponse(url=f"{FRONTEND_URL}?error=config_error")
 
     if request.query_params.get("error"):
         error_description = request.query_params.get("error_description")
@@ -217,6 +267,14 @@ async def auth(request: Request) -> Any:
 async def logout(request: Request) -> JSONResponse:
     """Clear all authentication cookies, session, and get CERN SSO logout URL."""
 
+    # If auth is disabled, just return a generic logout response
+    if not config.get("auth.enabled", True):
+        return JSONResponse(content={"logout_url": FRONTEND_URL})
+
+    # If OAuth is not configured, return generic logout
+    if oauth is None:
+        return JSONResponse(content={"logout_url": FRONTEND_URL})
+
     request.session.clear()
     cern_logout_url = await get_logout_url()
     response = JSONResponse(content={"logout_url": cern_logout_url})
@@ -228,11 +286,39 @@ async def logout(request: Request) -> JSONResponse:
 @router.get("/session-status")
 async def get_session_status(request: Request) -> JSONResponse:
     """Get current session authentication status.
-    Try to validate the user token from cookies.
+
+    If auth is disabled, return a generic authenticated user.
+    Otherwise, try to validate the user token from cookies.
     If that fails, try to refresh the token in case it expired.
     Return either information about the successfully authenticated user or
     information that the user is not authenticated.
     """
+
+    # If auth is disabled, return a generic authenticated user
+    if not config.get("auth.enabled", True):
+        return JSONResponse(
+            content={
+                "authenticated": True,
+                "user": {
+                    "preferred_username": "Unauthenticated user",
+                    "email": "unauthenticated@example.com",
+                    "name": "Unauthenticated user",
+                    "groups": [],
+                    "roles": [],
+                    "authenticated": False,
+                    "sub": "unauthenticated",
+                    "auth_disabled": True,
+                },
+            }
+        )
+
+    # If auth is enabled but OAuth is not configured, return unauthenticated
+    if oauth is None:
+        logger.warning("Auth is enabled but OAuth is not configured")
+        return JSONResponse(
+            content={"authenticated": False, "user": None},
+            status_code=status.HTTP_200_OK,
+        )
 
     try:
         auth_data = extract_auth_cookies(request.cookies)
@@ -248,7 +334,9 @@ async def get_session_status(request: Request) -> JSONResponse:
         )
 
     try:
-        userinfo = await validate_token_and_get_user(access_token, id_token, oauth)
+        userinfo = await validate_token_and_get_user(
+            access_token, id_token, oauth.provider
+        )
         return JSONResponse(content={"authenticated": True, "user": userinfo})
     except Exception as e:
         logger.info(
