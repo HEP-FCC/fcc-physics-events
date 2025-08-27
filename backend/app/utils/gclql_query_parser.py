@@ -19,6 +19,25 @@ from app.utils.logging import get_logger
 
 logger = get_logger()
 
+# UUID regex pattern (same as in grammar)
+UUID_PATTERN = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def is_uuid_format(value: str) -> bool:
+    """
+    Check if a string matches the UUID format.
+
+    Args:
+        value: The string to check
+
+    Returns:
+        True if the string matches UUID format, False otherwise
+    """
+    return bool(UUID_PATTERN.match(value.strip()))
+
+
 QUERY_LANGUAGE_GRAMMAR = r"""
     ?start: expr
     ?expr: expr OR term | term
@@ -186,6 +205,7 @@ class Field:
         if not op or value is None:
             return
 
+        # TODO: why is this hardcoded and not fetched from the DB?
         # Define field type mappings based on common database schema patterns
         # These are the typical string fields that should not accept numeric comparisons
         string_fields = {
@@ -206,6 +226,7 @@ class Field:
             "edited_by_name",
         }
 
+        # TODO: why is this hardcoded and not fetched from the DB?
         # ID fields (foreign keys) should only accept integer values for comparisons
         id_fields = {
             "accelerator_id",
@@ -605,7 +626,10 @@ class SqlTranslator:
             "Global search for: '%s' (quoted: %s)", search_value, node.is_quoted
         )
 
-        # Use the new helper to build the search clause
+        # Use the pre-configured global search fields (set during reset)
+        # The QueryParser should have already optimized these fields based on the search term
+
+        # Use the helper to build the search clause
         where_clause, placeholder = self._build_global_search_clause(
             search_value, node.is_quoted, self.global_search_fields, self.param_index
         )
@@ -710,9 +734,7 @@ class QueryParser:
         # Execute setup tasks sequentially for better reliability
         try:
             # Get schema mapping first
-            self.schema_mapping = await self.database.generate_schema_mapping(
-                self.config
-            )
+            self.schema_mapping = await self.database.generate_schema_mapping()
 
             # Then get metadata fields
             self.available_metadata_fields = (
@@ -894,13 +916,30 @@ class QueryParser:
 
         return ",\n".join(select_fields)
 
-    def _build_dynamic_global_search_fields(self) -> list[str]:
-        """Build dynamic global search fields for navigation entities."""
+    def _build_dynamic_global_search_fields(self, search_term: str = "") -> list[str]:
+        """Build dynamic global search fields for navigation entities.
+
+        Args:
+            search_term: The search term to optimize field selection for
+
+        Returns:
+            List of field names to search in
+        """
         global_search_fields = [
             "d.name",  # Dataset name
-            "d.uuid",  # Dataset UUID
             "jsonb_values_to_text(d.metadata)",  # Metadata values
         ]
+
+        # Only include UUID field if the search term looks like a UUID
+        if search_term and is_uuid_format(search_term):
+            global_search_fields.append("d.uuid")  # Dataset UUID
+            logger.debug(
+                "Including UUID field in search - detected UUID format: %s", search_term
+            )
+        else:
+            logger.debug(
+                "Skipping UUID field - search term not UUID format: %s", search_term
+            )
 
         # Add name fields from all navigation tables using their aliases
         for entity_key, table_info in self.navigation_analysis[
@@ -911,6 +950,30 @@ class QueryParser:
             global_search_fields.append(f"{alias}.{name_column}")
 
         return global_search_fields
+
+    def _extract_search_term_from_ast(self, node: AstNode) -> str:
+        """
+        Extract the first global search term from an AST node for field optimization.
+
+        Args:
+            node: The AST node to extract search terms from
+
+        Returns:
+            The first global search term found, or empty string if none
+        """
+        if isinstance(node, GlobalSearch):
+            return str(node.value).strip()
+        elif isinstance(node, And | Or):
+            # Check left side first, then right side
+            left_term = self._extract_search_term_from_ast(node.left)
+            if left_term:
+                return left_term
+            return self._extract_search_term_from_ast(node.right)
+        elif isinstance(node, Not):
+            return self._extract_search_term_from_ast(node.term)
+        else:
+            # For Comparison nodes or other types, no search term
+            return ""
 
     def _build_fuzzy_search_clause(self, query_string: str) -> tuple[str, list[Any]]:
         """
@@ -940,13 +1003,8 @@ class QueryParser:
 
         logger.debug("Search extracted term: '%s' (quoted: %s)", search_term, is_quoted)
 
-        # Build the field list for search
-        field_list = ["d.name", "d.uuid", "jsonb_values_to_text(d.metadata)"] + [
-            f"{self.entity_aliases[entity_key]}.{table_info['name_column']}"
-            for entity_key, table_info in self.navigation_analysis[
-                "navigation_tables"
-            ].items()
-        ]
+        # Build the field list for search using dynamic field selection
+        field_list = self._build_dynamic_global_search_fields(search_term)
 
         # Use the centralized helper to build the search clause
         where_clause, _ = self.translator._build_global_search_clause(
@@ -971,7 +1029,39 @@ class QueryParser:
         fuzzy_search_terms = []
         all_params = []
 
-        global_search_fields = self._build_dynamic_global_search_fields()
+        # Extract search terms early for field optimization
+        all_search_terms = []
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                # Try to parse this individual part
+                ast = cast(AstNode, self.transformer.transform(self.parser.parse(part)))
+            except exceptions.LarkError:
+                # If this part fails, it's likely a search term
+                all_search_terms.append(part)
+
+        # Determine the primary search term for field optimization
+        primary_search_term = ""
+        if all_search_terms:
+            # Use the first search term or extract from quoted strings
+            quoted_strings = re.findall(
+                r'["\']([^"\']+)["\']', " ".join(all_search_terms)
+            )
+            if quoted_strings:
+                primary_search_term = quoted_strings[0].strip()
+            else:
+                # Clean up the first search term
+                cleaned = re.sub(
+                    r"\b(AND|OR|NOT)\b", " ", all_search_terms[0], flags=re.IGNORECASE
+                )
+                cleaned = re.sub(r'\w+\s*=\s*["\'][^"\']*["\']', " ", cleaned)
+                primary_search_term = re.sub(r"\s+", " ", cleaned).strip()
+
+        global_search_fields = self._build_dynamic_global_search_fields(
+            primary_search_term
+        )
         self.translator.reset(self.schema_mapping, global_search_fields)
 
         for part in parts:
@@ -1051,8 +1141,11 @@ class QueryParser:
                 AstNode, self.transformer.transform(self.parser.parse(query_string))
             )
 
+            # Extract search terms from the AST for field optimization
+            search_term = self._extract_search_term_from_ast(ast)
+
             # If parsing succeeds, use the normal translation
-            global_search_fields = self._build_dynamic_global_search_fields()
+            global_search_fields = self._build_dynamic_global_search_fields(search_term)
             self.translator.reset(
                 self.schema_mapping,
                 global_search_fields,
