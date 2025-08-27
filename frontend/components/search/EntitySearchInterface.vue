@@ -98,7 +98,13 @@
             <div v-else-if="search.shouldShowCompletionMessage.value" class="flex justify-center py-6">
                 <div class="text-center text-sm">
                     <UIcon name="i-heroicons-check-circle" class="inline mr-1" />
-                    All {{ search.scrollState.totalEntities }} {{ mainTableDisplayName.toLowerCase() }} loaded
+                    All {{ search.scrollState.totalEntities }}
+                    {{
+                        search.scrollState.totalEntities === 1 && mainTableDisplayName.toLowerCase().endsWith("s")
+                            ? mainTableDisplayName.toLowerCase().slice(0, -1)
+                            : mainTableDisplayName.toLowerCase()
+                    }}
+                    loaded
                 </div>
             </div>
         </div>
