@@ -103,6 +103,9 @@ class Field:
         value: Any = None,
         op: str | None = None,
         available_metadata_fields: set[str] | None = None,
+        string_fields: set[str] | None = None,
+        id_fields: set[str] | None = None,
+        entity_fields: set[str] | None = None,
     ) -> str:
         base_field = self.parts[0]
         if base_field[-5:] == "_name":
@@ -112,21 +115,15 @@ class Field:
 
         # Validate operation and value compatibility early
         self._validate_operation_compatibility(
-            base_field, op, value, available_metadata_fields
+            base_field, op, value, available_metadata_fields, string_fields, id_fields
         )
 
         if not sql_column:
             # Check if this might be a foreign key field (entity reference)
-            # Common entity fields that map to foreign keys in the dataset table
-            entity_fields = {
-                "accelerator",
-                "stage",
-                "campaign",
-                "detector",
-                "software_stack",
-            }
+            # Use dynamically fetched entity fields from database schema
+            entity_fields = entity_fields or set()
             if base_field in entity_fields:
-                # Map to the foreign key column in the dataset table
+                # Map to the foreign key column in the entity table
                 sql_column = f"d.{base_field}_id"
             elif available_metadata_fields and base_field in available_metadata_fields:
                 # AUTO-DETECT: If field doesn't exist as regular column but exists in metadata,
@@ -200,41 +197,16 @@ class Field:
         op: str | None,
         value: Any,
         available_metadata_fields: set[str] | None = None,
+        string_fields: set[str] | None = None,
+        id_fields: set[str] | None = None,
     ) -> None:
         """Validate that the operation and value are compatible with the field type."""
         if not op or value is None:
             return
 
-        # TODO: why is this hardcoded and not fetched from the DB?
-        # Define field type mappings based on common database schema patterns
-        # These are the typical string fields that should not accept numeric comparisons
-        string_fields = {
-            "name",
-            "accelerator",
-            "campaign",
-            "detector",
-            "software_stack",
-            "stage",
-            "description",
-            "title",
-            "status",
-            "type",
-            "format",
-            "uuid",
-            "path",
-            "filename",
-            "edited_by_name",
-        }
-
-        # TODO: why is this hardcoded and not fetched from the DB?
-        # ID fields (foreign keys) should only accept integer values for comparisons
-        id_fields = {
-            "accelerator_id",
-            "campaign_id",
-            "detector_id",
-            "software_stack_id",
-            "stage_id",
-        }
+        # Use provided field classifications or empty sets as fallback
+        string_fields = string_fields or set()
+        id_fields = id_fields or set()
 
         # Check if this is a metadata field
         is_metadata_field = (
@@ -406,9 +378,10 @@ class SqlTranslator:
     def __init__(self) -> None:
         self.schema_mapping: dict[str, str] = {}
         self.global_search_fields: list[str] = []  # Will be set dynamically
-        self.available_metadata_fields: set[str] = (
-            set()
-        )  # Store available metadata fields
+        self.available_metadata_fields: set[str] = set()
+        self.string_fields: set[str] = set()
+        self.id_fields: set[str] = set()
+        self.entity_fields: set[str] = set()
         self.params: list[Any] = []
         self.param_index = 0
 
@@ -417,12 +390,21 @@ class SqlTranslator:
         schema_mapping: dict[str, str],
         global_search_fields: list[str] | None = None,
         available_metadata_fields: set[str] | None = None,
+        string_fields: set[str] | None = None,
+        id_fields: set[str] | None = None,
+        entity_fields: set[str] | None = None,
     ) -> None:
         self.schema_mapping = schema_mapping
         if global_search_fields is not None:
             self.global_search_fields = global_search_fields
         if available_metadata_fields is not None:
             self.available_metadata_fields = available_metadata_fields
+        if string_fields is not None:
+            self.string_fields = string_fields
+        if id_fields is not None:
+            self.id_fields = id_fields
+        if entity_fields is not None:
+            self.entity_fields = entity_fields
         self.params = []
         self.param_index = 0
 
@@ -441,7 +423,13 @@ class SqlTranslator:
 
     def _translate_comparison(self, node: Comparison) -> str:
         sql_field = node.field.to_sql(
-            self.schema_mapping, node.value, node.op, self.available_metadata_fields
+            self.schema_mapping,
+            node.value,
+            node.op,
+            self.available_metadata_fields,
+            self.string_fields,
+            self.id_fields,
+            self.entity_fields,
         )
         op = node.op
         value = node.value
@@ -728,6 +716,11 @@ class QueryParser:
         self.navigation_analysis: dict[str, Any] = {}
         self.entity_aliases: dict[str, str] = {}  # Store entity_key -> alias mapping
 
+        # Field type classifications for validation (populated during setup)
+        self.string_fields: set[str] = set()
+        self.id_fields: set[str] = set()
+        self.entity_fields: set[str] = set()  # Navigation entity field names
+
     async def setup(self) -> None:
         self.config = get_config()
 
@@ -740,6 +733,9 @@ class QueryParser:
             self.available_metadata_fields = (
                 await self._fetch_available_metadata_fields()
             )
+
+            # Get field type classifications for validation
+            await self._fetch_field_type_classifications()
 
         except Exception as e:
             logger.error(f"Failed to setup query parser: {e}")
@@ -848,6 +844,100 @@ class QueryParser:
             logger.error(f"Failed to fetch metadata fields: {e}")
             return set()
 
+    async def _fetch_field_type_classifications(self) -> None:
+        """Fetch field type classifications from the database schema for validation."""
+        try:
+            main_table = self.config["application"]["main_table"]
+
+            async with self.database.session() as conn:
+                schema_discovery = await get_schema_discovery(conn)
+                schema = await schema_discovery.get_complete_schema()
+
+                # Get main table schema
+                main_table_info = schema["tables"].get(main_table)
+                if not main_table_info:
+                    raise ValueError(f"Main table '{main_table}' not found in schema")
+
+                # Clear existing classifications
+                self.string_fields = set()
+                self.id_fields = set()
+                self.entity_fields = set()
+
+                # Classify fields from main table
+                for column in main_table_info["columns"]:
+                    column_name = column["column_name"]
+                    data_type = column["data_type"].lower()
+
+                    # Classify as string field
+                    if self._is_string_type(data_type):
+                        self.string_fields.add(column_name)
+
+                    # Classify as ID field (foreign keys or columns ending with _id)
+                    if column["is_foreign_key"] or column_name.endswith("_id"):
+                        self.id_fields.add(column_name)
+
+                # Get navigation analysis to classify navigation entity fields
+                navigation_analysis = (
+                    await schema_discovery.analyze_navigation_structure(main_table)
+                )
+
+                # Add navigation entity fields to classifications
+                for entity_key, table_info in navigation_analysis[
+                    "navigation_tables"
+                ].items():
+                    # Navigation entity names (like "accelerator", "detector") are string fields
+                    self.string_fields.add(entity_key)
+
+                    # Navigation entity name fields with "_name" suffix are also string fields
+                    self.string_fields.add(f"{entity_key}_name")
+
+                    # Add to entity_fields for foreign key mapping
+                    self.entity_fields.add(entity_key)
+
+                logger.debug(
+                    f"Classified {len(self.string_fields)} string fields: {sorted(self.string_fields)}"
+                )
+                logger.debug(
+                    f"Classified {len(self.id_fields)} ID fields: {sorted(self.id_fields)}"
+                )
+                logger.debug(
+                    f"Classified {len(self.entity_fields)} entity fields: {sorted(self.entity_fields)}"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to fetch field type classifications: {e}")
+            raise
+
+    def _is_string_type(self, data_type: str) -> bool:
+        """Check if a PostgreSQL data type should be treated as a string type for validation."""
+        string_types = {
+            "text",
+            "varchar",
+            "character varying",
+            "character",
+            "char",
+            "uuid",
+            "name",  # PostgreSQL's internal name type
+            "inet",
+            "cidr",
+            "macaddr",
+            "macaddr8",  # Network address types (treated as strings)
+            "xml",  # XML type (treated as string)
+        }
+
+        # Check exact matches and varchar/character with length specifiers
+        if data_type in string_types:
+            return True
+
+        # Handle parameterized types like varchar(255), char(10), etc.
+        for string_type in ["varchar", "character varying", "character", "char"]:
+            if data_type.startswith(f"{string_type}(") or data_type.startswith(
+                f"{string_type} ("
+            ):
+                return True
+
+        return False
+
     def _build_dynamic_joins(self) -> None:
         """Build FROM and JOIN clauses dynamically based on schema analysis."""
         joins = [f"FROM {self.config['application']['main_table']} d"]
@@ -926,13 +1016,13 @@ class QueryParser:
             List of field names to search in
         """
         global_search_fields = [
-            "d.name",  # Dataset name
+            "d.name",  # Entity name
             "jsonb_values_to_text(d.metadata)",  # Metadata values
         ]
 
         # Only include UUID field if the search term looks like a UUID
         if search_term and is_uuid_format(search_term):
-            global_search_fields.append("d.uuid")  # Dataset UUID
+            global_search_fields.append("d.uuid")  # Entity UUID
             logger.debug(
                 "Including UUID field in search - detected UUID format: %s", search_term
             )
@@ -1062,7 +1152,14 @@ class QueryParser:
         global_search_fields = self._build_dynamic_global_search_fields(
             primary_search_term
         )
-        self.translator.reset(self.schema_mapping, global_search_fields)
+        self.translator.reset(
+            self.schema_mapping,
+            global_search_fields,
+            self.available_metadata_fields,
+            self.string_fields,
+            self.id_fields,
+            self.entity_fields,
+        )
 
         for part in parts:
             part = part.strip()
@@ -1150,6 +1247,9 @@ class QueryParser:
                 self.schema_mapping,
                 global_search_fields,
                 self.available_metadata_fields,
+                self.string_fields,
+                self.id_fields,
+                self.entity_fields,
             )
             where_clause = self.translator.translate(ast)
 
@@ -1188,7 +1288,7 @@ class QueryParser:
     def _build_order_by_clause(self, sort_by: str, sort_order: str) -> str:
         """
         Builds the ORDER BY clause for the query with proper field mapping.
-        Supports sorting by dataset fields, joined table fields, and metadata JSONB fields.
+        Supports sorting by entity fields, joined table fields, and metadata JSONB fields.
         """
         # Validate sort_order
         if sort_order.lower() not in ["asc", "desc"]:
@@ -1225,6 +1325,9 @@ class QueryParser:
             sql_field = field_obj.to_sql(
                 self.schema_mapping,
                 available_metadata_fields=self.available_metadata_fields,
+                string_fields=self.string_fields,
+                id_fields=self.id_fields,
+                entity_fields=self.entity_fields,
             )
             # Add secondary sort by primary key to ensure deterministic ordering
             # This prevents the same entity from appearing on multiple pages when there are ties

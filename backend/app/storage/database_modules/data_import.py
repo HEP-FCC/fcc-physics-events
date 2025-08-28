@@ -194,8 +194,18 @@ async def _process_batch_individually(
         try:
             async with database.session() as conn:
                 async with conn.transaction():
+                    # Get navigation structure and create cache for this single entity
+                    navigation_structure = await _get_navigation_entity_structure(
+                        database, conn
+                    )
+
+                    # Create navigation cache for just this entity
+                    navigation_cache = await _preprocess_batch_navigation_entities(
+                        database, conn, [entity_data]
+                    )
+
                     await _process_single_entity(
-                        database, conn, entity_data, idx, main_table
+                        database, conn, entity_data, idx, main_table, navigation_cache, navigation_structure
                     )
                     processed_count += 1
         except Exception as e:
@@ -277,7 +287,7 @@ async def _process_single_entity(
     # Get metadata and create the main entity
     metadata_dict = entity_data.get_all_metadata()
     await _create_main_entity_with_conflict_resolution(
-        database, conn, entity_name, metadata_dict, foreign_key_ids, main_table
+        conn, entity_name, metadata_dict, foreign_key_ids, main_table
     )
 
 
@@ -331,29 +341,6 @@ def _get_name_for_entity(entity_data: BaseEntityData, field_name: str) -> str | 
             entity_name = str(field_value).strip()
 
     return entity_name
-
-
-async def _process_single_entity(
-    database: "Database",
-    conn: asyncpg.Connection,
-    entity_data: BaseEntityData,
-    idx: int,
-    main_table: str,
-) -> None:
-    """Process a single entity with all its components."""
-    entity_name = _generate_entity_name(entity_data, idx)
-    logger.info(f"Processing: {entity_name}")
-
-    # Parse path and create navigation entities
-    foreign_key_ids = await _create_navigation_entities(
-        database, conn, entity_data, entity_name
-    )
-
-    # Get metadata and create the main entity
-    metadata_dict = entity_data.get_all_metadata()
-    await _create_main_entity_with_conflict_resolution(
-        database, conn, entity_name, metadata_dict, foreign_key_ids, main_table
-    )
 
 
 def _generate_entity_name(entity_data: BaseEntityData, idx: int) -> str:
@@ -505,7 +492,6 @@ async def _create_navigation_entities(
 
 
 async def _create_main_entity_with_conflict_resolution(
-    database,
     conn: asyncpg.Connection,
     entity_name: str,
     metadata_dict: dict[str, Any],
@@ -515,7 +501,7 @@ async def _create_main_entity_with_conflict_resolution(
     """Create main entity using UUID-based conflict resolution."""
     try:
         await _create_main_entity(
-            database, conn, entity_name, metadata_dict, foreign_key_ids, main_table
+            conn, entity_name, metadata_dict, foreign_key_ids, main_table
         )
     except Exception as e:
         # Log any errors but don't do name-based retries since UUID handles uniqueness
