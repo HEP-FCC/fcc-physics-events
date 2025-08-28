@@ -7,9 +7,12 @@ database query operations with dynamic schema support.
 
 import json
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
+
+if TYPE_CHECKING:
+    from app.storage.database import Database
 
 from app.utils.errors import SearchValidationError
 from app.utils.logging import get_logger
@@ -18,7 +21,7 @@ logger = get_logger()
 
 
 async def perform_search(
-    database,
+    database: "Database",
     count_query: str,
     search_query: str,
     params: list[Any],
@@ -135,7 +138,7 @@ async def perform_search(
 
 
 async def search_entities(
-    database,
+    database: "Database",
     main_table: str,
     navigation_analysis: dict[str, Any],
     filters: dict[str, str] | None = None,

@@ -8,37 +8,44 @@ navigation entity creation, and metadata management.
 import json
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import asyncpg
 
 from app.models.generic import GenericEntityCreate
-from app.storage.fcc_dict_parser import DatasetCollection
+from app.storage.json_data_parser import (
+    BaseEntityData,
+    BaseEntityCollection,
+    EntityTypeRegistry,
+)
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.logging import get_logger
-from app.utils.uuid_utils import generate_dataset_uuid
+from app.utils.uuid_utils import generate_entity_uuid
+
+if TYPE_CHECKING:
+    from app.storage.database import Database
 
 logger = get_logger()
 
 
-async def import_data(database, json_content: bytes) -> None:
+# NOTE: This function can be changed by users
+async def import_data(database: "Database", json_content: bytes) -> None:
     """Parses JSON content and upserts the data into the database with proper transaction handling."""
     try:
-        # NOTE: This function needs to be defined by users
         collection = _parse_json_content(json_content)
     except ValueError as e:
         # If the file format is incompatible, log and skip without raising an error
         if "skipping incompatible format" in str(e):
-            logger.info(f"Skipping incompatible JSON format: {e}")
+            logger.warning(f"Skipping JSON file with incompatible format: {e}")
             return
         else:
             # Re-raise other validation errors
+            logger.error(f"Unexpected validation error: {e}")
             raise
 
     main_table = database.config["application"]["main_table"]
 
-    # NOTE: This function needs to be defined by users
-    # Process each dataset in its own transaction to avoid transaction abort issues
+    # Process each entity in its own transaction to avoid transaction abort issues
     (
         processed_count,
         failed_count,
@@ -53,34 +60,41 @@ async def import_data(database, json_content: bytes) -> None:
 # Helper functions for data import
 
 
-def _parse_json_content(json_content: bytes) -> DatasetCollection:
-    """Parse and validate JSON content into DatasetCollection."""
+def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
+    """Parse and validate JSON content using registered collection classes."""
     try:
         raw_data = json.loads(json_content)
 
-        # Check if this JSON has the expected "processes" key with a list value
+        # Check if this JSON has the expected structure
         if not isinstance(raw_data, dict):
-            raise ValueError("JSON root must be an object")
-
-        if "processes" not in raw_data:
             raise ValueError(
-                "JSON does not contain 'processes' key - skipping incompatible format"
+                "JSON root must be an object - skipping incompatible format"
             )
 
-        if not isinstance(raw_data["processes"], list):
+        # Use registry to detect the appropriate collection class
+        collection_class = EntityTypeRegistry.detect_collection_class(raw_data)
+        if not collection_class:
             raise ValueError(
-                "'processes' value must be a list - skipping incompatible format"
+                "No suitable collection class found for this JSON structure - skipping incompatible format"
             )
 
-        return DatasetCollection.model_validate(raw_data)
+        return collection_class.model_validate(raw_data)
     except json.JSONDecodeError as e:
-        raise ValueError("Invalid JSON format") from e
+        raise ValueError(
+            f"Invalid JSON format - skipping incompatible format: {e}"
+        ) from e
+    except ValueError:
+        # Re-raise ValueError as-is (includes our "skipping incompatible format" cases)
+        raise
     except Exception as e:
-        raise ValueError(f"Invalid data format: {e}") from e
+        # For Pydantic validation errors and other exceptions, mark as incompatible format
+        raise ValueError(
+            f"Data validation failed - skipping incompatible format: {e}"
+        ) from e
 
 
 async def _process_entity_collection_with_recovery(
-    database, collection: DatasetCollection, main_table: str
+    database: "Database", collection: BaseEntityCollection, main_table: str
 ) -> tuple[int, int]:
     """Process all entity in the collection using batch transactions with fallback."""
     batch_size = database.config["application"]["batch_size"]
@@ -88,16 +102,16 @@ async def _process_entity_collection_with_recovery(
     total_processed = 0
     total_failed = 0
 
-    # Split datasets into batches
-    datasets = list(collection.processes)
+    # Split entities into batches
+    entities = collection.get_entities()
 
-    for batch_start in range(0, len(datasets), batch_size):
-        batch_end = min(batch_start + batch_size, len(datasets))
-        batch = datasets[batch_start:batch_end]
+    for batch_start in range(0, len(entities), batch_size):
+        batch_end = min(batch_start + batch_size, len(entities))
+        batch = entities[batch_start:batch_end]
         batch_indices = list(range(batch_start, batch_end))
 
         logger.info(
-            f"Processing batch {batch_start//batch_size + 1}: datasets {batch_start+1}-{batch_end} of {len(datasets)}"
+            f"Processing batch {batch_start//batch_size + 1}: entities {batch_start+1}-{batch_end} of {len(entities)}"
         )
 
         # Try batch processing first (all-or-nothing)
@@ -125,24 +139,38 @@ async def _process_entity_collection_with_recovery(
 
 
 async def _process_batch_all_or_nothing(
-    database, batch: list, batch_indices: list[int], main_table: str
+    database: "Database",
+    batch: list[BaseEntityData],
+    batch_indices: list[int],
+    main_table: str,
 ) -> tuple[int, int]:
-    """Process a batch of datasets in a single transaction (all-or-nothing)."""
+    """Process a batch of entities in a single transaction (all-or-nothing)."""
     try:
         async with database.session() as conn:
             async with conn.transaction():
+                # Get navigation structure once for the entire batch
+                navigation_structure = await _get_navigation_entity_structure(
+                    database, conn
+                )
+
                 # Pre-populate navigation entities for the entire batch
                 navigation_cache = await _preprocess_batch_navigation_entities(
                     database, conn, batch
                 )
 
-                # Process all datasets in the batch
-                for idx, dataset_data in zip(batch_indices, batch, strict=True):
+                # Process all entities in the batch
+                for idx, entity_data in zip(batch_indices, batch, strict=True):
                     await _process_single_entity(
-                        database, conn, dataset_data, idx, main_table, navigation_cache
+                        database,
+                        conn,
+                        entity_data,
+                        idx,
+                        main_table,
+                        navigation_cache,
+                        navigation_structure,
                     )
 
-                # If we get here, all datasets succeeded
+                # If we get here, all entities succeeded
                 return len(batch), 0
 
     except Exception as e:
@@ -152,31 +180,34 @@ async def _process_batch_all_or_nothing(
 
 
 async def _process_batch_individually(
-    database, batch: list, batch_indices: list[int], main_table: str
+    database: "Database",
+    batch: list[BaseEntityData],
+    batch_indices: list[int],
+    main_table: str,
 ) -> tuple[int, int]:
-    """Process batch datasets individually (fallback when batch fails)."""
+    """Process batch entities individually (fallback when batch fails)."""
     processed_count = 0
     failed_count = 0
 
-    for idx, dataset_data in zip(batch_indices, batch, strict=True):
-        # Process each dataset in its own session and transaction
+    for idx, entity_data in zip(batch_indices, batch, strict=True):
+        # Process each entity in its own session and transaction
         try:
             async with database.session() as conn:
                 async with conn.transaction():
-                    await _process_single_dataset(
-                        database, conn, dataset_data, idx, main_table
+                    await _process_single_entity(
+                        database, conn, entity_data, idx, main_table
                     )
                     processed_count += 1
         except Exception as e:
             failed_count += 1
-            logger.error(f"Failed to process dataset at index {idx}: {e}")
-            # Continue processing other datasets instead of aborting
+            logger.error(f"Failed to process entity at index {idx}: {e}")
+            # Continue processing other entities instead of aborting
 
     return processed_count, failed_count
 
 
 async def _preprocess_batch_navigation_entities(
-    database, conn: asyncpg.Connection, batch: list
+    database: "Database", conn: asyncpg.Connection, batch: list[BaseEntityData]
 ) -> dict[str, dict[str, int]]:
     """Pre-populate all navigation entities for a batch and return ID cache."""
     # Get dynamic navigation structure from config and schema
@@ -188,14 +219,14 @@ async def _preprocess_batch_navigation_entities(
     # Collect all unique navigation entity names from the batch
     unique_entities = {}
 
-    for dataset_data in batch:
+    for entity_data in batch:
         for entity_key, entity_info in entity_structure.items():
             field_name = entity_info["field_name"]
 
             # Get entity name from direct JSON field
             entity_name = None
-            if hasattr(dataset_data, field_name):
-                field_value = getattr(dataset_data, field_name)
+            if hasattr(entity_data, field_name):
+                field_value = getattr(entity_data, field_name)
                 if field_value and str(field_value).strip():
                     entity_name = str(field_value).strip()
 
@@ -226,52 +257,54 @@ async def _preprocess_batch_navigation_entities(
 
 
 async def _process_single_entity(
-    database,
+    database: "Database",
     conn: asyncpg.Connection,
-    dataset_data: Any,
+    entity_data: BaseEntityData,
     idx: int,
     main_table: str,
     navigation_cache: dict[str, dict[str, int]],
+    navigation_structure: dict[str, dict[str, str]],
 ) -> None:
-    """Process a single dataset using pre-populated navigation entity cache."""
-    dataset_name = _generate_dataset_name(dataset_data, idx)
-    logger.info(f"Processing: {dataset_name}")
+    """Process a single entity using pre-populated navigation entity cache."""
+    entity_name = _generate_entity_name(entity_data, idx)
+    logger.info(f"Processing: {entity_name}")
 
     # Get foreign key IDs from cache instead of creating individually
     foreign_key_ids = await _get_foreign_key_ids_from_cache(
-        dataset_data, navigation_cache
+        entity_data, navigation_cache, navigation_structure
     )
 
     # Get metadata and create the main entity
-    metadata_dict = dataset_data.get_all_metadata()
+    metadata_dict = entity_data.get_all_metadata()
     await _create_main_entity_with_conflict_resolution(
-        database, conn, dataset_name, metadata_dict, foreign_key_ids, main_table
+        database, conn, entity_name, metadata_dict, foreign_key_ids, main_table
     )
 
 
 async def _get_foreign_key_ids_from_cache(
-    dataset_data: Any,
+    entity_data: BaseEntityData,
     navigation_cache: dict[str, dict[str, int]],
+    navigation_structure: dict[str, dict[str, str]],
 ) -> dict[str, int | None]:
-    # TODO: what is this function? can it be removed or made more generic?
-    """Get foreign key IDs from the navigation cache."""
-    # For now, let's build the foreign_key_ids based on what we know
-    # This is a simplified version that works with the cache structure
+    """Get foreign key IDs from the navigation cache using dynamic navigation structure.
+
+    Args:
+        entity_data: The entity data containing field values
+        navigation_cache: Pre-populated cache of navigation entities
+        navigation_structure: Dynamic structure mapping entity keys to foreign key columns
+
+    Returns:
+        Dictionary mapping foreign key column names to their IDs
+    """
     foreign_key_ids = {}
 
-    # Map entity keys to their foreign key column names
-    entity_key_mappings = {
-        "accelerator": "accelerator_id",
-        "stage": "stage_id",
-        "campaign": "campaign_id",
-        "detector": "detector_id",
-        "file_type": "file_type_id",
-    }
+    # Use dynamic navigation structure instead of hardcoded mappings
+    for entity_key, entity_info in navigation_structure.items():
+        foreign_key_col = entity_info["foreign_key_column"]
 
-    for entity_key, foreign_key_col in entity_key_mappings.items():
         if entity_key in navigation_cache:
-            # Try to find the entity name for this dataset
-            entity_name = _get_entity_name_for_dataset(dataset_data, entity_key)
+            # Try to find the entity name for this entity
+            entity_name = _get_name_for_entity(entity_data, entity_key)
 
             if entity_name and entity_name in navigation_cache[entity_key]:
                 foreign_key_ids[foreign_key_col] = navigation_cache[entity_key][
@@ -285,56 +318,61 @@ async def _get_foreign_key_ids_from_cache(
     return foreign_key_ids
 
 
-def _get_entity_name_for_dataset(dataset_data: Any, field_name: str) -> str | None:
-    """Get the entity name for a specific entity key from dataset data."""
+def _get_name_for_entity(entity_data: BaseEntityData, field_name: str) -> str | None:
+    """Get the entity name for a specific entity key from entity data."""
     if not field_name:
         return None
 
     # Get entity name from direct JSON field
     entity_name = None
-    if hasattr(dataset_data, field_name):
-        field_value = getattr(dataset_data, field_name)
+    if hasattr(entity_data, field_name):
+        field_value = getattr(entity_data, field_name)
         if field_value and str(field_value).strip():
             entity_name = str(field_value).strip()
 
     return entity_name
 
 
-async def _process_single_dataset(
-    database, conn: asyncpg.Connection, dataset_data: Any, idx: int, main_table: str
+async def _process_single_entity(
+    database: "Database",
+    conn: asyncpg.Connection,
+    entity_data: BaseEntityData,
+    idx: int,
+    main_table: str,
 ) -> None:
-    """Process a single dataset with all its components."""
-    dataset_name = _generate_dataset_name(dataset_data, idx)
-    logger.info(f"Processing: {dataset_name}")
+    """Process a single entity with all its components."""
+    entity_name = _generate_entity_name(entity_data, idx)
+    logger.info(f"Processing: {entity_name}")
 
     # Parse path and create navigation entities
     foreign_key_ids = await _create_navigation_entities(
-        database, conn, dataset_data, dataset_name
+        database, conn, entity_data, entity_name
     )
 
     # Get metadata and create the main entity
-    # TODO: get_all_metadata is a required function
-    metadata_dict = dataset_data.get_all_metadata()
+    metadata_dict = entity_data.get_all_metadata()
     await _create_main_entity_with_conflict_resolution(
-        database, conn, dataset_name, metadata_dict, foreign_key_ids, main_table
+        database, conn, entity_name, metadata_dict, foreign_key_ids, main_table
     )
 
 
-def _generate_dataset_name(dataset_data: Any, idx: int) -> str:
-    """Generate dataset name with fallback if process_name is missing."""
-    dataset_name = dataset_data.process_name
-    if not dataset_name:
+def _generate_entity_name(entity_data: BaseEntityData, idx: int) -> str:
+    """Generate entity name with fallback if process_name is missing."""
+    entity_name = getattr(entity_data, "process_name", None) or getattr(
+        entity_data, "name", None
+    )
+    if not entity_name:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         short_uuid = str(uuid.uuid4())[:8]
-        dataset_name = f"unnamed_dataset_{timestamp}_{short_uuid}_{idx}"
+        entity_name = f"unnamed_entity_{timestamp}_{short_uuid}_{idx}"
         logger.warning(
-            f"Dataset at index {idx} has no process_name. Using fallback name: {dataset_name}"
+            f"Entity at index {idx} has no 'process_name' nor 'name' field. Using fallback name: {entity_name}"
         )
-    return dataset_name
+    return entity_name
 
 
 async def _get_navigation_entity_structure(
-    database, conn: asyncpg.Connection
+    database: "Database", conn: asyncpg.Connection
 ) -> dict[str, dict[str, str]]:
     """Get dynamic navigation entity structure from config and schema."""
     try:
@@ -402,7 +440,10 @@ async def _get_navigation_entity_structure(
 
 
 async def _create_navigation_entities(
-    database, conn: asyncpg.Connection, dataset_data: Any, dataset_name: str
+    database: "Database",
+    conn: asyncpg.Connection,
+    entity_data: BaseEntityData,
+    entity_name: str,
 ) -> dict[str, int | None]:
     """Create navigation entities dynamically from direct JSON fields and return their IDs."""
     # Get dynamic navigation structure from config and schema
@@ -417,7 +458,7 @@ async def _create_navigation_entities(
     # If no entity structure could be determined, return empty foreign keys
     if not entity_structure:
         logger.warning(
-            f"No navigation entity structure available for {dataset_name}. Skipping navigation entity creation."
+            f"No navigation entity structure available for {entity_name}. Skipping navigation entity creation."
         )
         return foreign_key_ids
 
@@ -430,8 +471,8 @@ async def _create_navigation_entities(
 
             # Get entity name from direct JSON field
             entity_name = None
-            if hasattr(dataset_data, field_name):
-                field_value = getattr(dataset_data, field_name)
+            if hasattr(entity_data, field_name):
+                field_value = getattr(entity_data, field_name)
                 if field_value and str(field_value).strip():
                     entity_name = str(field_value).strip()
 
@@ -456,8 +497,8 @@ async def _create_navigation_entities(
 
     except Exception as e:
         logger.warning(
-            f"Could not create navigation entities for {dataset_name}: {e}. "
-            f"Will store dataset with null foreign key references."
+            f"Could not create navigation entities for {entity_name}: {e}. "
+            f"Will store entity with null foreign key references."
         )
 
     return foreign_key_ids
@@ -466,7 +507,7 @@ async def _create_navigation_entities(
 async def _create_main_entity_with_conflict_resolution(
     database,
     conn: asyncpg.Connection,
-    dataset_name: str,
+    entity_name: str,
     metadata_dict: dict[str, Any],
     foreign_key_ids: dict[str, int | None],
     main_table: str,
@@ -474,16 +515,15 @@ async def _create_main_entity_with_conflict_resolution(
     """Create main entity using UUID-based conflict resolution."""
     try:
         await _create_main_entity(
-            database, conn, dataset_name, metadata_dict, foreign_key_ids, main_table
+            database, conn, entity_name, metadata_dict, foreign_key_ids, main_table
         )
     except Exception as e:
         # Log any errors but don't do name-based retries since UUID handles uniqueness
-        logger.error(f"Failed to create/update entity for {dataset_name}: {e}")
+        logger.error(f"Failed to create/update entity for {entity_name}: {e}")
         raise
 
 
 async def _create_main_entity(
-    database,
     conn: asyncpg.Connection,
     name: str,
     metadata_dict: dict[str, Any],
@@ -492,8 +532,8 @@ async def _create_main_entity(
 ) -> None:
     """Create the main entity in the database."""
     # Generate deterministic UUID based on key fields
-    dataset_uuid = generate_dataset_uuid(
-        dataset_name=name,
+    entity_uuid = generate_entity_uuid(
+        entity_name=name,
         **foreign_key_ids,
     )
 
@@ -506,7 +546,7 @@ async def _create_main_entity(
     # Add all foreign key IDs dynamically
     entity_dict.update(foreign_key_ids)
     # Add the UUID to the entity dictionary
-    entity_dict["uuid"] = dataset_uuid
+    entity_dict["uuid"] = entity_uuid
 
     entity_dict = await _merge_metadata_with_locked_fields(
         conn, entity_dict, main_table
@@ -668,18 +708,18 @@ def _log_import_results(processed_count: int, failed_count: int) -> None:
     """Log the results of the import operation."""
     if failed_count > 0:
         logger.warning(
-            f"Import completed with {failed_count} failures out of {processed_count + failed_count} total datasets"
+            f"Import completed with {failed_count} failures out of {processed_count + failed_count} total entities"
         )
     else:
-        logger.info(f"Successfully processed all {processed_count} datasets")
+        logger.info(f"Successfully processed all {processed_count} entities")
 
 
 def _validate_import_success(processed_count: int, failed_count: int) -> None:
     """Validate that the import was successful enough to continue."""
-    total_datasets = processed_count + failed_count
-    if total_datasets > 0 and failed_count > (total_datasets / 2):
+    total_entities = processed_count + failed_count
+    if total_entities > 0 and failed_count > (total_entities / 2):
         raise RuntimeError(
-            f"Import failed: {failed_count}/{total_datasets} datasets could not be processed"
+            f"Import failed: {failed_count}/{total_entities} entities could not be processed"
         )
 
 

@@ -5,16 +5,20 @@ This module handles navigation-related operations like dropdown items
 and sorting field discovery based on database schema analysis.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
 
+if TYPE_CHECKING:
+    from app.storage.database import Database
 from app.utils.logging import get_logger
 
 logger = get_logger()
 
 
-async def get_sorting_fields(database) -> dict[str, Any]:
+async def get_sorting_fields(
+    database: "Database",
+) -> dict[str, Any]:
     """
     Dynamically fetch available sorting fields from the database schema.
     Returns categorized lists of sortable fields based on the current database structure.
@@ -173,7 +177,7 @@ async def _fetch_nested_metadata_keys(
 
 def _build_field_collections(schema_data: dict[str, Any]) -> dict[str, list[str]]:
     """Build different field collections from schema data."""
-    dataset_fields = _build_dataset_fields(
+    dataset_fields = _build_entity_fields(
         schema_data["dataset_columns"], schema_data["foreign_keys"]
     )
     joined_fields = _build_joined_fields(schema_data["foreign_keys"])
@@ -188,7 +192,7 @@ def _build_field_collections(schema_data: dict[str, Any]) -> dict[str, list[str]
     }
 
 
-def _build_dataset_fields(
+def _build_entity_fields(
     dataset_columns: list[dict], foreign_keys: list[dict]
 ) -> list[str]:
     """Build dataset fields excluding foreign keys and metadata."""

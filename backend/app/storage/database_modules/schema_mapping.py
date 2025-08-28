@@ -5,9 +5,12 @@ This module handles dynamic schema discovery and mapping generation
 for the query parser based on database structure.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
+
+if TYPE_CHECKING:
+    from app.storage.database import Database
 
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.logging import get_logger
@@ -15,7 +18,9 @@ from app.utils.logging import get_logger
 logger = get_logger()
 
 
-async def generate_schema_mapping(database) -> dict[str, str]:
+async def generate_schema_mapping(
+    database: "Database",
+) -> dict[str, str]:
     """
     Generates a dynamic schema mapping for the query parser based on database schema.
 

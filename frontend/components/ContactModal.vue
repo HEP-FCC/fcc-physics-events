@@ -70,14 +70,73 @@
                 <div v-if="isAuthenticated" class="space-y-3 pt-4 border-t border-gray-200">
                     <h3 class="text-sm font-medium text-deep-blue-900 flex items-center gap-2">
                         <UIcon name="i-heroicons-cog-6-tooth" class="text-secondary-500" />
-                        Override entity values with data from a JSON file
-                        <span
-                            class="inline-flex items-center"
-                            title="Upload a JSON file with entity data to perform bulk updates. This will override existing entity fields and create locks to prevent further modifications."
+                        Override entity metadata with data from a JSON file
+                        <UTooltip
+                            text="Learn how to use the metadata override functionality"
+                            class="cursor-pointer"
+                            :popper="{ placement: 'bottom' }"
                         >
-                            <UIcon name="i-heroicons-information-circle" class="text-gdark-blueray-400 hover:text-dark-blue-600 cursor-help" />
-                        </span>
+                            <UButton
+                                icon="i-heroicons-information-circle"
+                                variant="ghost"
+                                color="primary"
+                                size="xs"
+                                class="p-1"
+                                @click="showOverrideHelp = !showOverrideHelp"
+                            />
+                        </UTooltip>
                     </h3>
+
+                    <!-- Expandable Help Section -->
+                    <div v-if="showOverrideHelp" class="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                        <h4 class="font-semibold text-deep-blue-900 flex items-center gap-2">
+                            <UIcon name="i-heroicons-academic-cap" class="text-deep-blue-600" />
+                            How Override Works
+                        </h4>
+
+                        <div class="text-sm text-deep-blue-800 space-y-2">
+                            <p>
+                                <strong>⚠️ UUID Required:</strong> Each entity MUST include a valid 'uuid' field.
+                                Entities without UUIDs will be rejected.
+                            </p>
+                            <p>
+                                <strong>📃 Metadata Only:</strong> Only metadata fields can be updated. Database fields
+                                like foreign keys, names, UUIDs are protected and blocked.
+                            </p>
+                            <p>
+                                <strong>🔒 Field Locking:</strong> Updated metadata fields are automatically locked to
+                                prevent further changes (unless force override is used).
+                            </p>
+                            <p>
+                                <strong>🔄 Transaction Safety:</strong> All updates happen in one transaction - if any
+                                entity fails, nothing is changed.
+                            </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <h5 class="font-medium text-deep-blue-900">Example JSON Format:</h5>
+                            <pre class="bg-gray-100 p-3 rounded text-xs font-mono overflow-x-auto text-deep-blue-800">
+[
+  {
+    "uuid": "valid-entity-uuid-here",
+    "description": "Updated description",
+    "process-name": "new-simulation",
+    "status": "completed",
+  },
+  {
+    "uuid": "another-valid-entity-uuid-here",
+    "comment": "Updated via bulk override",
+    "status": "done",
+  }
+]</pre
+                            >
+                        </div>
+
+                        <div class="text-xs text-amber-700 bg-amber-100 p-2 rounded border border-amber-200">
+                            <strong>⚠️ Important:</strong> Every entity must have a 'uuid' field. Only metadata fields
+                            will be processed - all database fields (foregin keys) are.
+                        </div>
+                    </div>
 
                     <div class="space-y-2">
                         <!-- File Selection -->
@@ -105,11 +164,7 @@
 
                         <!-- Force Override Checkbox -->
                         <div class="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <UCheckbox
-                                id="force-override"
-                                v-model="forceOverride"
-                                color="warning"
-                            />
+                            <UCheckbox id="force-override" v-model="forceOverride" color="warning" />
                             <label for="force-override" class="flex items-center gap-2 text-sm cursor-pointer">
                                 <UIcon name="i-heroicons-exclamation-triangle" class="text-amber-600" />
                                 <span class="font-medium text-amber-800">Force Override Locked Fields</span>
@@ -117,7 +172,10 @@
                                     class="inline-flex items-center"
                                     title="When enabled, this will override entity values even if the fields are currently locked by other users. Use with caution - this can overwrite changes made by other users and may cause data conflicts."
                                 >
-                                    <UIcon name="i-heroicons-information-circle" class="text-amber-600 hover:text-amber-800 cursor-help" />
+                                    <UIcon
+                                        name="i-heroicons-information-circle"
+                                        class="text-amber-600 hover:text-amber-800 cursor-help"
+                                    />
                                 </span>
                             </label>
                         </div>
@@ -133,7 +191,7 @@
                             class="cursor-pointer"
                             @click="confirmOverride"
                         >
-                            {{ isProcessing ? 'Processing...' : 'Override Entities' }}
+                            {{ isProcessing ? "Processing..." : "Override Entities" }}
                         </UButton>
 
                         <!-- Status Messages -->
@@ -170,7 +228,9 @@
                                             <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-medium">
                                                 Entity #{{ index + 1 }}
                                             </span>
-                                            <span class="text-red-800">{{ conflict.entity_data?.name || 'Unknown' }}</span>
+                                            <span class="text-red-800">{{
+                                                conflict.entity_data?.name || "Unknown"
+                                            }}</span>
                                         </div>
                                         <div class="text-xs text-red-600 font-mono mt-1">
                                             UUID: {{ conflict.entity_uuid }}
@@ -185,19 +245,28 @@
                                             <div class="flex items-center gap-2 mb-2">
                                                 <UIcon name="i-heroicons-lock-closed" class="text-energy-500 text-xs" />
                                                 <span class="font-bold text-energy-800 text-sm">{{ fieldName }}</span>
-                                                <span class="text-xs bg-energy-100 text-energy-700 px-2 py-1 rounded font-medium">LOCKED</span>
+                                                <span
+                                                    class="text-xs bg-energy-100 text-energy-700 px-2 py-1 rounded font-medium"
+                                                    >LOCKED</span
+                                                >
                                             </div>
                                             <div class="text-xs space-y-1 ml-5">
                                                 <div class="flex items-start gap-2">
-                                                    <span class="font-medium text-dark-blue-900 min-w-[80px]">Current:</span>
-                                                    <span class="font-mono bg-gray-100 px-2 py-1 rounded text-dark-blue-900 break-all">
-                                                        {{ fieldInfo.current_value ?? 'null' }}
+                                                    <span class="font-medium text-dark-blue-900 min-w-[80px]"
+                                                        >Current:</span
+                                                    >
+                                                    <span
+                                                        class="font-mono bg-gray-100 px-2 py-1 rounded text-dark-blue-900 break-all"
+                                                    >
+                                                        {{ fieldInfo.current_value ?? "null" }}
                                                     </span>
                                                 </div>
                                                 <div class="flex items-start gap-2">
                                                     <span class="font-medium text-energy min-w-[80px]">Attempted:</span>
-                                                    <span class="font-mono bg-energy-50 px-2 py-1 rounded text-energy break-all">
-                                                        {{ fieldInfo.attempted_value ?? 'null' }}
+                                                    <span
+                                                        class="font-mono bg-energy-50 px-2 py-1 rounded text-energy break-all"
+                                                    >
+                                                        {{ fieldInfo.attempted_value ?? "null" }}
                                                     </span>
                                                 </div>
                                             </div>
@@ -238,25 +307,33 @@ interface OverrideResponse {
     lock_conflicts?: Array<{
         entity_id: number;
         entity_uuid: string;
-        locked_fields: Record<string, {
-            locked: boolean;
-            current_value: any;
-            attempted_value: any;
-        }>;
+        locked_fields: Record<
+            string,
+            {
+                locked: boolean;
+                current_value: any;
+                attempted_value: any;
+            }
+        >;
         entity_data: Record<string, any>;
     }>;
     updated_entities?: Array<Record<string, any>>;
+    missing_entities?: Array<{
+        entity_data: Record<string, any>;
+        identifier: string;
+    }>;
 }
 
 // File upload and override functionality
 const fileInput = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
-const selectedFileName = ref<string>('');
+const selectedFileName = ref<string>("");
 const isProcessing = ref(false);
-const statusMessage = ref<string>('');
-const statusMessageClass = ref<string>('');
-const lockConflicts = ref<OverrideResponse['lock_conflicts']>([]);
+const statusMessage = ref<string>("");
+const statusMessageClass = ref<string>("");
+const lockConflicts = ref<OverrideResponse["lock_conflicts"]>([]);
 const forceOverride = ref<boolean>(false);
+const showOverrideHelp = ref<boolean>(false);
 
 // Trigger file input click
 const triggerFileInput = () => {
@@ -271,46 +348,46 @@ const handleFileSelection = (event: Event) => {
     if (file) {
         selectedFile.value = file;
         selectedFileName.value = file.name;
-        statusMessage.value = '';
+        statusMessage.value = "";
 
         // Validate file type
-        if (!file.name.toLowerCase().endsWith('.json')) {
-            showStatus('Please select a valid JSON file.', 'error');
+        if (!file.name.toLowerCase().endsWith(".json")) {
+            showStatus("Please select a valid JSON file.", "error");
             return;
         }
 
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-            showStatus('File size must be less than 10MB.', 'error');
+            showStatus("File size must be less than 10MB.", "error");
             return;
         }
 
-        showStatus(`Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, 'success');
+        showStatus(`Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`, "success");
     }
 };
 
 // Show status message with styling
-const showStatus = (message: string, type: 'success' | 'error' | 'info') => {
+const showStatus = (message: string, type: "success" | "error" | "info") => {
     statusMessage.value = message;
-    statusMessageClass.value = type === 'success'
-        ? 'text-green-600'
-        : type === 'error'
-        ? 'text-energy-600'
-        : 'text-blue-600';
+    statusMessageClass.value =
+        type === "success" ? "text-green-600" : type === "error" ? "text-energy-600" : "text-blue-600";
 };
 
 // Confirm override operation
 const confirmOverride = () => {
-    const baseMessage = 'Are you sure you want to override entities? This operation will:\n\n' +
-        '• Update existing entity fields\n' +
-        '• Create field locks to prevent further modifications\n' +
-        '• Cannot be easily undone\n';
+    const baseMessage =
+        "Are you sure you want to override entity metadata? This operation will:\n\n" +
+        "• Require a valid UUID for each entity\n" +
+        "• Update ONLY metadata fields (database fields are protected)\n" +
+        "• Create field locks to prevent further modifications\n" +
+        "• Fail if any entities don't exist or lack UUIDs\n" +
+        "• Cannot be easily undone\n";
 
     const forceMessage = forceOverride.value
-        ? '\n⚠️  FORCE OVERRIDE ENABLED: This will ignore existing field locks and may overwrite changes made by other users!\n'
-        : '';
+        ? "\n⚠️  FORCE OVERRIDE ENABLED: This will ignore existing field locks and may overwrite changes made by other users!\n"
+        : "";
 
-    const confirmed = confirm(baseMessage + forceMessage + '\nPlease confirm to proceed.');
+    const confirmed = confirm(baseMessage + forceMessage + "\nPlease confirm to proceed.");
 
     if (confirmed) {
         performOverride();
@@ -320,12 +397,12 @@ const confirmOverride = () => {
 // Perform the override operation
 const performOverride = async () => {
     if (!selectedFile.value) {
-        showStatus('No file selected.', 'error');
+        showStatus("No file selected.", "error");
         return;
     }
 
     isProcessing.value = true;
-    showStatus('Reading and validating file...', 'info');
+    showStatus("Reading and validating file...", "info");
 
     try {
         // Read file as text
@@ -336,23 +413,23 @@ const performOverride = async () => {
         try {
             entities = JSON.parse(fileText);
         } catch (e) {
-            throw new Error('Invalid JSON format in selected file.');
+            throw new Error("Invalid JSON format in selected file.");
         }
 
         // Validate that it's an array
         if (!Array.isArray(entities)) {
-            throw new Error('JSON file must contain an array of entities.');
+            throw new Error("JSON file must contain an array of entities.");
         }
 
         if (entities.length === 0) {
-            throw new Error('JSON file contains no entities.');
+            throw new Error("JSON file contains no entities.");
         }
 
-        showStatus(`Processing ${entities.length} entities...`, 'info');
+        showStatus(`Processing ${entities.length} entities...`, "info");
 
         // Send to backend with force_override query parameter
-        const response = await typedFetch<OverrideResponse>('/override', {
-            method: 'POST',
+        const response = await typedFetch<OverrideResponse>("/override", {
+            method: "POST",
             body: entities,
             query: { force_override: forceOverride.value },
         });
@@ -362,43 +439,56 @@ const performOverride = async () => {
                 ? `Successfully updated ${response.updated_count} entities (forced override enabled).`
                 : `Successfully updated ${response.updated_count} entities.`;
 
-            showStatus(successMsg, 'success');
+            showStatus(successMsg, "success");
             lockConflicts.value = []; // Clear any previous conflicts            // Clear the file selection after successful operation
             setTimeout(() => {
                 selectedFile.value = null;
-                selectedFileName.value = '';
+                selectedFileName.value = "";
                 forceOverride.value = false; // Reset force override
                 if (fileInput.value) {
-                    fileInput.value.value = '';
+                    fileInput.value.value = "";
                 }
             }, 3000);
         } else {
-            if (response.lock_conflicts && response.lock_conflicts.length > 0) {
+            if (response.missing_entities && response.missing_entities.length > 0) {
+                // Handle missing entities/UUIDs error
+                const missingCount = response.missing_entities.length;
+                const missingList = response.missing_entities
+                    .slice(0, 3)
+                    .map((missing) => missing.identifier)
+                    .join(", ");
+                const moreText = missingCount > 3 ? ` and ${missingCount - 3} more` : "";
+
+                showStatus(
+                    `Operation failed: ${missingCount} entities have issues (${missingList}${moreText}). Each entity must have a valid UUID.`,
+                    "error",
+                );
+                lockConflicts.value = [];
+            } else if (response.lock_conflicts && response.lock_conflicts.length > 0) {
                 lockConflicts.value = response.lock_conflicts;
 
                 // Count total locked fields across all entities
                 const totalLockedFields = response.lock_conflicts.reduce(
                     (sum, conflict) => sum + Object.keys(conflict.locked_fields).length,
-                    0
+                    0,
                 );
 
                 showStatus(
                     `Operation failed: ${response.lock_conflicts.length} entities have ${totalLockedFields} locked fields. See details below.`,
-                    'error'
+                    "error",
                 );
 
                 // Log detailed conflict information for debugging
-                console.warn('Lock conflicts detected:', response.lock_conflicts);
+                console.warn("Lock conflicts detected:", response.lock_conflicts);
             } else {
                 lockConflicts.value = [];
-                showStatus(response.message || 'Override operation failed.', 'error');
+                showStatus(response.message || "Override operation failed.", "error");
             }
         }
-
     } catch (error: any) {
-        console.error('Override operation failed:', error);
-        const errorMessage = error?.data?.detail || error?.message || 'Failed to process override operation.';
-        showStatus(errorMessage, 'error');
+        console.error("Override operation failed:", error);
+        const errorMessage = error?.data?.detail || error?.message || "Failed to process override operation.";
+        showStatus(errorMessage, "error");
     } finally {
         isProcessing.value = false;
     }
@@ -407,7 +497,7 @@ const performOverride = async () => {
 // Copy lock conflicts to clipboard as formatted JSON
 const copyLockConflictsToClipboard = async () => {
     if (!lockConflicts.value || lockConflicts.value.length === 0) {
-        showStatus('No lock conflicts to copy.', 'error');
+        showStatus("No lock conflicts to copy.", "error");
         return;
     }
 
@@ -418,7 +508,7 @@ const copyLockConflictsToClipboard = async () => {
                 total_conflicts: lockConflicts.value.length,
                 total_locked_fields: lockConflicts.value.reduce(
                     (sum, conflict) => sum + Object.keys(conflict.locked_fields).length,
-                    0
+                    0,
                 ),
                 timestamp: new Date().toISOString(),
             },
@@ -426,7 +516,7 @@ const copyLockConflictsToClipboard = async () => {
                 entity_number: index + 1,
                 entity_id: conflict.entity_id,
                 entity_uuid: conflict.entity_uuid,
-                entity_name: conflict.entity_data?.name || 'Unknown',
+                entity_name: conflict.entity_data?.name || "Unknown",
                 locked_fields: Object.entries(conflict.locked_fields).map(([fieldName, fieldInfo]) => ({
                     field_name: fieldName,
                     is_locked: fieldInfo.locked,
@@ -445,13 +535,10 @@ const copyLockConflictsToClipboard = async () => {
         // Copy to clipboard
         await navigator.clipboard.writeText(jsonString);
 
-        showStatus(
-            `Copied ${lockConflicts.value.length} lock conflicts to clipboard as JSON.`,
-            'success'
-        );
+        showStatus(`Copied ${lockConflicts.value.length} lock conflicts to clipboard as JSON.`, "success");
     } catch (error) {
-        console.error('Failed to copy to clipboard:', error);
-        showStatus('Failed to copy to clipboard. Check console for details.', 'error');
+        console.error("Failed to copy to clipboard:", error);
+        showStatus("Failed to copy to clipboard. Check console for details.", "error");
     }
 };
 </script>

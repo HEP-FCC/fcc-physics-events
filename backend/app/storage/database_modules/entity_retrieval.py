@@ -6,7 +6,10 @@ and related navigation entity information.
 """
 
 import json
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.storage.database import Database
 
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.logging import get_logger
@@ -14,7 +17,9 @@ from app.utils.logging import get_logger
 logger = get_logger()
 
 
-async def get_entities_by_ids(database, entity_ids: list[int]) -> list[dict[str, Any]]:
+async def get_entities_by_ids(
+    database: "Database", entity_ids: list[int]
+) -> list[dict[str, Any]]:
     """
     Get entities by their IDs with all details and related entity names.
     Returns a list of dictionaries with all entity fields plus metadata flattened to top-level.
@@ -116,7 +121,9 @@ async def get_entities_by_ids(database, entity_ids: list[int]) -> list[dict[str,
         return result
 
 
-async def get_entity_by_id(database, entity_id: int) -> dict[str, Any] | None:
+async def get_entity_by_id(
+    database: "Database", entity_id: int
+) -> dict[str, Any] | None:
     """
     Get a single entity by ID with all details and related entity names.
     Returns None if entity is not found.

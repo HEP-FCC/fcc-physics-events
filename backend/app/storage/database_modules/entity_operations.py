@@ -6,19 +6,22 @@ with support for field locking and metadata management.
 """
 
 import json
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.storage.database import Database
 
 import asyncpg
 
 from app.storage.schema_discovery import get_schema_discovery
 from app.utils.logging import get_logger
-from app.utils.uuid_utils import generate_dataset_uuid
+from app.utils.uuid_utils import generate_entity_uuid
 
 logger = get_logger()
 
 
 async def update_entity(
-    database,
+    database: "Database",
     entity_id: int,
     update_data: dict[str, Any],
     user_info: dict[str, Any] | None = None,
@@ -66,7 +69,9 @@ async def update_entity(
             return updated_entity
 
 
-async def delete_entities_by_ids(database, entity_ids: list[int]) -> dict[str, Any]:
+async def delete_entities_by_ids(
+    database: "Database", entity_ids: list[int]
+) -> dict[str, Any]:
     """
     Delete entities by their IDs from the database.
     Returns a summary of the deletion operation.
@@ -155,21 +160,30 @@ async def delete_entities_by_ids(database, entity_ids: list[int]) -> dict[str, A
 
 
 async def bulk_override_entities(
-    database,
+    database: "Database",
     entities: list[dict[str, Any]],
     user_info: dict[str, Any] | None = None,
     force_override: bool = False,
 ) -> dict[str, Any]:
     """
-    Bulk override entities with field locking and transaction management.
+    Bulk override entities with metadata-only updates, field locking and transaction management.
+
+    This function is designed to ONLY update metadata fields. It will block attempts to update
+    table columns such as foreign keys, names, UUIDs, or other database fields for security.
+
+    REQUIRES: Each entity MUST include a valid 'uuid' field to identify the entity to update.
+    No UUID computation is performed - entities without UUIDs will be rejected.
+
+    When metadata is updated, the fuzzy search capabilities are automatically maintained
+    through the database's expression index on jsonb_values_to_text(metadata).
 
     Args:
-        entities: List of entity dictionaries to update
+        entities: List of entity dictionaries to update - each MUST contain a 'uuid' field
         user_info: User information for audit logging
-        force_override: If True, ignore field locks and force the update
+        force_override: If True, ignore field locks and force the metadata update
 
     Returns:
-        Dictionary with operation results, including lock conflicts if any
+        Dictionary with operation results, including lock conflicts or missing UUIDs if any
     """
     main_table = database.config["application"]["main_table"]
 
@@ -180,16 +194,40 @@ async def bulk_override_entities(
         async with conn.transaction():
             lock_conflicts = []
             entities_to_update = []
+            missing_entities = []
 
-            # Phase 1: Resolve UUIDs and check locks
+            # Phase 1: Validate UUIDs and check locks
             for entity_data in entities:
                 try:
-                    # Try to resolve entity by UUID or compute UUID
-                    resolved_entity = await _resolve_entity_for_override(
-                        conn, entity_data, main_table, primary_key_column
+                    # Require UUID for each entity
+                    entity_uuid = entity_data.get("uuid")
+                    if not entity_uuid:
+                        # Track entities missing UUID
+                        entity_identifier = entity_data.get("name", "unknown entity")
+                        missing_entities.append(
+                            {
+                                "entity_data": entity_data,
+                                "identifier": f"Missing UUID (name: {entity_identifier})",
+                            }
+                        )
+                        continue
+
+                    # Try to resolve entity by UUID only
+                    resolved_entity = await _resolve_entity_by_uuid_only(
+                        conn, entity_uuid, main_table, primary_key_column
                     )
 
                     if not resolved_entity:
+                        # Track missing entities for error reporting
+                        entity_identifier = entity_data.get(
+                            "uuid", entity_data.get("name", "unknown")
+                        )
+                        missing_entities.append(
+                            {
+                                "entity_data": entity_data,
+                                "identifier": entity_identifier,
+                            }
+                        )
                         continue  # Skip entities that can't be resolved
 
                     entity_id = resolved_entity["entity_id"]
@@ -256,6 +294,22 @@ async def bulk_override_entities(
                     logger.error(f"Error processing entity {entity_data}: {e}")
                     continue
 
+            # If any entities are missing UUIDs or not found, fail the entire transaction
+            if missing_entities:
+                missing_count = len(missing_entities)
+                missing_details = []
+
+                for missing in missing_entities:
+                    missing_details.append(missing["identifier"])
+
+                # Transaction will automatically rollback
+                return {
+                    "success": False,
+                    "message": f"Cannot override entities. {missing_count} entities have issues: {', '.join(missing_details[:5])}{'...' if missing_count > 5 else ''}",
+                    "entities_processed": 0,
+                    "missing_entities": missing_entities,
+                }
+
             # If any lock conflicts and force_override is False, rollback and return conflicts
             if lock_conflicts and not force_override:
                 # Transaction will automatically rollback
@@ -274,57 +328,72 @@ async def bulk_override_entities(
                     entity_id = entity_update["entity_id"]
                     update_data = entity_update["update_data"].copy()
 
-                    # Remove UUID from update data if present
-                    update_data.pop("uuid", None)
+                    # Remove UUID and other protected fields from update data
+                    protected_fields = {
+                        "uuid",
+                        "created_at",
+                        "updated_at",
+                        "last_edited_at",
+                        "edited_by_name",
+                    }
+                    for protected_field in protected_fields or protected_field.endswith(
+                        "_id"
+                    ):
+                        update_data.pop(protected_field, None)
 
-                    # Get valid table columns to separate table fields from metadata fields
+                    # Get valid table columns to identify what should NOT be updated
                     valid_columns = await _get_valid_table_columns(conn, main_table)
 
-                    # Separate table columns from metadata fields
-                    table_fields = {}
+                    # Block all table field updates except metadata - this function should ONLY update metadata
                     metadata_fields = {}
+                    blocked_table_fields = []
 
                     for field_name, field_value in update_data.items():
-                        if field_name in valid_columns:
-                            table_fields[field_name] = field_value
+                        if field_name in valid_columns and field_name != "metadata":
+                            # This is a table field (not metadata) - block it
+                            blocked_table_fields.append(field_name)
+                            logger.warning(
+                                f"Blocked attempt to update table field '{field_name}' via bulk override - this function only updates metadata"
+                            )
                         else:
+                            # This is a metadata field - allow it
                             metadata_fields[field_name] = field_value
 
+                    if blocked_table_fields:
+                        logger.warning(
+                            f"Bulk override blocked table field updates: {blocked_table_fields}. Only metadata fields are allowed."
+                        )
+
                     logger.info(
-                        f"Field separation - Table fields: {list(table_fields.keys())}, Metadata fields: {list(metadata_fields.keys())}"
+                        f"Metadata-only update - Metadata fields: {list(metadata_fields.keys())}, Blocked table fields: {blocked_table_fields}"
                     )
 
-                    # Prepare the properly structured update data
-                    structured_update_data = table_fields.copy()
+                    # Prepare the properly structured update data with ONLY metadata
+                    structured_update_data = {}
 
-                    # If we have metadata fields to update, add them to the metadata structure
+                    # Only process metadata fields - this ensures we only update the metadata column
                     if metadata_fields:
-                        if "metadata" not in structured_update_data:
-                            structured_update_data["metadata"] = {}
+                        structured_update_data["metadata"] = {}
 
                         # Add the individual metadata fields
                         for field_name, field_value in metadata_fields.items():
                             structured_update_data["metadata"][field_name] = field_value
 
-                    # Create locks for all fields being updated (both table and metadata fields)
-                    if "metadata" not in structured_update_data:
-                        structured_update_data["metadata"] = {}
-
-                    # Add lock fields for each field being updated
-                    all_field_names = list(table_fields.keys()) + list(
-                        metadata_fields.keys()
-                    )
-                    for field_name in all_field_names:
-                        lock_field_name = f"__{field_name}__lock__"
-                        if isinstance(structured_update_data["metadata"], dict):
+                        # Create locks for all metadata fields being updated
+                        for field_name in metadata_fields.keys():
+                            lock_field_name = f"__{field_name}__lock__"
                             structured_update_data["metadata"][lock_field_name] = True
-                        else:
-                            # Handle case where metadata is not a dict
-                            structured_update_data["metadata"] = {lock_field_name: True}
 
                     logger.info(
-                        f"Final structured update data: {structured_update_data}"
+                        f"Final structured metadata-only update data: {structured_update_data}"
                     )
+
+                    # Skip update if no metadata fields to update
+                    if not structured_update_data:
+                        logger.info(
+                            f"No metadata fields to update for entity {entity_id}, skipping"
+                        )
+                        continue
 
                     # Update the entity using existing update logic
                     update_fields, values = await _prepare_update_fields(
@@ -364,10 +433,12 @@ async def bulk_override_entities(
 
             force_override_msg = " (force override enabled)" if force_override else ""
             logger.info(
-                f"Successfully updated {len(updated_entities)} entities in bulk override operation{force_override_msg} by user {user_info.get('preferred_username', 'unknown') if user_info else 'unknown'}"
+                f"Successfully updated metadata for {len(updated_entities)} entities in bulk override operation{force_override_msg} by user {user_info.get('preferred_username', 'unknown') if user_info else 'unknown'}"
             )
 
-            success_message = f"Successfully updated {len(updated_entities)} entities"
+            success_message = (
+                f"Successfully updated metadata for {len(updated_entities)} entities"
+            )
             if force_override:
                 success_message += " with force override (bypassed field locks)"
             else:
@@ -657,7 +728,6 @@ async def _execute_update_query(
     entity_id: int,
     primary_key_column: str,
     main_table: str,
-    user_info: dict[str, Any] | None = None,
 ) -> None:
     """Execute the update query."""
     query_values: list[Any]
@@ -761,7 +831,7 @@ async def _resolve_entity_for_override(
                     return None
 
         # Generate UUID using the same logic as dataset creation
-        computed_uuid = str(generate_dataset_uuid(entity_name, **foreign_key_ids))
+        computed_uuid = str(generate_entity_uuid(entity_name, **foreign_key_ids))
 
         # Look up entity by computed UUID
         query = f"SELECT {primary_key_column}, uuid FROM {main_table} WHERE uuid = $1"
@@ -778,6 +848,30 @@ async def _resolve_entity_for_override(
 
     except Exception as e:
         logger.error(f"Error computing UUID for entity {entity_data}: {e}")
+        return None
+
+
+async def _resolve_entity_by_uuid_only(
+    conn: asyncpg.Connection,
+    entity_uuid: str,
+    main_table: str,
+    primary_key_column: str,
+) -> dict[str, Any] | None:
+    """
+    Resolve entity ID and UUID by UUID only (no computation).
+
+    Returns dict with entity_id and entity_uuid, or None if not found.
+    """
+    query = f"SELECT {primary_key_column}, uuid FROM {main_table} WHERE uuid = $1"
+    result = await conn.fetchrow(query, entity_uuid)
+
+    if result:
+        return {
+            "entity_id": result[primary_key_column],
+            "entity_uuid": result["uuid"],
+        }
+    else:
+        logger.warning(f"Entity with UUID {entity_uuid} not found")
         return None
 
 

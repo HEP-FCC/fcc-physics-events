@@ -426,27 +426,37 @@ class EntityOverrideResponse(BaseModel):
 async def override_entities(
     entities: list[dict[str, Any]],
     force_override: bool = Query(
-        False, description="Force override even if fields are locked"
+        False, description="Force override even if metadata fields are locked"
     ),
     user: dict[str, Any] = Depends(AuthDependency("authorized")),
 ) -> EntityOverrideResponse:
     """
-    Bulk entity override endpoint with standard authentication and field locking.
+    Bulk entity metadata override endpoint with field locking and authentication.
 
-    Accepts a list of entity dictionaries to update. Each entity can either:
+    This endpoint performs METADATA-ONLY updates for security. It will reject attempts
+    to update table columns such as foreign keys, UUIDs, names, or other database fields.
+    Only metadata fields are processed and updated.
+
+    REQUIRES: Each entity MUST include a valid 'uuid' field to identify the entity to update.
+    No UUID computation is performed - entities without UUIDs will be rejected.
+
+    When metadata is updated, fuzzy search capabilities are automatically maintained
+    through PostgreSQL's expression indexes on the metadata column.
+
+    Accepts a list of entity dictionaries to update. Each entity MUST:
     1. Include a 'uuid' field to match against existing entities
-    2. Include enough fields to compute a UUID based on available properties
 
-    All field updates are performed within a single transaction. If any entity
-    has locked fields that conflict with the update, the entire operation is
-    rolled back and detailed lock information is returned, unless force_override
-    is set to True.
+    All metadata updates are performed within a single transaction. If any entity
+    cannot be found in the database or is missing a UUID, the entire operation fails
+    and no changes are made. If any entity has locked metadata fields that conflict
+    with the update, the entire operation is rolled back and detailed lock information
+    is returned, unless force_override is set to True.
 
     Requires 'authorized' role for access.
 
     Args:
-        entities: List of entity dictionaries with fields to update
-        force_override: If True, ignore field locks and force the update
+        entities: List of entity dictionaries with metadata fields to update
+        force_override: If True, ignore metadata field locks and force the update
         user: Authenticated user data (injected by AuthDependency)
 
     Returns:
