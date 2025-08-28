@@ -28,6 +28,20 @@ AUTH_COOKIE_PREFIX = f"{config.get('general.cookie_prefix')}-auth"
 CERN_ENDPOINTS: dict[str, Any] = {}
 
 
+def get_endpoint_required_role(endpoint_name: str) -> str:
+    """
+    Get the required role for a specific endpoint from configuration.
+
+    Args:
+        endpoint_name: The endpoint configuration key (e.g., 'update_entity')
+        default: Default role if not configured
+
+    Returns:
+        Required role string for the endpoint
+    """
+    return config.get(f"auth.endpoints.{endpoint_name}")
+
+
 class CERNAuthenticator:
     """Production-ready CERN authentication handler with improved error handling and caching."""
 

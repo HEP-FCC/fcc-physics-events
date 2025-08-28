@@ -63,7 +63,28 @@ async def import_data(database: "Database", json_content: bytes) -> None:
 def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
     """Parse and validate JSON content using registered collection classes."""
     try:
-        raw_data = json.loads(json_content)
+        # Try to decode bytes to string with robust encoding detection
+        try:
+            # First try UTF-8 (most common)
+            content_str = json_content.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                # Try UTF-8 with error handling
+                content_str = json_content.decode('utf-8', errors='replace')
+                logger.warning("File contains invalid UTF-8 characters, replaced with placeholders")
+            except UnicodeDecodeError:
+                try:
+                    # Try Latin-1 as fallback (can decode any byte sequence)
+                    content_str = json_content.decode('latin-1')
+                    logger.warning("File decoded using Latin-1 encoding as fallback")
+                except UnicodeDecodeError as e:
+                    logger.warning(f"Failed to decode file with multiple encodings: {e}")
+                    raise ValueError(
+                        f"Unable to decode file content - skipping incompatible format: {e}"
+                    ) from e
+
+        # Parse the decoded string as JSON
+        raw_data = json.loads(content_str)
 
         # Check if this JSON has the expected structure
         if not isinstance(raw_data, dict):
@@ -80,6 +101,7 @@ def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
 
         return collection_class.model_validate(raw_data)
     except json.JSONDecodeError as e:
+        logger.warning(f"Invalid JSON format in file: {e}")
         raise ValueError(
             f"Invalid JSON format - skipping incompatible format: {e}"
         ) from e
@@ -88,6 +110,7 @@ def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
         raise
     except Exception as e:
         # For Pydantic validation errors and other exceptions, mark as incompatible format
+        logger.warning(f"Data validation failed for file: {e}")
         raise ValueError(
             f"Data validation failed - skipping incompatible format: {e}"
         ) from e

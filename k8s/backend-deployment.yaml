@@ -22,11 +22,18 @@ spec:
         io.kompose.service: fcc-physics-events-backend
     spec:
       containers:
-        image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:24
+      - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:31
         name: fcc-phsyics-events-backend
         ports:
         - containerPort: 8000
           protocol: TCP
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
         volumeMounts:
         - name: eos
           mountPath: /eos

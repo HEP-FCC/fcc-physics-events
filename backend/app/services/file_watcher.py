@@ -42,13 +42,14 @@ class FileWatcherService:
         self.is_running = False
         self._watch_task: asyncio.Task[None] | None = None
 
-        # Worker coordination - only one worker should handle file watching
-        self._lock_file: int | None = None
-        self._lock_file_path = "/app/locks/file_watcher.lock"
-        self._is_primary_worker = False
-
         # Load configuration
         watcher_config = self.config.get("file_watcher", {})
+
+        # Worker coordination - only one worker should handle file watching
+        self._lock_file: int | None = None
+        self._lock_file_path = watcher_config.get("lock_file", "/backend-storage/file_watcher.lock")
+        self._is_primary_worker = False
+
         self.enabled = watcher_config.get("enabled", True)
         self.watch_paths = watcher_config.get("watch_paths", ["/data"])
         self.file_extensions = watcher_config.get("file_extensions", [".json"])
@@ -602,8 +603,24 @@ class FileWatcherService:
                 self._known_files[file_path] = current_mtime
                 self._save_state()
 
+            except ValueError as e:
+                # These are expected validation/format errors - log as warning and continue
+                if "skipping incompatible format" in str(e):
+                    logger.warning(f"Skipping file with incompatible format {file_path}: {e}")
+                else:
+                    logger.warning(f"Validation error processing file {file_path}: {e}")
+
+                # Still update known files to avoid reprocessing the same problematic file
+                self._known_files[file_path] = current_mtime
+                self._save_state()
+
             except Exception as e:
-                logger.error(f"Failed to import FCC dictionary from {file_path}: {e}")
+                # Log unexpected errors as warnings but don't crash the service
+                logger.warning(f"Failed to import FCC dictionary from {file_path}: {e}")
+
+                # Still update known files to avoid reprocessing the same problematic file
+                self._known_files[file_path] = current_mtime
+                self._save_state()
 
         except Exception as e:
             logger.error(f"Unexpected error processing file {file_path}: {e}")

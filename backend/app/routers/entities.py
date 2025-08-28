@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from app.models.generic import GenericEntityUpdate
 from app.storage.database import Database
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.auth import AuthDependency
+from app.utils.auth import AuthDependency, get_endpoint_required_role
 from app.utils.config import get_config
 from app.utils.errors import (
     SearchValidationError,
@@ -223,7 +223,7 @@ async def update_entity(
     entity_id: int,
     update_data: GenericEntityUpdate,
     _request: Request,
-    user: dict[str, Any] = Depends(AuthDependency("authorized")),
+    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("update_entity"))),
 ) -> Any:
     """
     Update an entity with the provided data.
@@ -262,7 +262,7 @@ async def update_metadata_lock(
     entity_id: int,
     lock_request: MetadataLockRequest,
     _request: Request,
-    user: dict[str, Any] = Depends(AuthDependency("authorized")),
+    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("update_metadata_lock"))),
 ) -> Any:
     """
     Update the lock state of a metadata field.
@@ -356,7 +356,7 @@ async def update_metadata_lock(
 @router.delete("/entities/", response_model=dict[str, Any])
 async def delete_entities(
     request: DeleteEntitiesRequest,
-    user: dict[str, Any] = Depends(AuthDependency("admin")),
+    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("delete_entities"))),
 ) -> dict[str, Any]:
     """
     Delete entities by their IDs. Only users with 'authorized' role can perform this operation.
@@ -428,7 +428,7 @@ async def override_entities(
     force_override: bool = Query(
         False, description="Force override even if metadata fields are locked"
     ),
-    user: dict[str, Any] = Depends(AuthDependency("authorized")),
+    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("override_entities"))),
 ) -> EntityOverrideResponse:
     """
     Bulk entity metadata override endpoint with field locking and authentication.
