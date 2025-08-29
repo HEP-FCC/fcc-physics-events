@@ -6,7 +6,7 @@ with support for field locking and metadata management.
 """
 
 import json
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from app.storage.database import Database
@@ -56,7 +56,6 @@ async def update_entity(
                 entity_id,
                 primary_key_column,
                 main_table,
-                user_info,
             )
 
             # Return the updated entity - import here to avoid circular imports
@@ -336,10 +335,12 @@ async def bulk_override_entities(
                         "last_edited_at",
                         "edited_by_name",
                     }
-                    for protected_field in protected_fields or protected_field.endswith(
-                        "_id"
-                    ):
-                        update_data.pop(protected_field, None)
+                    # Create a new dict without protected fields to avoid modifying during iteration
+                    update_data = {
+                        field: value
+                        for field, value in update_data.items()
+                        if field not in protected_fields and not field.endswith("_id")
+                    }
 
                     # Get valid table columns to identify what should NOT be updated
                     valid_columns = await _get_valid_table_columns(conn, main_table)
@@ -413,7 +414,6 @@ async def bulk_override_entities(
                         entity_id,
                         primary_key_column,
                         main_table,
-                        user_info,
                     )
 
                     # Get updated entity for response

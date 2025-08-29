@@ -19,6 +19,8 @@
                             </h1>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
+                            <!-- Admin Modal - Icon only on mobile, only for authenticated users -->
+                            <AdminModal v-if="isAuthenticated" icon-only />
                             <!-- Contact Modal - Icon only on mobile -->
                             <ContactModal icon-only />
                             <!-- Auth Section - will show icon for login or sign out button -->
@@ -48,8 +50,9 @@
                         </h1>
                     </div>
 
-                    <!-- Right: Contact and Authentication Section -->
+                    <!-- Right: Contact, Admin and Authentication Section -->
                     <div class="ml-auto flex items-center space-x-4">
+                        <AdminModal v-if="isAuthenticated" />
                         <ContactModal />
                         <AuthSection />
                     </div>
@@ -71,6 +74,7 @@
 import AuthSection from "~/components/auth/AuthSection.vue";
 import AppFooter from "~/components/AppFooter.vue";
 import ContactModal from "~/components/ContactModal.vue";
+import AdminModal from "~/components/AdminModal.vue";
 
 // Check authentication status on app initialization
 const { checkAuthStatus, user } = useAuth();

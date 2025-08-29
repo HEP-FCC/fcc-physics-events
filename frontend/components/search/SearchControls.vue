@@ -14,13 +14,11 @@
                     v-model:open="showHelpTooltip"
                     :content="{ side: 'bottom', sideOffset: 20 }"
                     mode="click"
-                    :dismissible="!isClickOpen"
+                    :dismissible="true"
                 >
                     <template #content>
                         <div
                             class="w-80 sm:max-w-md p-3 sm:p-4 bg-white rounded-lg shadow-lg max-h-[80vh] overflow-y-auto"
-                            @mouseenter="onContentMouseEnter"
-                            @mouseleave="onContentMouseLeave"
                         >
                             <div class="flex items-center justify-between mb-3">
                                 <div class="font-semibold text-sm">Query Language Help</div>
@@ -59,7 +57,7 @@
                                             - Metadata number filter
                                         </div>
                                         <div>
-                                            <code :class="codeClass">entity_name # "H to cu"</code>
+                                            <code :class="codeClass">name#"H to cu"</code>
                                             - Fuzzy text match (0.7 similarity)
                                         </div>
                                     </div>
@@ -132,25 +130,24 @@
                             </div>
                         </div>
                     </template>
-                    <UButton
-                        color="primary"
-                        variant="ghost"
-                        size="xl"
-                        class="w-8 h-8 hover:bg-gray-100 rounded-full flex items-center justify-center cursor-pointer"
-                        @click="onButtonClick"
-                        @mouseenter="onButtonMouseEnter"
-                        @mouseleave="onButtonMouseLeave"
-                    >
-                        <UIcon
-                            name="i-heroicons-information-circle"
-                            style="
-                                width: 28px !important;
-                                height: 28px !important;
-                                min-width: 28px !important;
-                                min-height: 28px !important;
-                            "
-                        />
-                    </UButton>
+                    <UTooltip text="Learn more about the query language">
+                        <UButton
+                            color="primary"
+                            variant="ghost"
+                            size="xl"
+                            class="w-8 h-8 hover:bg-gray-100 rounded-full flex items-center justify-center cursor-pointer"
+                        >
+                            <UIcon
+                                name="i-heroicons-information-circle"
+                                style="
+                                    width: 28px !important;
+                                    height: 28px !important;
+                                    min-width: 28px !important;
+                                    min-height: 28px !important;
+                                "
+                            />
+                        </UButton>
+                    </UTooltip>
                 </UPopover>
             </div>
 
@@ -242,11 +239,6 @@ const showLinkCopiedFeedback = ref(false);
 const showHelpTooltip = ref(false);
 const codeClass = "bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono";
 
-// UI state for dual trigger mode (hover + click)
-const isClickOpen = ref(false); // Track if modal was opened by click
-const isHoverOpen = ref(false); // Track if modal was opened by hover
-const hoverTimeout = ref<NodeJS.Timeout | null>(null);
-
 // Utility functions
 const { copyToClipboard } = useUtils();
 
@@ -261,102 +253,10 @@ function showSuccessNotification(): void {
 }
 
 /**
- * Handle button click - set click mode and open modal
- */
-function onButtonClick(): void {
-    // Clear any hover timeout
-    if (hoverTimeout.value) {
-        clearTimeout(hoverTimeout.value);
-        hoverTimeout.value = null;
-    }
-
-    // Set click mode and open modal
-    isClickOpen.value = true;
-    isHoverOpen.value = false;
-    showHelpTooltip.value = true;
-}
-
-/**
- * Handle button mouse enter - start hover mode
- */
-function onButtonMouseEnter(): void {
-    // Don't trigger hover if already opened by click
-    if (isClickOpen.value) return;
-
-    // Clear any existing timeout
-    if (hoverTimeout.value) {
-        clearTimeout(hoverTimeout.value);
-    }
-
-    // Set hover mode and show modal with slight delay
-    hoverTimeout.value = setTimeout(() => {
-        isHoverOpen.value = true;
-        isClickOpen.value = false;
-        showHelpTooltip.value = true;
-    }, 300); // 300ms delay before showing on hover
-}
-
-/**
- * Handle button mouse leave - potentially close if in hover mode
- */
-function onButtonMouseLeave(): void {
-    // Clear pending hover timeout
-    if (hoverTimeout.value) {
-        clearTimeout(hoverTimeout.value);
-        hoverTimeout.value = null;
-    }
-
-    // Only close if in hover mode (not click mode)
-    if (isHoverOpen.value && !isClickOpen.value) {
-        // Add small delay to allow moving to content
-        hoverTimeout.value = setTimeout(() => {
-            if (isHoverOpen.value && !isClickOpen.value) {
-                showHelpTooltip.value = false;
-                isHoverOpen.value = false;
-            }
-        }, 200);
-    }
-}
-
-/**
- * Handle content mouse enter - keep modal open when hovering over content
- */
-function onContentMouseEnter(): void {
-    // Clear any close timeout when entering content
-    if (hoverTimeout.value) {
-        clearTimeout(hoverTimeout.value);
-        hoverTimeout.value = null;
-    }
-}
-
-/**
- * Handle content mouse leave - close if in hover mode
- */
-function onContentMouseLeave(): void {
-    // Only close if in hover mode (not click mode)
-    if (isHoverOpen.value && !isClickOpen.value) {
-        hoverTimeout.value = setTimeout(() => {
-            if (isHoverOpen.value && !isClickOpen.value) {
-                showHelpTooltip.value = false;
-                isHoverOpen.value = false;
-            }
-        }, 200);
-    }
-}
-
-/**
- * Close modal - can be called from X button
+ * Close the help modal
  */
 function closeModal(): void {
     showHelpTooltip.value = false;
-    isClickOpen.value = false;
-    isHoverOpen.value = false;
-
-    // Clear any pending timeouts
-    if (hoverTimeout.value) {
-        clearTimeout(hoverTimeout.value);
-        hoverTimeout.value = null;
-    }
 }
 
 /**

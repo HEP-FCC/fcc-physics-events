@@ -8,14 +8,14 @@ navigation entity creation, and metadata management.
 import json
 import uuid
 from datetime import datetime
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
 
 from app.models.generic import GenericEntityCreate
 from app.storage.json_data_parser import (
-    BaseEntityData,
     BaseEntityCollection,
+    BaseEntityData,
     EntityTypeRegistry,
 )
 from app.storage.schema_discovery import get_schema_discovery
@@ -66,19 +66,23 @@ def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
         # Try to decode bytes to string with robust encoding detection
         try:
             # First try UTF-8 (most common)
-            content_str = json_content.decode('utf-8')
+            content_str = json_content.decode("utf-8")
         except UnicodeDecodeError:
             try:
                 # Try UTF-8 with error handling
-                content_str = json_content.decode('utf-8', errors='replace')
-                logger.warning("File contains invalid UTF-8 characters, replaced with placeholders")
+                content_str = json_content.decode("utf-8", errors="replace")
+                logger.warning(
+                    "File contains invalid UTF-8 characters, replaced with placeholders"
+                )
             except UnicodeDecodeError:
                 try:
                     # Try Latin-1 as fallback (can decode any byte sequence)
-                    content_str = json_content.decode('latin-1')
+                    content_str = json_content.decode("latin-1")
                     logger.warning("File decoded using Latin-1 encoding as fallback")
                 except UnicodeDecodeError as e:
-                    logger.warning(f"Failed to decode file with multiple encodings: {e}")
+                    logger.warning(
+                        f"Failed to decode file with multiple encodings: {e}"
+                    )
                     raise ValueError(
                         f"Unable to decode file content - skipping incompatible format: {e}"
                     ) from e
@@ -184,7 +188,6 @@ async def _process_batch_all_or_nothing(
                 # Process all entities in the batch
                 for idx, entity_data in zip(batch_indices, batch, strict=True):
                     await _process_single_entity(
-                        database,
                         conn,
                         entity_data,
                         idx,
@@ -228,7 +231,12 @@ async def _process_batch_individually(
                     )
 
                     await _process_single_entity(
-                        database, conn, entity_data, idx, main_table, navigation_cache, navigation_structure
+                        conn,
+                        entity_data,
+                        idx,
+                        main_table,
+                        navigation_cache,
+                        navigation_structure,
                     )
                     processed_count += 1
         except Exception as e:
@@ -290,7 +298,6 @@ async def _preprocess_batch_navigation_entities(
 
 
 async def _process_single_entity(
-    database: "Database",
     conn: asyncpg.Connection,
     entity_data: BaseEntityData,
     idx: int,
