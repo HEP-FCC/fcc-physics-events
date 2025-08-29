@@ -207,7 +207,6 @@
 </template>
 
 <script setup lang="ts">
-// Import Schema Viewer component
 import SearchInputWithAutocomplete from "./SearchInputWithAutocomplete.vue";
 
 interface Props {
