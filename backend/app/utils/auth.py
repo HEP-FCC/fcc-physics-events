@@ -324,7 +324,7 @@ async def validate_token_and_get_user(
             except Exception as e:
                 logger.warning(f"Failed to fetch from userinfo endpoint: {e}")
     except Exception as e:
-        logger.warning(f"Failed to introspect token for roles: {e}")
+        logger.info(f"Failed to introspect token for roles: {e}")
         # Continue without roles if introspection fails
 
     return userinfo

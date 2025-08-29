@@ -44,11 +44,9 @@
                     </div>
 
                     <!-- Center: App Title -->
-                    <div class="absolute left-1/2 transform -translate-x-1/2">
-                        <h1 class="text-xl font-semibold font-sans whitespace-nowrap select-none">
-                            {{ appTitle }}
-                        </h1>
-                    </div>
+                    <h1 class="px-5 text-xl font-semibold font-sans whitespace-nowrap select-none">
+                        {{ appTitle }}
+                    </h1>
 
                     <!-- Right: Contact, Admin and Authentication Section -->
                     <div class="ml-auto flex items-center space-x-4">
