@@ -3,7 +3,7 @@
 > [!IMPORTANT]  
 > This is archived version of the website, currently the website source code is based on
 > [Universal Metadata Browser Template](https://github.com/HEP-FCC/umb-template) which is adapted
-> [here](https://gitlab.cern.ch/hep-fcc/fcc-physics-events)
+> [here](https://gitlab.cern.ch/hep-fcc/fcc-physics-events).
 
 Database of pre-generated samples for FCC-hh and FCC-ee physics performance
 studies.
