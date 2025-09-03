@@ -285,9 +285,6 @@ withDefaults(defineProps<Props>(), {
 
 const isOpen = ref(false);
 
-// Auth and token functionality
-const { isAuthenticated } = useAuth();
-
 // API client
 const { typedFetch } = useApiClient();
 
@@ -303,15 +300,15 @@ interface OverrideResponse {
             string,
             {
                 locked: boolean;
-                current_value: any;
-                attempted_value: any;
+                current_value: unknown;
+                attempted_value: unknown;
             }
         >;
-        entity_data: Record<string, any>;
+        entity_data: Record<string, unknown>;
     }>;
-    updated_entities?: Array<Record<string, any>>;
+    updated_entities?: Array<Record<string, unknown>>;
     missing_entities?: Array<{
-        entity_data: Record<string, any>;
+        entity_data: Record<string, unknown>;
         identifier: string;
     }>;
 }
@@ -404,7 +401,7 @@ const performOverride = async () => {
         let entities;
         try {
             entities = JSON.parse(fileText);
-        } catch (e) {
+        } catch {
             throw new Error("Invalid JSON format in selected file.");
         }
 
@@ -479,9 +476,12 @@ const performOverride = async () => {
                 showStatus(response.message || "Override operation failed.", "error");
             }
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Override operation failed:", error);
-        const errorMessage = error?.data?.detail || error?.message || "Failed to process override operation.";
+        const errorMessage =
+            (error as { data?: { detail?: string }; message?: string })?.data?.detail ||
+            (error as { message?: string })?.message ||
+            "Failed to process override operation.";
         showStatus(errorMessage, "error");
     } finally {
         isProcessing.value = false;

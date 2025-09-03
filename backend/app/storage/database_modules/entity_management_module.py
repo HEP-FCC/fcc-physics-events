@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 import asyncpg
 
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.logging import get_logger
+from app.utils.logging_utils import get_logger
 from app.utils.uuid_utils import generate_entity_uuid
 
 logger = get_logger()
@@ -59,7 +59,9 @@ async def update_entity(
             )
 
             # Return the updated entity - import here to avoid circular imports
-            from app.storage.database_modules.entity_retrieval import get_entity_by_id
+            from app.storage.database_modules.entity_retrieval_module import (
+                get_entity_by_id,
+            )
 
             updated_entity = await get_entity_by_id(database, entity_id)
             if not updated_entity:
@@ -91,7 +93,7 @@ async def delete_entities_by_ids(
 
         async with conn.transaction():
             # First, check which entities exist
-            placeholders = ",".join(f"${i+1}" for i in range(len(entity_ids)))
+            placeholders = ",".join(f"${i + 1}" for i in range(len(entity_ids)))
             check_query = f"""
                 SELECT {primary_key_column}
                 FROM {main_table}
@@ -116,7 +118,7 @@ async def delete_entities_by_ids(
             # Delete the entities
             existing_ids_list = list(existing_ids)
             delete_placeholders = ",".join(
-                f"${i+1}" for i in range(len(existing_ids_list))
+                f"${i + 1}" for i in range(len(existing_ids_list))
             )
             delete_query = f"""
                 DELETE FROM {main_table}
@@ -299,7 +301,7 @@ async def bulk_override_entities(
                 missing_details = []
 
                 for missing in missing_entities:
-                    missing_details.append(missing["identifier"])
+                    missing_details.append(str(missing["identifier"]))
 
                 # Transaction will automatically rollback
                 return {
@@ -343,7 +345,7 @@ async def bulk_override_entities(
                     }
 
                     # Get valid table columns to identify what should NOT be updated
-                    valid_columns = await _get_valid_table_columns(conn, main_table)
+                    valid_columns = await get_valid_table_columns(conn, main_table)
 
                     # Block all table field updates except metadata - this function should ONLY update metadata
                     metadata_fields = {}
@@ -370,7 +372,7 @@ async def bulk_override_entities(
                     )
 
                     # Prepare the properly structured update data with ONLY metadata
-                    structured_update_data = {}
+                    structured_update_data: dict[str, Any] = {}
 
                     # Only process metadata fields - this ensures we only update the metadata column
                     if metadata_fields:
@@ -478,15 +480,15 @@ async def _prepare_update_fields(
     entity_id: int,
     user_info: dict[str, Any] | None = None,
     force_override: bool = False,
-) -> tuple[list[str], list[str | int]]:
+) -> tuple[list[str], list[Any]]:
     """Prepare update fields and values for the update query."""
     # Always update updated_at for any operation
     update_fields = ["updated_at = NOW()"]
-    values: list[str | int] = []
+    values: list[Any] = []
     param_count = 0
     has_unlocked_changes = False
 
-    valid_columns = await _get_valid_table_columns(conn, main_table)
+    valid_columns = await get_valid_table_columns(conn, main_table)
 
     for field_name, field_value in update_data.items():
         if _should_skip_field(
@@ -496,6 +498,7 @@ async def _prepare_update_fields(
 
         param_count += 1
 
+        processed_value: Any
         if field_name == "metadata" and isinstance(field_value, dict):
             processed_value = await _process_metadata_field(
                 conn,
@@ -506,7 +509,10 @@ async def _prepare_update_fields(
                 force_override,
             )
         else:
-            processed_value = field_value
+            # Use generic date parsing to handle any timestamp/date fields automatically
+            from app.utils.parsing_utils import try_parse_date_value
+
+            processed_value = try_parse_date_value(field_value)
 
         update_fields.append(f"{field_name} = ${param_count}")
         values.append(processed_value)
@@ -537,7 +543,7 @@ async def _prepare_update_fields(
     return update_fields, values
 
 
-async def _get_valid_table_columns(
+async def get_valid_table_columns(
     conn: asyncpg.Connection, main_table: str
 ) -> set[str]:
     """Get valid column names for the table."""
@@ -619,7 +625,8 @@ async def _get_current_metadata(
         return {}
 
     if isinstance(current_metadata_result, str):
-        return json.loads(current_metadata_result)
+        result = json.loads(current_metadata_result)
+        return result  # type: ignore[no-any-return]
     elif isinstance(current_metadata_result, dict):
         return current_metadata_result
 
@@ -806,7 +813,7 @@ async def _resolve_entity_for_override(
 
         # Map entity data to foreign key IDs
         for entity_key, nav_info in navigation_analysis["navigation_tables"].items():
-            # entity_key is like "accelerator", "stage", etc.
+            # entity_key is like "category", "type", etc.
             # nav_info contains "table_name", "foreign_key_column", etc.
 
             if entity_key in entity_data:
@@ -830,7 +837,7 @@ async def _resolve_entity_for_override(
                     )
                     return None
 
-        # Generate UUID using the same logic as dataset creation
+        # Generate UUID using the same logic as entity creation
         computed_uuid = str(generate_entity_uuid(entity_name, **foreign_key_ids))
 
         # Look up entity by computed UUID
@@ -898,7 +905,7 @@ def _filter_empty_metadata_values(metadata: dict[str, Any]) -> dict[str, Any]:
     return {k: v for k, v in metadata.items() if v != "" and v is not None and v != []}
 
 
-async def _get_main_table_primary_key(conn, main_table: str) -> str:
+async def _get_main_table_primary_key(conn: asyncpg.Connection, main_table: str) -> str:
     """Get the primary key column name for the main table."""
     query = """
         SELECT column_name

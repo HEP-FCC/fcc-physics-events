@@ -524,6 +524,7 @@ export function useEntitySearch() {
             if (userSearchQuery.value !== queryString) {
                 userSearchQuery.value = queryString;
                 // Trigger search when query changes from route navigation
+                // Force a complete reset when clearing the search
                 if (isComponentReady.value) {
                     performSearch(true);
                 }

@@ -6,6 +6,8 @@
  * cookie for persistence across sessions and page refreshes.
  */
 
+import { APP_CONFIG } from "~/config/app.config";
+
 interface SearchPreferences {
     sortBy: string;
     sortOrder: "asc" | "desc";
@@ -13,7 +15,7 @@ interface SearchPreferences {
     lastUpdated: number;
 }
 
-const COOKIE_NAME = "fcc-search-preferences";
+const COOKIE_NAME = `${APP_CONFIG.cookies.namePrefix}-search-preferences`;
 
 // Default values
 const DEFAULT_SORT_BY = "created_at";

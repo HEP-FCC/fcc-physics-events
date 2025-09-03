@@ -22,6 +22,7 @@ interface AuthState {
  */
 export function useAuth() {
     const { initiateLogin, logoutUser, getSessionStatus, manualRefreshToken } = useApiClient();
+    const config = useRuntimeConfig();
 
     // Use global state to ensure consistency across components
     const authState = useState<AuthState>(
@@ -58,6 +59,19 @@ export function useAuth() {
         authState.value.error = null;
 
         try {
+            // If auth is disabled in frontend config, behave as if always authenticated
+            if (!APP_CONFIG.auth.enabled) {
+                authState.value.isAuthenticated = true;  // Changed from false to true
+                authState.value.user = {
+                    preferred_username: "Guest User",
+                    email: "guest@example.com",
+                    name: "Guest User",
+                    auth_disabled: true,
+                } as User;
+                authState.value.isLoading = false;
+                return;
+            }
+
             const sessionData = await getSessionStatus();
 
             if (sessionData.authenticated && sessionData.user) {

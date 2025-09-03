@@ -1,6 +1,6 @@
 """
-Entity and dataset routes for the FCC Physics Events API.
-Handles CRUD operations for datasets and related entities.
+Entity routes for the Universal Metadata Browser API.
+Handles CRUD operations for entities and related data.
 """
 
 from typing import Any
@@ -18,9 +18,9 @@ from pydantic import BaseModel
 from app.models.generic import GenericEntityUpdate
 from app.storage.database import Database
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.auth import AuthDependency, get_endpoint_required_role
-from app.utils.config import get_config
-from app.utils.errors import (
+from app.utils.auth_utils import AuthDependency, get_endpoint_required_role
+from app.utils.config_utils import get_config
+from app.utils.errors_utils import (
     SearchValidationError,
     field_error,
     not_found_error,
@@ -28,8 +28,8 @@ from app.utils.errors import (
     query_validation_error,
     validation_error,
 )
-from app.utils.gclql_query_parser import QueryParser
-from app.utils.logging import get_logger
+from app.utils.gclql_query_parser_utils import QueryParser
+from app.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -223,7 +223,9 @@ async def update_entity(
     entity_id: int,
     update_data: GenericEntityUpdate,
     _request: Request,
-    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("update_entity"))),
+    user: dict[str, Any] = Depends(
+        AuthDependency(get_endpoint_required_role("update_entity"))
+    ),
 ) -> Any:
     """
     Update an entity with the provided data.
@@ -262,7 +264,9 @@ async def update_metadata_lock(
     entity_id: int,
     lock_request: MetadataLockRequest,
     _request: Request,
-    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("update_metadata_lock"))),
+    user: dict[str, Any] = Depends(
+        AuthDependency(get_endpoint_required_role("update_metadata_lock"))
+    ),
 ) -> Any:
     """
     Update the lock state of a metadata field.
@@ -356,7 +360,9 @@ async def update_metadata_lock(
 @router.delete("/entities/", response_model=dict[str, Any])
 async def delete_entities(
     request: DeleteEntitiesRequest,
-    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("delete_entities"))),
+    user: dict[str, Any] = Depends(
+        AuthDependency(get_endpoint_required_role("delete_entities"))
+    ),
 ) -> dict[str, Any]:
     """
     Delete entities by their IDs. Only users with 'authorized' role can perform this operation.
@@ -428,7 +434,9 @@ async def override_entities(
     force_override: bool = Query(
         False, description="Force override even if metadata fields are locked"
     ),
-    user: dict[str, Any] = Depends(AuthDependency(get_endpoint_required_role("override_entities"))),
+    user: dict[str, Any] = Depends(
+        AuthDependency(get_endpoint_required_role("override_entities"))
+    ),
 ) -> EntityOverrideResponse:
     """
     Bulk entity metadata override endpoint with field locking and authentication.
@@ -501,7 +509,7 @@ async def override_entities(
 
 
 @router.post("/search")
-async def search_datasets_generic(request: SearchRequest) -> Any:
+async def search_entities_generic(request: SearchRequest) -> Any:
     """
     Generic search endpoint that works with any database schema.
     Automatically handles joins based on schema discovery.

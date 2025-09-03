@@ -12,27 +12,27 @@ from asyncpg.pool import Pool
 from pydantic import BaseModel
 
 # Import modularized database functions
-from app.storage.database_modules.data_import import import_data
-from app.storage.database_modules.entity_operations import (
+from app.storage.database_modules.data_import_module import import_data
+from app.storage.database_modules.entity_management_module import (
     bulk_override_entities,
     delete_entities_by_ids,
     update_entity,
 )
-from app.storage.database_modules.entity_retrieval import (
+from app.storage.database_modules.entity_retrieval_module import (
     get_entities_by_ids,
     get_entity_by_id,
 )
-from app.storage.database_modules.navigation import (
+from app.storage.database_modules.navigation_module import (
     get_dropdown_items,
     get_sorting_fields,
 )
-from app.storage.database_modules.schema_mapping import generate_schema_mapping
-from app.storage.database_modules.search_operations import (
+from app.storage.database_modules.schema_mapping_module import generate_schema_mapping
+from app.storage.database_modules.search_module import (
     perform_search,
     search_entities,
 )
-from app.utils.config import Config, get_config
-from app.utils.logging import get_logger
+from app.utils.config_utils import Config, get_config
+from app.utils.logging_utils import get_logger
 
 logger = get_logger()
 T = TypeVar("T", bound=BaseModel)
@@ -59,14 +59,14 @@ class AsyncSessionContextManager:
         self._connection = await self._pool.acquire()
         return self._connection
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         if self._connection is not None:
             await self._pool.release(self._connection)
             self._connection = None
 
 
 class Database:
-    def __init__(self) -> "Database":
+    def __init__(self) -> None:
         self._pool: Pool | None = None
 
     """

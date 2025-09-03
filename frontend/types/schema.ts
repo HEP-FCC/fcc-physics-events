@@ -1,7 +1,7 @@
 /**
  * /**
  * Generic database entity with flexible primary key
- * For dataset entities, the primary key is 'dataset_id'
+ * For entity tables, the primary key is 'entity_id'
 /**
  * Data-driven TypeScript types for database entities
  *
@@ -24,10 +24,10 @@ export interface RedirectRule {
 
 /**
  * Generic database entity with flexible primary key
- * For dataset entities, the primary key is 'dataset_id'
+ * For dataset entities, the primary key is 'entity_id'
  */
 export interface DatabaseEntity {
-    dataset_id: number;
+    entity_id: number;
     name: string;
     [key: string]: unknown;
 }
@@ -98,7 +98,7 @@ export interface NavigationConfig {
  * Dropdown item for navigation selectors
  */
 export interface DropdownItem {
-    dataset_id: number;
+    entity_id: number;
     name: string;
 }
 

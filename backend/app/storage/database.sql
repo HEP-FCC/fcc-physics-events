@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS file_types (
 );
 
 CREATE TABLE IF NOT EXISTS datasets (
-    dataset_id BIGSERIAL PRIMARY KEY,
+    entity_id BIGSERIAL PRIMARY KEY,
     uuid UUID UNIQUE NOT NULL,
     name TEXT NOT NULL,
     -- Foreign key relationships with proper constraints
@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_datasets_metadata_path_gin ON datasets USING GIN 
 
 -- Specific indexes for commonly searched metadata fields (based on your JSON structure)
 -- These will be much faster for queries targeting specific metadata fields
-CREATE INDEX IF NOT EXISTS idx_datasets_metadata_process_name ON datasets USING GIN ((metadata->>'process-name') gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_datasets_metadata_name ON datasets USING GIN ((metadata->>'process-name') gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_datasets_metadata_description ON datasets USING GIN ((metadata->>'description') gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_datasets_metadata_comment ON datasets USING GIN ((metadata->>'comment') gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_datasets_metadata_status ON datasets USING BTREE ((metadata->>'status'));
@@ -113,17 +113,17 @@ CREATE INDEX IF NOT EXISTS idx_datasets_last_edited_at_desc ON datasets(last_edi
 
 -- Composite indexes for common query patterns
 -- This supports pagination and sorting by last_edited_at which is common in your app
-CREATE INDEX IF NOT EXISTS idx_datasets_edited_id_composite ON datasets(last_edited_at DESC, dataset_id);
+CREATE INDEX IF NOT EXISTS idx_datasets_edited_id_composite ON datasets(last_edited_at DESC, entity_id);
 
 -- Index for efficient counting and existence checks
 CREATE INDEX IF NOT EXISTS idx_datasets_name_lower ON datasets(LOWER(name));
 
 -- Partial indexes for active/completed datasets (if status filtering is common)
-CREATE INDEX IF NOT EXISTS idx_datasets_status_done ON datasets(dataset_id)
+CREATE INDEX IF NOT EXISTS idx_datasets_status_done ON datasets(entity_id)
 WHERE metadata->>'status' = 'done';
 
 -- Partial index for datasets with metadata (excludes NULL metadata)
-CREATE INDEX IF NOT EXISTS idx_datasets_with_metadata ON datasets(dataset_id)
+CREATE INDEX IF NOT EXISTS idx_datasets_with_metadata ON datasets(entity_id)
 WHERE metadata IS NOT NULL;
 
 -- Performance optimization: Set statistics targets for better query planning

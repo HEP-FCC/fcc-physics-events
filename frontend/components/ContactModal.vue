@@ -35,7 +35,7 @@
                     </div>
                 </div>
 
-                <!-- FCC Software Forum -->
+                <!-- Support Forum -->
                 <div class="space-y-2">
                     <h3 class="text-sm font-medium text-deep-blue-900">FCC Software Forum</h3>
                     <div class="flex items-center space-x-2">

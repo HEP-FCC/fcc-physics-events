@@ -400,10 +400,10 @@ const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getSta
 const { isAuthenticated } = useAuth();
 const { mainTableDisplayName } = useAppConfiguration();
 
-// Dynamic color system based on FCC design philosophy using CSS custom properties
+// Dynamic color system using CSS custom properties
 // Dark mode disabled for consistent mobile rendering
 
-// FCC-aligned color system for metadata fields using CSS variables
+// Color system for metadata fields using CSS variables
 // Local reactive state for editing
 const localEditJson = ref(props.editState?.json || "");
 
@@ -868,7 +868,7 @@ const getUnifiedGradientStyle = (field: UnifiedField): Record<string, string> =>
     };
 };
 
-// Enhanced color scheme mapping based on field categories and FCC design principles using CSS variables
+// Enhanced color scheme mapping based on field categories using CSS variables
 const getSemanticColorForFieldType = (fieldType: string): string => {
     const typeMapping: Record<string, string> = {
         number: "gray",

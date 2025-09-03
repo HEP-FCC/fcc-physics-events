@@ -14,7 +14,7 @@ export const APP_CONFIG = {
      * The main entity table name (source of truth for all data)
      * This table should contain foreign keys to all navigation entities
      */
-    mainTable: "entities" as const,
+    mainTable: "datasets" as const,
 
     /**
      * Application branding and metadata
@@ -32,6 +32,17 @@ export const APP_CONFIG = {
     api: {
         baseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
         timeout: 30000,
+    },
+
+    /**
+     * Authentication configuration
+     */
+    auth: {
+        enabled: true,
+        loginUrl: "/login",
+        logoutUrl: "/logout",
+        sessionStatusUrl: "/session-status",
+        refreshTokenUrl: "/refresh-auth-token",
     },
 
     /**
@@ -74,7 +85,7 @@ export const APP_CONFIG = {
      * Metadata preferences configuration
      */
     metadata: {
-        // Default metadata fields to display as badges/tags
+        // Default metadata fields to display as badges/tags - customize for your domain
         defaultSelectedFields: ["n-events", "cross-section", "matching-eff"] as const,
     },
 
@@ -87,11 +98,19 @@ export const APP_CONFIG = {
     },
 
     /**
+     * Cookie configuration
+     */
+    cookies: {
+        // Prefix for all cookie names used by the application
+        namePrefix: "fcc-physics-events-web" as const,
+    },
+
+    /**
      * Navigation configuration fallbacks
      * Used when backend navigation config is not available
      */
     navigationFallback: {
-        // Common navigation types in expected order
+        // Common navigation types in expected order - customize for your domain
         order: ["accelerator", "stage", "campaign", "detector", "file_type"] as const,
     },
 } as const;

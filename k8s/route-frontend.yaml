@@ -8,7 +8,7 @@ metadata:
   annotations:
     haproxy.router.openshift.io/ip_whitelist: ''
 spec:
-  host: fcc-physics-events-dev.web.cern.ch
+  host: fcc-physics-events.web.cern.ch
   port:
     targetPort: 3000
   tls:

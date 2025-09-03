@@ -1,5 +1,5 @@
 """
-Configuration utilities for the FCC Physics Events application.
+Configuration utilities for the Universal Metadata Browser application.
 
 This module provides configuration loading and management functionality
 using pyhocon for configuration file parsing.

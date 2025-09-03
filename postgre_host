@@ -1,4 +1,0 @@
-APP=fcc-physics-events-backend
-HOSTNAME=fcc-physics-events-backend.web.cern.ch
-oc create route edge $APP --hostname $HOSTNAME --service $APP --insecure-policy=Redirect --dry-run=client -o yaml > k8s/route.yaml
-oc apply -R -f k8s/

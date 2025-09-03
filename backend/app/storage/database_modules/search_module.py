@@ -14,8 +14,9 @@ import asyncpg
 if TYPE_CHECKING:
     from app.storage.database import Database
 
-from app.utils.errors import SearchValidationError
-from app.utils.logging import get_logger
+from app.utils.errors_utils import SearchValidationError
+from app.utils.logging_utils import get_logger
+from app.utils.sql_utils import generate_unique_table_alias
 
 logger = get_logger()
 
@@ -154,11 +155,11 @@ async def search_entities(
         filters = {}
 
     async with database.session() as conn:
-        query_parts, join_parts = _build_search_query_parts(
-            main_table, navigation_analysis
+        query_parts, join_parts, entity_aliases = _build_search_query_parts(
+            navigation_analysis
         )
         conditions, params = _build_search_conditions(
-            navigation_analysis, filters, search
+            navigation_analysis, filters, search, entity_aliases
         )
 
         base_query = _assemble_base_query(
@@ -182,43 +183,55 @@ async def search_entities(
         return {"total": total, "items": items}
 
 
+# Import the consolidated utility function
+
+
 def _build_search_query_parts(
-    main_table: str, navigation_analysis: dict[str, Any]
-) -> tuple[list[str], list[str]]:
-    """Build the SELECT and JOIN parts of the search query."""
-    query_parts = ["SELECT d.*"]
+    navigation_analysis: dict[str, Any],
+) -> tuple[list[str], list[str], dict[str, str]]:
+    """Build SELECT columns and JOIN clauses for navigation entities."""
+    query_parts = []
     join_parts = []
+    used_aliases: set[str] = set()
+    entity_aliases = {}  # Map entity_key -> table_alias
 
     for entity in navigation_analysis["navigation_entities"]:
-        table_alias = entity["key"][0]  # Use first letter as alias
+        entity_key = entity["key"]
+        table_alias = generate_unique_table_alias(entity_key, used_aliases)
+        used_aliases.add(table_alias)
+        entity_aliases[entity_key] = table_alias
+
         referenced_table = entity["referenced_table"]
         column_name = entity["column_name"]
-        name_column = navigation_analysis["navigation_tables"][entity["key"]][
+        name_column = navigation_analysis["navigation_tables"][entity_key][
             "name_column"
         ]
-        primary_key = navigation_analysis["navigation_tables"][entity["key"]][
+        primary_key = navigation_analysis["navigation_tables"][entity_key][
             "primary_key"
         ]
 
-        query_parts.append(f", {table_alias}.{name_column} as {entity['key']}_name")
+        query_parts.append(f", {table_alias}.{name_column} as {entity_key}_name")
         join_parts.append(
             f"LEFT JOIN {referenced_table} {table_alias} ON d.{column_name} = {table_alias}.{primary_key}"
         )
 
-    query_parts.append(f" FROM {main_table} d")
-
-    return query_parts, join_parts
+    return query_parts, join_parts, entity_aliases
 
 
 def _build_search_conditions(
-    navigation_analysis: dict[str, Any], filters: dict[str, str], search: str
+    navigation_analysis: dict[str, Any],
+    filters: dict[str, str],
+    search: str,
+    entity_aliases: dict[str, str],
 ) -> tuple[list[str], list[Any]]:
     """Build WHERE conditions and parameters for the search query."""
     conditions: list[str] = []
     params: list[Any] = []
 
     # Add filter conditions
-    _add_filter_conditions(navigation_analysis, filters, conditions, params)
+    _add_filter_conditions(
+        navigation_analysis, filters, conditions, params, entity_aliases
+    )
 
     # Add search conditions
     if search:
@@ -232,13 +245,16 @@ def _add_filter_conditions(
     filters: dict[str, str],
     conditions: list[str],
     params: list[Any],
+    entity_aliases: dict[str, str],
 ) -> None:
     """Add filter conditions to the query."""
     for filter_key, filter_value in filters.items():
         if filter_key.endswith("_name"):
             entity_key = filter_key.replace("_name", "")
             if entity_key in navigation_analysis["navigation_tables"]:
-                table_alias = entity_key[0]
+                table_alias = entity_aliases.get(
+                    entity_key, entity_key[0]
+                )  # Fallback to first character
                 name_column = navigation_analysis["navigation_tables"][entity_key][
                     "name_column"
                 ]

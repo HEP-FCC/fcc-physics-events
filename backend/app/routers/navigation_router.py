@@ -1,5 +1,5 @@
 """
-Navigation and schema discovery routes for the FCC Physics Events API.
+Navigation and schema discovery routes for the Universal Metadata Browser API.
 Handles dynamic schema discovery and dropdown data for navigation.
 """
 
@@ -10,9 +10,9 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.storage.database import Database
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.config import get_config
-from app.utils.errors import server_error
-from app.utils.logging import get_logger
+from app.utils.config_utils import get_config
+from app.utils.errors_utils import server_error
+from app.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -80,8 +80,6 @@ async def get_database_schema() -> Any:
         main_table = config["application"]["main_table"]
 
         async with database.session() as conn:
-            from app.storage.schema_discovery import get_schema_discovery
-
             schema_discovery = await get_schema_discovery(conn)
 
             # Analyze the navigation structure based on the main table
@@ -114,7 +112,7 @@ async def get_database_schema() -> Any:
                     "primaryKey": navigation_analysis["main_table_schema"][
                         "primary_key"
                     ],
-                    "nameColumn": "name",  # Datasets typically use 'name'
+                    "nameColumn": "name",  # Entities typically use 'name'
                     "columns": [
                         col["column_name"]
                         for col in navigation_analysis["main_table_schema"]["columns"]
@@ -124,7 +122,7 @@ async def get_database_schema() -> Any:
                 "navigationOrder": navigation_config["order"],
                 "navigation": navigation_config["config"],
                 "appTitle": config.get("application", {}).get(
-                    "title", "Metadata Viewer"
+                    "title", "Metadata Browser"
                 ),
                 "searchPlaceholder": config.get("application", {}).get(
                     "search_placeholder", f"Search {main_table}..."

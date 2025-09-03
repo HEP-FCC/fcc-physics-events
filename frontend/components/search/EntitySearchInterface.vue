@@ -180,6 +180,7 @@ const props = withDefaults(defineProps<Props>(), {
 const search = useEntitySearch();
 const selection = useEntitySelection();
 const { mainTableDisplayName } = useAppConfiguration();
+const { registerSearchController, unregisterSearchController } = useGlobalSearchControl();
 
 // Component state
 const isInitialized = ref(false);
@@ -226,7 +227,7 @@ const handleRefreshEntity = async (entityId: number): Promise<void> => {
 
         // Find and update the entity in the current entities array
         const entityIndex = search.entities.value.findIndex((entity: Entity) => {
-            return entity.dataset_id === entityId;
+            return entity.entity_id === entityId;
         });
 
         if (entityIndex !== -1) {
@@ -290,6 +291,8 @@ watchDebounced(
         const hasRouteParams = routeParamsLength > 0;
         const hasFilters = Object.keys(filters).length > 0;
 
+        // Only skip if we have route params but no filters (still loading)
+        // Always proceed if we have no route params (going to home page) to clear filters
         if (hasRouteParams && !hasFilters) {
             return;
         }
@@ -393,6 +396,19 @@ useInfiniteScroll(
 
 // Component lifecycle
 onMounted(async () => {
+    // Register this component with the global search controller
+    registerSearchController({
+        forceRefresh: async () => {
+            await search.performSearch(true);
+        },
+        clearSearchAndRefresh: async () => {
+            // Clear the search query and filters, then perform search
+            search.userSearchQuery.value = "";
+            search.activeFilters.value = {};
+            await search.performSearch(true);
+        },
+    });
+
     if (!isInitialized.value) {
         const { initializeNavigation } = useDynamicNavigation();
 
@@ -428,6 +444,9 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+    // Unregister from global search controller
+    unregisterSearchController();
+
     // Clean up event listeners
     document.removeEventListener("click", handleClickOutside);
     window.removeEventListener("scroll", handleScroll);

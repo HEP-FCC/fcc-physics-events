@@ -6,7 +6,8 @@ from fastapi.responses import JSONResponse
 from starlette.responses import RedirectResponse
 
 from app.storage.database import Database
-from app.utils.auth import (
+from app.utils.auth_utils import (
+    AUTH_OIDC_URL,
     clear_auth_cookies,
     extract_auth_cookies,
     get_logout_url,
@@ -14,9 +15,13 @@ from app.utils.auth import (
     try_refresh_token,
     validate_token_and_get_user,
 )
-from app.utils.config import get_config
-from app.utils.errors import ErrorTypes, server_error, unauthenticated_error
-from app.utils.logging import get_logger
+from app.utils.config_utils import get_config
+from app.utils.errors_utils import (
+    ErrorTypes,
+    server_error,
+    unauthenticated_error,
+)
+from app.utils.logging_utils import get_logger
 
 logger = get_logger(__name__)
 config = get_config()
@@ -24,9 +29,11 @@ config = get_config()
 router = APIRouter(prefix="", tags=["authentication"])
 FRONTEND_URL = config.get("general.frontend_url")
 AUTH_COOKIE_PREFIX = f"{config.get('general.cookie_prefix')}-auth"
-CERN_CLIENT_ID = config.get("general.cern_client_id")
-CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
-CERN_OIDC_URL = config.get("auth.cern_oidc_url")
+
+# Auth configuration - only load if auth is enabled
+AUTH_ENABLED = str(config.get("auth.enabled", "true")).lower() == "true"
+CERN_CLIENT_ID = config.get("general.cern_client_id") if AUTH_ENABLED else None
+CERN_CLIENT_SECRET = config.get("general.cern_client_secret") if AUTH_ENABLED else None
 
 # This will be injected from main.py
 database: Database
@@ -40,16 +47,11 @@ def init_dependencies(db: Database) -> None:
 
 # OAuth setup - only if auth is enabled and config is available
 oauth = None
-if (
-    config.get("auth.enabled", True)
-    and CERN_CLIENT_ID
-    and CERN_CLIENT_SECRET
-    and CERN_OIDC_URL
-):
+if AUTH_ENABLED and CERN_CLIENT_ID and CERN_CLIENT_SECRET and AUTH_OIDC_URL:
     oauth = OAuth()
     oauth.register(
         name="provider",
-        server_metadata_url=CERN_OIDC_URL,
+        server_metadata_url=AUTH_OIDC_URL,
         client_id=CERN_CLIENT_ID,
         client_secret=CERN_CLIENT_SECRET,
         client_kwargs={
@@ -84,7 +86,7 @@ async def refresh_auth_token(request: Request, response: Response) -> JSONRespon
     """
 
     # If auth is disabled, return success without doing anything
-    if not config.get("auth.enabled", True):
+    if not AUTH_ENABLED:
         return JSONResponse(
             content={
                 "status": "success",
@@ -198,7 +200,7 @@ async def login(request: Request) -> Any:
     """Initiate OAuth login with CERN."""
 
     # If auth is disabled, redirect to frontend
-    if not config.get("auth.enabled", True):
+    if not AUTH_ENABLED:
         logger.info("Auth is disabled, redirecting to frontend")
         return RedirectResponse(url=FRONTEND_URL)
 
@@ -219,7 +221,7 @@ async def auth(request: Request) -> Any:
     """OAuth callback route for authentication."""
 
     # If auth is disabled, redirect to frontend
-    if not config.get("auth.enabled", True):
+    if not AUTH_ENABLED:
         logger.info("Auth is disabled, redirecting to frontend")
         return RedirectResponse(url=FRONTEND_URL)
 
@@ -268,7 +270,7 @@ async def logout(request: Request) -> JSONResponse:
     """Clear all authentication cookies, session, and get CERN SSO logout URL."""
 
     # If auth is disabled, just return a generic logout response
-    if not config.get("auth.enabled", True):
+    if not AUTH_ENABLED:
         return JSONResponse(content={"logout_url": FRONTEND_URL})
 
     # If OAuth is not configured, return generic logout
@@ -295,7 +297,7 @@ async def get_session_status(request: Request) -> JSONResponse:
     """
 
     # If auth is disabled, return a generic authenticated user
-    if not config.get("auth.enabled", True):
+    if not AUTH_ENABLED:
         return JSONResponse(
             content={
                 "authenticated": True,

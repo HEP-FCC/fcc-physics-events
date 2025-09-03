@@ -9,26 +9,27 @@ import jwt
 from authlib.integrations.starlette_client import OAuth
 from fastapi import HTTPException, Request, Response, status
 
-from app.utils.config import get_config
-from app.utils.http_client import create_http_client
-from app.utils.logging import get_logger
+from app.utils.config_utils import get_config
+from app.utils.http_client_utils import create_http_client
+from app.utils.logging_utils import get_logger
 
 # Load configuration
 logger = get_logger(__name__)
 config = get_config()
 
-# Get auth configuration
-CERN_OIDC_URL = config.get("auth.cern_oidc_url")
-CERN_ISSUER = config.get("auth.cern_issuer")
-CERN_CLIENT_ID = config.get("general.cern_client_id")
-CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
+# Auth configuration - only load if auth is enabled
+AUTH_ENABLED = str(config.get("auth.enabled", "true")).lower() == "true"
+AUTH_OIDC_URL = config.get("auth.auth_oidc_url") if AUTH_ENABLED else None
+AUTH_ISSUER = config.get("auth.auth_issuer") if AUTH_ENABLED else None
+CERN_CLIENT_ID = config.get("general.cern_client_id") if AUTH_ENABLED else None
+CERN_CLIENT_SECRET = config.get("general.cern_client_secret") if AUTH_ENABLED else None
 AUTH_COOKIE_PREFIX = f"{config.get('general.cookie_prefix')}-auth"
 
 # Well-known endpoint data loaded at startup
 CERN_ENDPOINTS: dict[str, Any] = {}
 
 
-def get_endpoint_required_role(endpoint_name: str) -> str:
+def get_endpoint_required_role(endpoint_name: str) -> str | None:
     """
     Get the required role for a specific endpoint from configuration.
 
@@ -39,7 +40,10 @@ def get_endpoint_required_role(endpoint_name: str) -> str:
     Returns:
         Required role string for the endpoint
     """
-    return config.get(f"auth.endpoints.{endpoint_name}")
+    if not AUTH_ENABLED:
+        return None
+
+    return config.get(f"auth.endpoints.{endpoint_name}", None) or "authorized"
 
 
 class CERNAuthenticator:
@@ -55,11 +59,19 @@ class CERNAuthenticator:
     ) -> dict[str, Any]:
         """Fetch JSON data from URL with retry logic using our retrying HTTP client."""
         async with create_http_client() as http_client:
-            return await http_client.get_json(url, timeout=timeout)
+            result = await http_client.get_json(url, timeout=timeout)
+            return result
 
     async def get_jwks_keys(self) -> dict[str, Any]:
+        """Get JWKS keys for token validation."""
+        if not AUTH_ENABLED or not AUTH_OIDC_URL:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication is disabled or not configured",
+            )
+
         # First fetch OIDC config, then use it to fetch JWKS keys
-        oidc_config = await self._fetch_with_retry(CERN_OIDC_URL)
+        oidc_config = await self._fetch_with_retry(AUTH_OIDC_URL)
         return await self._fetch_with_retry(oidc_config["jwks_uri"])
 
     def _get_signing_key(self, kid: str, jwks: dict[str, Any]) -> str:
@@ -71,7 +83,13 @@ class CERNAuthenticator:
 
     async def introspect_token(self, token: str) -> dict[str, Any]:
         """Introspect a token using CERN's OAuth introspection endpoint."""
-        oidc_config = await self._fetch_with_retry(CERN_OIDC_URL)
+        if not AUTH_ENABLED or not AUTH_OIDC_URL:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication is disabled or not configured",
+            )
+
+        oidc_config = await self._fetch_with_retry(AUTH_OIDC_URL)
 
         introspection_endpoint = oidc_config["introspection_endpoint"]
 
@@ -81,8 +99,8 @@ class CERNAuthenticator:
                 introspection_endpoint,
                 data={
                     "token": token,
-                    "client_id": config.get("general.cern_client_id"),
-                    "client_secret": config.get("general.cern_client_secret"),
+                    "client_id": CERN_CLIENT_ID,
+                    "client_secret": CERN_CLIENT_SECRET,
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 timeout=10.0,
@@ -133,7 +151,7 @@ class CERNAuthenticator:
         Check if the user has the required role for authorization.
         Returns True if user is authorized, False otherwise.
         """
-        if not (required_role := config.get("general.required_cern_role")):
+        if not (required_role := config.get("auth.required_cern_role")):
             logger.warning(
                 "No specific role required, allowing all authenticated users"
             )
@@ -151,10 +169,20 @@ cern_auth = CERNAuthenticator()
 async def load_cern_endpoints() -> None:
     """Load CERN OIDC well-known endpoint data at startup."""
     global CERN_ENDPOINTS
+
+    # Skip loading if auth is disabled or required config is missing
+    if not AUTH_ENABLED:
+        logger.info("Authentication is disabled, skipping CERN endpoint loading")
+        return
+
+    if not AUTH_OIDC_URL:
+        logger.warning("AUTH_OIDC_URL not configured, skipping CERN endpoint loading")
+        return
+
     if not CERN_ENDPOINTS:
         try:
             async with create_http_client() as http_client:
-                endpoint_data = await http_client.get_json(CERN_OIDC_URL)
+                endpoint_data = await http_client.get_json(AUTH_OIDC_URL)
                 CERN_ENDPOINTS.update(endpoint_data)
                 logger.info("Successfully loaded CERN OIDC endpoints")
         except Exception as e:
@@ -579,12 +607,8 @@ class AuthDependency:
             HTTPException: If authentication or authorization fails (when auth is enabled and required_role is not None)
         """
         try:
-            # Get configuration to check if auth is enabled
-            config = get_config()
-            auth_enabled = config.get("auth.enabled", True)
-
             # If auth is disabled globally, return a generic unauthenticated user
-            if not auth_enabled:
+            if not AUTH_ENABLED:
                 logger.debug(
                     "Authentication is disabled globally, returning generic user"
                 )
@@ -612,13 +636,8 @@ class AuthDependency:
                     "sub": "unauthenticated",
                 }
 
-            # Get configuration and setup OAuth client
-            CERN_CLIENT_ID = config.get("general.cern_client_id")
-            CERN_CLIENT_SECRET = config.get("general.cern_client_secret")
-            CERN_OIDC_URL = config.get("auth.cern_oidc_url")
-
             # Check if required auth configuration is available
-            if not CERN_CLIENT_ID or not CERN_CLIENT_SECRET or not CERN_OIDC_URL:
+            if not CERN_CLIENT_ID or not CERN_CLIENT_SECRET or not AUTH_OIDC_URL:
                 logger.warning(
                     "Auth is enabled but required configuration is missing, returning unauthenticated user"
                 )
@@ -636,7 +655,7 @@ class AuthDependency:
             oauth = OAuth()
             oauth.register(
                 name="provider",
-                server_metadata_url=CERN_OIDC_URL,
+                server_metadata_url=AUTH_OIDC_URL,
                 client_id=CERN_CLIENT_ID,
                 client_secret=CERN_CLIENT_SECRET,
                 client_kwargs={

@@ -13,13 +13,17 @@ from typing import TYPE_CHECKING, Any
 import asyncpg
 
 from app.models.generic import GenericEntityCreate
-from app.storage.json_data_parser import (
+from app.storage.database_modules.entity_management_module import (
+    get_valid_table_columns,
+)
+from app.storage.json_data_model import (
     BaseEntityCollection,
     BaseEntityData,
     EntityTypeRegistry,
 )
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.logging import get_logger
+from app.utils.logging_utils import get_logger
+from app.utils.parsing_utils import process_entity_data_for_dates, try_parse_value_auto
 from app.utils.uuid_utils import generate_entity_uuid
 
 if TYPE_CHECKING:
@@ -138,7 +142,7 @@ async def _process_entity_collection_with_recovery(
         batch_indices = list(range(batch_start, batch_end))
 
         logger.info(
-            f"Processing batch {batch_start//batch_size + 1}: entities {batch_start+1}-{batch_end} of {len(entities)}"
+            f"Processing batch {batch_start // batch_size + 1}: entities {batch_start + 1}-{batch_end} of {len(entities)}"
         )
 
         # Try batch processing first (all-or-nothing)
@@ -149,7 +153,7 @@ async def _process_entity_collection_with_recovery(
         # If batch failed, fall back to individual processing
         if batch_failed > 0 and batch_processed == 0:
             logger.warning(
-                f"Batch failed, falling back to individual processing for batch {batch_start//batch_size + 1}"
+                f"Batch failed, falling back to individual processing for batch {batch_start // batch_size + 1}"
             )
             batch_processed, batch_failed = await _process_batch_individually(
                 database, batch, batch_indices, main_table
@@ -159,7 +163,7 @@ async def _process_entity_collection_with_recovery(
         total_failed += batch_failed
 
         logger.info(
-            f"Batch {batch_start//batch_size + 1} completed: {batch_processed} processed, {batch_failed} failed"
+            f"Batch {batch_start // batch_size + 1} completed: {batch_processed} processed, {batch_failed} failed"
         )
 
     return total_processed, total_failed
@@ -194,6 +198,7 @@ async def _process_batch_all_or_nothing(
                         main_table,
                         navigation_cache,
                         navigation_structure,
+                        database,
                     )
 
                 # If we get here, all entities succeeded
@@ -237,6 +242,7 @@ async def _process_batch_individually(
                         main_table,
                         navigation_cache,
                         navigation_structure,
+                        database,
                     )
                     processed_count += 1
         except Exception as e:
@@ -258,14 +264,14 @@ async def _preprocess_batch_navigation_entities(
         return {}
 
     # Collect all unique navigation entity names from the batch
-    unique_entities = {}
+    unique_entities: dict[str, set[str]] = {}
 
     for entity_data in batch:
         for entity_key, entity_info in entity_structure.items():
             field_name = entity_info["field_name"]
 
             # Get entity name from direct JSON field
-            entity_name = None
+            entity_name: str | None = None
             if hasattr(entity_data, field_name):
                 field_value = getattr(entity_data, field_name)
                 if field_value and str(field_value).strip():
@@ -277,7 +283,7 @@ async def _preprocess_batch_navigation_entities(
                 unique_entities[entity_key].add(entity_name)
 
     # Create all navigation entities and build cache
-    navigation_cache = {}
+    navigation_cache: dict[str, dict[str, int]] = {}
 
     for entity_key, names in unique_entities.items():
         entity_info = entity_structure[entity_key]
@@ -304,6 +310,7 @@ async def _process_single_entity(
     main_table: str,
     navigation_cache: dict[str, dict[str, int]],
     navigation_structure: dict[str, dict[str, str]],
+    database: "Database",
 ) -> None:
     """Process a single entity using pre-populated navigation entity cache."""
     entity_name = _generate_entity_name(entity_data, idx)
@@ -317,7 +324,7 @@ async def _process_single_entity(
     # Get metadata and create the main entity
     metadata_dict = entity_data.get_all_metadata()
     await _create_main_entity_with_conflict_resolution(
-        conn, entity_name, metadata_dict, foreign_key_ids, main_table
+        conn, entity_name, metadata_dict, foreign_key_ids, main_table, database
     )
 
 
@@ -336,7 +343,7 @@ async def _get_foreign_key_ids_from_cache(
     Returns:
         Dictionary mapping foreign key column names to their IDs
     """
-    foreign_key_ids = {}
+    foreign_key_ids: dict[str, int | None] = {}
 
     # Use dynamic navigation structure instead of hardcoded mappings
     for entity_key, entity_info in navigation_structure.items():
@@ -374,8 +381,12 @@ def _get_name_for_entity(entity_data: BaseEntityData, field_name: str) -> str | 
 
 
 def _generate_entity_name(entity_data: BaseEntityData, idx: int) -> str:
-    """Generate entity name with fallback if process_name is missing."""
-    entity_name = getattr(entity_data, "process_name", None) or getattr(
+    """Generate entity name with fallback if the configured entity name field is missing."""
+    # Get the configured entity name field from config
+    entity_name_field = "name"
+
+    # Try to get the name from the configured field, then fallback to standard fields
+    entity_name = getattr(entity_data, entity_name_field, None) or getattr(
         entity_data, "name", None
     )
     if not entity_name:
@@ -383,7 +394,7 @@ def _generate_entity_name(entity_data: BaseEntityData, idx: int) -> str:
         short_uuid = str(uuid.uuid4())[:8]
         entity_name = f"unnamed_entity_{timestamp}_{short_uuid}_{idx}"
         logger.warning(
-            f"Entity at index {idx} has no 'process_name' nor 'name' field. Using fallback name: {entity_name}"
+            f"Entity at index {idx} has no '{entity_name_field}' nor 'name' field. Using fallback name: {entity_name}"
         )
     return entity_name
 
@@ -405,6 +416,14 @@ async def _get_navigation_entity_structure(
         # Build entity structure mapping: entity_key -> {table_name, field_name}
         entity_structure = {}
         for entity_key in navigation_order:
+            # Skip empty or whitespace-only entity keys
+            if not entity_key or not entity_key.strip():
+                logger.warning(f"Skipping empty navigation entity key: '{entity_key}'")
+                continue
+
+            # Clean the entity key
+            entity_key = entity_key.strip()
+
             # Default to conventional plural table name
             table_name = f"{entity_key}s"
 
@@ -456,82 +475,18 @@ async def _get_navigation_entity_structure(
             return {}
 
 
-async def _create_navigation_entities(
-    database: "Database",
-    conn: asyncpg.Connection,
-    entity_data: BaseEntityData,
-    entity_name: str,
-) -> dict[str, int | None]:
-    """Create navigation entities dynamically from direct JSON fields and return their IDs."""
-    # Get dynamic navigation structure from config and schema
-    entity_structure = await _get_navigation_entity_structure(database, conn)
-
-    # Initialize foreign_key_ids dictionary dynamically
-    foreign_key_ids: dict[str, int | None] = {
-        entity_info["foreign_key_column"]: None
-        for entity_info in entity_structure.values()
-    }
-
-    # If no entity structure could be determined, return empty foreign keys
-    if not entity_structure:
-        logger.warning(
-            f"No navigation entity structure available for {entity_name}. Skipping navigation entity creation."
-        )
-        return foreign_key_ids
-
-    # Create entities dynamically based on the discovered structure
-    try:
-        for entity_key, entity_info in entity_structure.items():
-            field_name = entity_info["field_name"]
-            table_name = entity_info["table_name"]
-            foreign_key_column = entity_info["foreign_key_column"]
-
-            # Get entity name from direct JSON field
-            entity_name = None
-            if hasattr(entity_data, field_name):
-                field_value = getattr(entity_data, field_name)
-                if field_value and str(field_value).strip():
-                    entity_name = str(field_value).strip()
-
-            # Create the entity if we have a name
-            if entity_name:
-                # Special handling for detector which needs accelerator_id
-                if entity_key == "detector" and foreign_key_ids.get("accelerator_id"):
-                    foreign_key_ids[foreign_key_column] = await _get_or_create_entity(
-                        conn,
-                        GenericEntityCreate,
-                        table_name,
-                        name=entity_name,
-                        accelerator_id=foreign_key_ids["accelerator_id"],
-                    )
-                else:
-                    foreign_key_ids[foreign_key_column] = await _get_or_create_entity(
-                        conn,
-                        GenericEntityCreate,
-                        table_name,
-                        name=entity_name,
-                    )
-
-    except Exception as e:
-        logger.warning(
-            f"Could not create navigation entities for {entity_name}: {e}. "
-            f"Will store entity with null foreign key references."
-        )
-
-    return foreign_key_ids
-
-
 async def _create_main_entity_with_conflict_resolution(
     conn: asyncpg.Connection,
     entity_name: str,
     metadata_dict: dict[str, Any],
     foreign_key_ids: dict[str, int | None],
     main_table: str,
+    database: "Database",
 ) -> None:
     """Create main entity using UUID-based conflict resolution."""
     try:
         await _create_main_entity(
-            conn, entity_name, metadata_dict, foreign_key_ids, main_table
+            conn, entity_name, metadata_dict, foreign_key_ids, main_table, database
         )
     except Exception as e:
         # Log any errors but don't do name-based retries since UUID handles uniqueness
@@ -545,6 +500,7 @@ async def _create_main_entity(
     metadata_dict: dict[str, Any],
     foreign_key_ids: dict[str, int | None],
     main_table: str,
+    database: "Database",
 ) -> None:
     """Create the main entity in the database."""
     # Generate deterministic UUID based on key fields
@@ -554,10 +510,52 @@ async def _create_main_entity(
     )
 
     # Create entity dictionary dynamically
-    entity_dict = {
+    entity_dict: dict[str, Any] = {
         "name": name,
         "metadata": metadata_dict,
     }
+
+    # Generic metadata processing with automatic date/timestamp parsing
+    # Extract title from metadata if available, fallback to name
+    title = metadata_dict.get("name", name) if metadata_dict else name
+    entity_dict["name"] = title
+
+    # Extract other direct database fields from metadata if available
+    if metadata_dict:
+        logger.debug(f"Processing metadata for {name}: {list(metadata_dict.keys())}")
+
+        valid_columns = await get_valid_table_columns(conn, main_table)
+
+        # Get the configured entity name field from config
+        entity_name_field = "name"
+
+        # Exclude system columns that shouldn't be set directly
+        system_columns = {
+            "name",
+            "uuid",
+            "created_at",
+            "updated_at",
+            "last_edited_at",
+            "edited_by_name",
+            "metadata",
+        }
+
+        # Get metadata fields that correspond to actual database columns
+        direct_fields = valid_columns - system_columns
+
+        # Filter to only include fields that exist in metadata
+        available_direct_fields = [
+            field for field in direct_fields if field in metadata_dict
+        ]
+
+        for field in available_direct_fields:
+            value = metadata_dict[field]
+
+            # Use generic parsing for all fields
+            parsed_value = try_parse_value_auto(value)
+
+            # For all other fields, use the parsed value directly
+            entity_dict[field] = parsed_value
 
     # Add all foreign key IDs dynamically
     entity_dict.update(foreign_key_ids)
@@ -567,6 +565,10 @@ async def _create_main_entity(
     entity_dict = await _merge_metadata_with_locked_fields(
         conn, entity_dict, main_table
     )
+
+    # Process metadata for date/timestamp fields after merging with locked fields
+    if "metadata" in entity_dict and entity_dict["metadata"]:
+        entity_dict["metadata"] = process_entity_data_for_dates(entity_dict["metadata"])
 
     # Build and execute the upsert query
     await _upsert_entity(conn, entity_dict, main_table)
@@ -603,7 +605,8 @@ async def _merge_metadata_with_locked_fields(
 def _parse_existing_metadata(metadata_result: Any) -> dict[str, Any]:
     """Parse existing metadata from database result."""
     if isinstance(metadata_result, str):
-        return json.loads(metadata_result)
+        result = json.loads(metadata_result)
+        return result  # type: ignore[no-any-return]
     elif isinstance(metadata_result, dict):
         return metadata_result
     return {}
@@ -646,7 +649,7 @@ async def _upsert_entity(
 ) -> None:
     """Execute the upsert query for the main entity, respecting locked fields."""
     columns = list(entity_dict.keys())
-    placeholders = [f"${i+1}" for i in range(len(columns))]
+    placeholders = [f"${i + 1}" for i in range(len(columns))]
     values = list(entity_dict.values())
 
     # Build the conflict update clause with SQL-based lock checking
@@ -711,10 +714,10 @@ async def _upsert_entity(
     ]
 
     query = f"""
-        INSERT INTO {main_table} ({', '.join(columns)})
-        VALUES ({', '.join(placeholders)})
+        INSERT INTO {main_table} ({", ".join(columns)})
+        VALUES ({", ".join(placeholders)})
         ON CONFLICT (uuid) DO UPDATE
-        SET {', '.join(cleaned_clauses)}
+        SET {", ".join(cleaned_clauses)}
     """
 
     await conn.execute(query, *values)
@@ -757,7 +760,7 @@ async def _get_or_create_entity(
     instance = model(**kwargs)
     data = instance.model_dump(exclude_unset=True)
     columns = ", ".join(data.keys())
-    placeholders = ", ".join(f"${i+1}" for i in range(len(data)))
+    placeholders = ", ".join(f"${i + 1}" for i in range(len(data)))
 
     insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING {id_column}"
 

@@ -9,7 +9,7 @@ from typing import Any
 
 import asyncpg
 
-from app.utils.logging import get_logger
+from app.utils.logging_utils import get_logger
 
 logger = get_logger()
 
@@ -162,7 +162,7 @@ class SchemaDiscovery:
         Analyze the navigation structure based on a main table's foreign keys.
 
         Args:
-            main_table: The name of the main table (e.g., 'datasets')
+            main_table: The name of the main table (e.g., 'entities')
 
         Returns:
             Dictionary containing navigation analysis

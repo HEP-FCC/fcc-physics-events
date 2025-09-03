@@ -16,7 +16,7 @@ import type { Entity } from "~/types/api";
  * Get primary key value from entity
  */
 export function getPrimaryKeyValue(entity: Entity): number | null {
-    return entity.dataset_id || null;
+    return entity.entity_id || null;
 }
 
 /**

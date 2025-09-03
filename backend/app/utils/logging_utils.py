@@ -1,5 +1,5 @@
 """
-Logging utilities for the FCC Physics Events application.
+Logging utilities for the Universal Metadata Browser application.
 
 This module provides a structured logging setup using structlog,
 with proper configuration and type hints.
@@ -11,7 +11,7 @@ from typing import cast
 
 import structlog
 
-from app.utils.config import get_config
+from app.utils.config_utils import get_config
 
 config = get_config()
 LOG_LEVEL = config.get("general.log_level", "INFO").strip().upper()

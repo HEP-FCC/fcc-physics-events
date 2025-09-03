@@ -1,5 +1,5 @@
 """
-Standardized Error Handling for FCC Physics Events Backend
+Standardized Error Handling for Universal Metadata Browser Backend
 Provides consistent error response formats matching frontend expectations
 """
 

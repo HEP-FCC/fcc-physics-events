@@ -292,8 +292,8 @@ export function useApiClient() {
     /**
      * Get dropdown options for navigation
      */
-    const getDropdownOptions = async (type: string): Promise<Array<{ dataset_id: number; name: string }>> => {
-        const response = await typedFetch<{ data: Array<{ dataset_id: number; name: string }> }>(`/dropdown/${type}`);
+    const getDropdownOptions = async (type: string): Promise<Array<{ entity_id: number; name: string }>> => {
+        const response = await typedFetch<{ data: Array<{ entity_id: number; name: string }> }>(`/dropdown/${type}`);
         return response.data;
     };
 

@@ -1,14 +1,14 @@
 """
 Generic models for schema-driven database entities.
 
-These models work with any database schema by using dynamic field generation
-based on the discovered schema structure.
+These models work with any database schema by providing base classes and
+standard patterns for entity creation and updates.
 """
 
 import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, create_model, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class DatabaseEntityBase(BaseModel):
@@ -68,132 +68,9 @@ class GenericEntityUpdate(BaseModel):
     model_config = {"extra": "allow"}
 
 
-class GenericEntityWithDetails(DatabaseEntityBase):
-    """
-    Generic model for entities with joined details from related tables.
-
-    This model will have navigation entity names dynamically added as
-    {entity_type}_name fields based on the schema discovery.
-    """
-
-    pass
-
-
-class DropdownItem(BaseModel):
-    """Generic dropdown item for any entity."""
-
-    id: int
-    name: str
-
-
-class PaginatedResponse(BaseModel):
-    """Generic paginated response for any entity type."""
-
-    total: int
-    items: list[dict[str, Any]]  # Flexible items that can contain any entity data
-
-
-def create_dynamic_entity_model(
-    table_name: str,
-    primary_key: str,
-    columns: list[str],
-    foreign_keys: dict[str, str] | None = None,
-) -> type[BaseModel]:
-    """
-    Dynamically create a Pydantic model based on database schema.
-
-    Args:
-        table_name: Name of the database table
-        primary_key: Name of the primary key column
-        columns: List of column names in the table
-        foreign_keys: Dict mapping foreign key columns to their referenced tables
-
-    Returns:
-        Dynamically created Pydantic model class
-    """
-
-    # Start with base fields
-    fields: dict[str, Any] = {
-        primary_key: (int, ...),  # Primary key is required
-        "name": (str, ...),  # Name is required for all entities
-    }
-
-    # Add optional fields for common columns
-    common_optional_fields: dict[str, Any] = {
-        "created_at": (datetime.datetime | None, None),
-        "updated_at": (datetime.datetime | None, None),
-        "last_edited_at": (datetime.datetime | None, None),
-        "edited_by_name": (str | None, None),
-        "metadata": (dict[str, Any], Field(default_factory=dict)),
-        "description": (str | None, None),
-    }
-
-    # Add fields for all columns that aren't already handled
-    for column in columns:
-        if column not in fields:
-            if column in common_optional_fields:
-                fields[column] = common_optional_fields[column]
-            elif foreign_keys and column in foreign_keys:
-                # Foreign key fields are optional (can be NULL)
-                fields[column] = (int | None, None)
-            else:
-                # Default to optional string for unknown columns
-                fields[column] = (str | None, None)
-
-    # Create the model class
-    model_class = create_model(
-        f"{table_name.title()}Entity", __base__=DatabaseEntityBase, **fields
-    )
-
-    return model_class
-
-
-def create_dynamic_entity_with_details_model(
-    table_name: str,
-    primary_key: str,
-    columns: list[str],
-    navigation_tables: dict[str, str],
-) -> type[BaseModel]:
-    """
-    Create a dynamic model that includes navigation entity names.
-
-    Args:
-        table_name: Name of the main database table
-        primary_key: Name of the primary key column
-        columns: List of column names in the main table
-        navigation_tables: Dict mapping entity types to their name columns
-
-    Returns:
-        Dynamically created model with navigation details
-    """
-
-    # Start with the basic entity model
-    base_model = create_dynamic_entity_model(table_name, primary_key, columns)
-
-    # Add navigation entity name fields
-    navigation_fields: dict[str, Any] = {}
-    for entity_type in navigation_tables:
-        field_name = f"{entity_type}_name"
-        navigation_fields[field_name] = (str | None, None)
-
-    # Create the enhanced model
-    model_class = create_model(
-        f"{table_name.title()}EntityWithDetails",
-        __base__=base_model,
-        **navigation_fields,
-    )
-
-    return model_class
-
-
 # Export commonly used models
 __all__ = [
     "DatabaseEntityBase",
     "GenericEntityCreate",
     "GenericEntityUpdate",
-    "GenericEntityWithDetails",
-    "DropdownItem",
-    "PaginatedResponse",
-    "create_dynamic_entity_model",
-    "create_dynamic_entity_with_details_model",
 ]

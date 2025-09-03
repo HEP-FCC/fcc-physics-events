@@ -12,7 +12,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3 flex-1 min-w-0">
                             <NuxtLink to="/" class="flex items-center flex-shrink-0" @click="handleLogoClick">
-                                <NuxtImg src="/logo.png" alt="FCC Physics Events" class="h-8 w-auto" />
+                                <NuxtImg src="/logo.png" :alt="appTitle" class="h-8 w-auto" />
                             </NuxtLink>
                             <h1 class="text-lg font-semibold font-sans truncate select-none">
                                 {{ appTitle }}
@@ -39,7 +39,7 @@
                     <!-- Left: Logo -->
                     <div class="flex items-center">
                         <NuxtLink class="flex items-center cursor-pointer" @click="handleLogoClick">
-                            <NuxtImg src="/logo.png" alt="FCC Physics Events" class="h-8 w-auto" />
+                            <NuxtImg src="/logo.png" :alt="appTitle" class="h-8 w-auto" />
                         </NuxtLink>
                     </div>
 
@@ -47,7 +47,6 @@
                     <h1 class="px-5 text-xl font-semibold font-sans whitespace-nowrap select-none">
                         {{ appTitle }}
                     </h1>
-
                     <!-- Right: Contact, Admin and Authentication Section -->
                     <div class="ml-auto flex items-center space-x-4">
                         <AdminModal v-if="isAuthenticated" />
@@ -79,26 +78,24 @@ const { checkAuthStatus, user } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
 const { appTitle } = useAppConfiguration();
 const router = useRouter();
-const route = useRoute();
 
-// Check if user is authenticated
-const isAuthenticated = computed(() => !!user.value);
+const isAuthenticated = computed(() => APP_CONFIG.auth.enabled && !!user.value?.given_name);
 
 const handleLogoClick = async (event: Event) => {
     // Prevent the default link navigation
     event.preventDefault();
 
-    // Check if we're already on the home page with no query params
-    if (route.path === "/" && Object.keys(route.query).length === 0) {
-        // We're already on the clean home page, so just clear the search
-        // This will work by triggering a route update that sets q to empty
-        await router.replace({ path: "/", query: { q: "" } });
-        // Then immediately clear it to trigger the search
-        await nextTick();
-        await router.replace({ path: "/", query: {} });
+    // Try to use global search controller first
+    const { clearSearchAndRefresh, hasController } = useGlobalSearchControl();
+
+    if (hasController.value) {
+        // Use the global search controller to clear search and refresh
+        await clearSearchAndRefresh();
+        // Navigate to home page
+        await router.push({ path: "/" });
     } else {
-        // Navigate to home page with empty query
-        await router.push({ path: "/", query: {} });
+        // Fallback to route-based navigation if no controller is available
+        await router.push({ path: "/", query: { q: "" } });
     }
 };
 

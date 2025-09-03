@@ -13,7 +13,8 @@ if TYPE_CHECKING:
     from app.storage.database import Database
 
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.logging import get_logger
+from app.utils.logging_utils import get_logger
+from app.utils.sql_utils import generate_unique_table_alias
 
 logger = get_logger()
 
@@ -25,7 +26,7 @@ async def generate_schema_mapping(
     Generates a dynamic schema mapping for the query parser based on database schema.
 
     This method analyzes the database structure and creates mappings for:
-    - Dataset fields: dataset_id, name, created_at, last_edited_at
+    - Entity fields: entity_id, name, created_at, last_edited_at
     - Dynamic joined fields: {entity}_name for each navigation entity
     - Metadata fields: metadata.* (any key in the JSONB metadata field)
     """
@@ -48,7 +49,7 @@ async def generate_schema_mapping(
         logger.error(f"Failed to generate dynamic schema mapping: {e}")
         # Return base mapping on failure
         return {
-            "dataset_id": "d.entity_id",  # Fallback primary key
+            "entity_id": "d.entity_id",  # Fallback primary key
             "name": "d.name",
             "uuid": "d.uuid",
             "metadata": "d.metadata",
@@ -125,30 +126,11 @@ def _build_navigation_aliases(navigation_tables: dict[str, Any]) -> dict[str, st
 
     for entity_key, table_info in navigation_tables.items():
         name_column = table_info["name_column"]
-        alias = _generate_unique_alias(entity_key, used_aliases)
+        alias = generate_unique_table_alias(entity_key, used_aliases)
         used_aliases.add(alias)
         mapping[entity_key] = f"{alias}.{name_column}"
 
     return mapping
-
-
-def _generate_unique_alias(entity_key: str, used_aliases: set[str]) -> str:
-    """Generate a unique alias for a table, avoiding conflicts. Same logic as QueryParser."""
-    # Start with first 3-4 characters
-    base_alias = entity_key[:3] if len(entity_key) > 3 else entity_key
-
-    # If already used, try first 4 characters
-    if base_alias in used_aliases and len(entity_key) > 3:
-        base_alias = entity_key[:4]
-
-    # If still conflicts, add number suffix
-    if base_alias in used_aliases:
-        counter = 1
-        while f"{base_alias}{counter}" in used_aliases:
-            counter += 1
-        base_alias = f"{base_alias}{counter}"
-
-    return base_alias
 
 
 async def _get_main_table_primary_key(conn: asyncpg.Connection, main_table: str) -> str:

@@ -63,7 +63,7 @@ export interface ExtendedApiError {
  * Entity from the backend (replaces hardcoded models)
  */
 export interface Entity {
-    dataset_id: number;
+    entity_id: number;
     uuid?: string;
     name: string;
     created_at?: string;
@@ -114,8 +114,8 @@ export interface SearchApiResponse<T = Entity> extends InfiniteScrollApiResponse
 /**
  * Utility types for API operations
  */
-export type CreateEntityPayload = Omit<Entity, "dataset_id" | "created_at" | "last_edited_at">;
-export type UpdateEntityPayload = Partial<Omit<Entity, "dataset_id" | "created_at">> & { dataset_id: number };
+export type CreateEntityPayload = Omit<Entity, "entity_id" | "created_at" | "last_edited_at">;
+export type UpdateEntityPayload = Partial<Omit<Entity, "entity_id" | "created_at">> & { entity_id: number };
 
 /**
  * API endpoint configuration

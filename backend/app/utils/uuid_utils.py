@@ -1,20 +1,20 @@
 """
-UUID generation utilities for the FCC Physics Events application.
+UUID generation utilities for the Universal Metadata Browser Template.
 
 This module provides utilities for generating deterministic UUIDs for entities
-and other entities in the physics events database.
+and other entities in the metadata database.
 """
 
 import uuid
 
-from app.utils.config import get_config
+from app.utils.config_utils import get_config
 
 # Load configuration once at module level
 config = get_config()
 
 # UUID namespace for entity identification
-# This namespace creates deterministic UUIDs for entities  based on the FCC project
-# identifier and version. For versioning: FCCv01 -> this namespace, FCCv02 -> different namespace.
+# This namespace creates deterministic UUIDs for entities based on your project
+# identifier and version. For versioning: YourProjectv01 -> this namespace, YourProjectv02 -> different namespace.
 ENTITY_UUID_NAMESPACE = uuid.uuid5(
     uuid.NAMESPACE_DNS,
     config.get("database.entity_uuid_namespace", "entity_uuid_namespace.v01"),
@@ -26,20 +26,20 @@ def generate_entity_uuid(
     **foreign_key_ids: int | None,
 ) -> str:
     """
-    Generate deterministic UUID for a entity based on key identifying fields.
+    Generate deterministic UUID for an entity based on key identifying fields.
 
     Uses UUID5 (SHA-1 based) to ensure the same input always generates the same UUID.
-    The namespace is derived from the FCC project domain and version (v01).
+    The namespace is derived from your project domain and version (v01).
 
     Args:
         entity_name: The entity name
-        **foreign_key_ids: Variable foreign key IDs (e.g., campaign_id=1, accelerator_id=2)
+        **foreign_key_ids: Variable foreign key IDs (e.g., category_id=1, type_id=2)
 
     Returns:
         String representation of the generated UUID
 
     Example:
-        >>> generate_entity_uuid("my_entity", campaign_id=1, detector_id=2)
+        >>> generate_entity_uuid("my_entity", category_id=1, type_id=2)
         'a1b2c3d4-e5f6-5789-abcd-ef1234567890'
     """
     # Sort the foreign key IDs by key name for consistent ordering
@@ -57,7 +57,7 @@ def generate_entity_uuid(
     # Create the deterministic name for UUID5 generation
     uuid_name = f"{entity_name},{foreign_keys_str}"
 
-    # Generate deterministic UUID5 using the FCC namespace
+    # Generate deterministic UUID5 using your project namespace
     entity_uuid = uuid.uuid5(ENTITY_UUID_NAMESPACE, uuid_name)
 
     return str(entity_uuid)

@@ -11,7 +11,7 @@ import asyncpg
 
 if TYPE_CHECKING:
     from app.storage.database import Database
-from app.utils.logging import get_logger
+from app.utils.logging_utils import get_logger
 
 logger = get_logger()
 
@@ -38,7 +38,7 @@ async def get_sorting_fields(
 
 
 async def get_dropdown_items(
-    database,
+    database: "Database",
     table_key: str,
     main_table: str,
     navigation_analysis: dict[str, Any],
@@ -46,7 +46,7 @@ async def get_dropdown_items(
 ) -> dict[str, Any]:
     """
     Get dropdown items for any navigation table based on schema discovery.
-    Returns only items that have related datasets.
+    Returns only items that have related entities.
     """
     if filter_dict is None:
         filter_dict = {}
@@ -79,13 +79,13 @@ async def _fetch_schema_data(
 ) -> dict[str, Any]:
     """Fetch all schema-related data needed for sorting fields."""
     try:
-        dataset_columns = await _fetch_dataset_columns(conn, main_table)
+        entity_columns = await _fetch_entity_columns(conn, main_table)
         foreign_keys = await _fetch_foreign_keys(conn, main_table)
         metadata_keys = await _fetch_metadata_keys(conn, main_table)
         nested_metadata_keys = await _fetch_nested_metadata_keys(conn, main_table)
 
         return {
-            "dataset_columns": dataset_columns,
+            "entity_columns": entity_columns,
             "foreign_keys": foreign_keys,
             "metadata_keys": metadata_keys,
             "nested_metadata_keys": nested_metadata_keys,
@@ -95,22 +95,25 @@ async def _fetch_schema_data(
         raise
 
 
-async def _fetch_dataset_columns(
+async def _fetch_entity_columns(
     conn: asyncpg.Connection, main_table: str
-) -> list[dict]:
-    """Fetch dataset column information."""
-    return await conn.fetch(f"""
+) -> list[dict[str, Any]]:
+    """Fetch entity column information."""
+    result = await conn.fetch(f"""
         SELECT column_name, data_type
         FROM information_schema.columns
         WHERE table_name = '{main_table}'
         AND table_schema = 'public'
         ORDER BY ordinal_position
     """)
+    return list(result)
 
 
-async def _fetch_foreign_keys(conn: asyncpg.Connection, main_table: str) -> list[dict]:
+async def _fetch_foreign_keys(
+    conn: asyncpg.Connection, main_table: str
+) -> list[dict[str, Any]]:
     """Fetch foreign key information."""
-    return await conn.fetch(f"""
+    result = await conn.fetch(f"""
         SELECT
             kcu.column_name,
             ccu.table_name AS foreign_table_name,
@@ -126,11 +129,14 @@ async def _fetch_foreign_keys(conn: asyncpg.Connection, main_table: str) -> list
         AND tc.table_name = '{main_table}'
         AND tc.table_schema = 'public'
     """)
+    return list(result)
 
 
-async def _fetch_metadata_keys(conn: asyncpg.Connection, main_table: str) -> list[dict]:
+async def _fetch_metadata_keys(
+    conn: asyncpg.Connection, main_table: str
+) -> list[dict[str, Any]]:
     """Fetch metadata field keys, excluding lock fields."""
-    return await conn.fetch(f"""
+    result = await conn.fetch(f"""
         WITH metadata_keys AS (
             SELECT DISTINCT jsonb_object_keys(metadata) as metadata_key
             FROM {main_table}
@@ -142,13 +148,14 @@ async def _fetch_metadata_keys(conn: asyncpg.Connection, main_table: str) -> lis
         WHERE metadata_key NOT LIKE '__%__lock__'
         ORDER BY metadata_key
     """)
+    return list(result)
 
 
 async def _fetch_nested_metadata_keys(
     conn: asyncpg.Connection, main_table: str
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Fetch nested metadata field keys, excluding lock fields."""
-    return await conn.fetch(f"""
+    result = await conn.fetch(f"""
         WITH nested_keys AS (
             SELECT DISTINCT
                 parent_key || '.' || child_key as nested_key
@@ -173,19 +180,20 @@ async def _fetch_nested_metadata_keys(
         AND nested_key NOT LIKE '%__lock__'
         ORDER BY nested_key
     """)
+    return list(result)
 
 
 def _build_field_collections(schema_data: dict[str, Any]) -> dict[str, list[str]]:
     """Build different field collections from schema data."""
-    dataset_fields = _build_entity_fields(
-        schema_data["dataset_columns"], schema_data["foreign_keys"]
+    entity_fields = _build_entity_fields(
+        schema_data["entity_columns"], schema_data["foreign_keys"]
     )
     joined_fields = _build_joined_fields(schema_data["foreign_keys"])
     metadata_fields = _build_metadata_fields(schema_data["metadata_keys"])
     nested_fields = _build_nested_fields(schema_data["nested_metadata_keys"])
 
     return {
-        "dataset_fields": dataset_fields,
+        "entity_fields": entity_fields,
         "joined_fields": joined_fields,
         "metadata_fields": metadata_fields,
         "nested_fields": nested_fields,
@@ -193,21 +201,21 @@ def _build_field_collections(schema_data: dict[str, Any]) -> dict[str, list[str]
 
 
 def _build_entity_fields(
-    dataset_columns: list[dict], foreign_keys: list[dict]
+    entity_columns: list[dict[str, Any]], foreign_keys: list[dict[str, Any]]
 ) -> list[str]:
-    """Build dataset fields excluding foreign keys and metadata."""
+    """Build entity fields excluding foreign keys and metadata."""
     foreign_key_columns = {fk["column_name"] for fk in foreign_keys}
-    dataset_fields = []
+    entity_fields = []
 
-    for col in dataset_columns:
+    for col in entity_columns:
         col_name = col["column_name"]
         if col_name not in foreign_key_columns and col_name != "metadata":
-            dataset_fields.append(col_name)
+            entity_fields.append(col_name)
 
-    return dataset_fields
+    return entity_fields
 
 
-def _build_joined_fields(foreign_keys: list[dict]) -> list[str]:
+def _build_joined_fields(foreign_keys: list[dict[str, Any]]) -> list[str]:
     """Build joined fields from foreign key relationships."""
     joined_fields = []
     for fk in foreign_keys:
@@ -222,7 +230,7 @@ def _build_joined_fields(foreign_keys: list[dict]) -> list[str]:
     return joined_fields
 
 
-def _build_metadata_fields(metadata_keys: list[dict]) -> list[str]:
+def _build_metadata_fields(metadata_keys: list[dict[str, Any]]) -> list[str]:
     """Build metadata fields list, filtering out lock fields."""
     metadata_fields = []
     for row in metadata_keys:
@@ -236,7 +244,7 @@ def _build_metadata_fields(metadata_keys: list[dict]) -> list[str]:
     return metadata_fields
 
 
-def _build_nested_fields(nested_metadata_keys: list[dict]) -> list[str]:
+def _build_nested_fields(nested_metadata_keys: list[dict[str, Any]]) -> list[str]:
     """Build nested metadata fields list, filtering out lock fields."""
     nested_fields = []
     for row in nested_metadata_keys:
@@ -253,7 +261,7 @@ def _build_nested_fields(nested_metadata_keys: list[dict]) -> list[str]:
 def _combine_and_sort_fields(field_collections: dict[str, list[str]]) -> list[str]:
     """Combine all field collections and sort alphabetically."""
     all_fields = []
-    all_fields.extend(field_collections["dataset_fields"])
+    all_fields.extend(field_collections["entity_fields"])
     all_fields.extend(field_collections["joined_fields"])
     all_fields.extend(field_collections["metadata_fields"])
     all_fields.extend(field_collections["nested_fields"])

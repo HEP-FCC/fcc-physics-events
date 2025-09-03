@@ -47,7 +47,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.utils.logging import get_logger
+from app.utils.logging_utils import get_logger
 
 logger = get_logger()
 
@@ -79,7 +79,7 @@ class FccDataset(BaseEntityData):
     """
 
     # Core fields that are guaranteed or highly likely to be present
-    process_name: str | None = Field(default=None, alias="process-name")
+    name: str | None = Field(default=None, alias="process-name")
     n_events: int | None = Field(default=None, alias="n-events")
     path: str | None = Field(default=None)
     size: int | None = Field(default=None)
@@ -98,7 +98,7 @@ class FccDataset(BaseEntityData):
     raw_metadata: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
     @field_validator(
-        "process_name",
+        "name",
         "description",
         "comment",
         "status",
@@ -194,7 +194,7 @@ class FccDataset(BaseEntityData):
     def get_all_metadata(self) -> dict[str, Any]:
         """
         Returns all metadata including both core fields and raw_metadata.
-        Excludes None values and the process_name (since it's stored as dataset name).
+        Excludes None values and the name (since it's stored as dataset name).
         Also excludes navigation entity fields as they are stored in foreign key relationships.
         """
         metadata: dict[str, Any] = {}

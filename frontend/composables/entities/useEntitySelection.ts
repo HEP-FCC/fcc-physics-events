@@ -410,7 +410,7 @@ export function useEntitySelection() {
             if (entityIndex !== -1) {
                 updateEntityInArray(entityIndex, {
                     ...entities[entityIndex],
-                    dataset_id: entityId,
+                    entity_id: entityId,
                     metadata: parsedMetadata,
                 });
             }

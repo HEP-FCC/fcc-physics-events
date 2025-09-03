@@ -5,8 +5,8 @@ services:
             dockerfile: Dockerfile.dev
         volumes:
             - ./backend/app:/app/app
-            - /home/lexi-k/fcc-physics-events/backend/app/storage/data:/data # Mount local data directory for file watching
-            - /home/lexi-k/fcc-physics-events/backend/app/storage/data/tmp:/app/storage # Mount persistent storage for file watcher state
+            - ./backend/app/storage/data:/data # Mount local data directory for file watching
+            - ./backend/app/storage/data/tmp:/app/storage # Mount persistent storage for file watcher state
             - app-locks:/app/locks # Mount shared volume for worker coordination
         ports:
             - "8000:8000"
@@ -42,7 +42,7 @@ services:
     postgres:
         image: postgres:17-alpine3.22
         volumes:
-            - ./database:/var/lib/postgresql/data
+            - ./dev-database:/var/lib/postgresql/data
         ports:
             - "5432:5432"
         environment:
@@ -60,7 +60,7 @@ networks:
         driver: bridge
 
 volumes:
-    backend-storage:
-        driver: local
     app-locks:
+        driver: local
+    dev-database:
         driver: local

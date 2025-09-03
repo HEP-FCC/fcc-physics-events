@@ -70,7 +70,7 @@
                                     <div v-else class="space-y-1">
                                         <button
                                             v-for="item in dropdowns[type]?.items || []"
-                                            :key="item.dataset_id"
+                                            :key="item.entity_id"
                                             class="w-full text-left px-3 py-2 text-sm hover:bg-deep-blue-50 rounded transition-colors duration-150 block truncate"
                                             style="max-width: 300px"
                                             :class="{

@@ -4,6 +4,7 @@ This module provides a unified HTTP client interface for all backend HTTP operat
 """
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import aiohttp
@@ -15,8 +16,8 @@ from tenacity import (
     wait_exponential,
 )
 
-from app.utils.config import get_config
-from app.utils.logging import get_logger
+from app.utils.config_utils import get_config
+from app.utils.logging_utils import get_logger
 
 # Load configuration and logger
 logger = get_logger(__name__)
@@ -74,12 +75,12 @@ class RetryingHTTPClient:
         self.timeout_config = aiohttp.ClientTimeout(total=timeout)
         self.session: aiohttp.ClientSession | None = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "RetryingHTTPClient":
         """Async context manager entry."""
         await self.start_session()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Async context manager exit."""
         await self.close_session()
 
@@ -98,7 +99,7 @@ class RetryingHTTPClient:
             await self.session.close()
             logger.debug("Closed HTTP client session")
 
-    def _create_retry_decorator(self):
+    def _create_retry_decorator(self) -> Callable[..., Any]:
         """Create a tenacity retry decorator with configured settings."""
         return retry(
             stop=stop_after_attempt(self.max_retries),
@@ -121,7 +122,7 @@ class RetryingHTTPClient:
         )
 
     async def _execute_request(
-        self, method: str, url: str, **kwargs
+        self, method: str, url: str, **kwargs: Any
     ) -> aiohttp.ClientResponse:
         """
         Execute HTTP request with retry logic.
@@ -145,8 +146,9 @@ class RetryingHTTPClient:
 
         # Apply retry decorator to the request execution
         @self._create_retry_decorator()
-        async def make_request():
+        async def make_request() -> aiohttp.ClientResponse:
             logger.debug(f"Making {method} request to {url}")
+            assert self.session is not None  # Help mypy understand session is not None
             response = await self.session.request(method, url, **kwargs)
 
             # Raise for HTTP error status codes (4xx, 5xx)
@@ -163,7 +165,8 @@ class RetryingHTTPClient:
 
             return response
 
-        return await make_request()
+        result = await make_request()
+        return result  # type: ignore[no-any-return]
 
     async def get(
         self,
@@ -171,7 +174,7 @@ class RetryingHTTPClient:
         params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> aiohttp.ClientResponse:
         """
         Make a GET request.
@@ -203,7 +206,7 @@ class RetryingHTTPClient:
         json: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> aiohttp.ClientResponse:
         """
         Make a POST request.
@@ -237,7 +240,7 @@ class RetryingHTTPClient:
         json: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> aiohttp.ClientResponse:
         """
         Make a PUT request.
@@ -269,7 +272,7 @@ class RetryingHTTPClient:
         url: str,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> aiohttp.ClientResponse:
         """
         Make a DELETE request.
@@ -294,7 +297,7 @@ class RetryingHTTPClient:
         params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """
         Make a GET request and return JSON response.
@@ -312,7 +315,8 @@ class RetryingHTTPClient:
         async with await self.get(
             url, params=params, headers=headers, timeout=timeout, **kwargs
         ) as response:
-            return await response.json()
+            result = await response.json()
+            return result  # type: ignore[no-any-return]
 
     async def post_json(
         self,
@@ -321,7 +325,7 @@ class RetryingHTTPClient:
         json: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         timeout: float | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """
         Make a POST request and return JSON response.
@@ -340,7 +344,8 @@ class RetryingHTTPClient:
         async with await self.post(
             url, data=data, json=json, headers=headers, timeout=timeout, **kwargs
         ) as response:
-            return await response.json()
+            result = await response.json()
+            return result  # type: ignore[no-any-return]
 
 
 # Factory function to create HTTP client instances
@@ -380,25 +385,25 @@ def create_http_client(
 
 
 # Convenience functions that create their own client instances
-async def get_json(url: str, **kwargs) -> dict[str, Any]:
+async def get_json(url: str, **kwargs: Any) -> dict[str, Any]:
     """Convenience function for GET JSON requests."""
     async with create_http_client() as client:
         return await client.get_json(url, **kwargs)
 
 
-async def post_json(url: str, **kwargs) -> dict[str, Any]:
+async def post_json(url: str, **kwargs: Any) -> dict[str, Any]:
     """Convenience function for POST JSON requests."""
     async with create_http_client() as client:
         return await client.post_json(url, **kwargs)
 
 
-async def get_response(url: str, **kwargs) -> aiohttp.ClientResponse:
+async def get_response(url: str, **kwargs: Any) -> aiohttp.ClientResponse:
     """Convenience function for GET requests."""
     async with create_http_client() as client:
         return await client.get(url, **kwargs)
 
 
-async def post_response(url: str, **kwargs) -> aiohttp.ClientResponse:
+async def post_response(url: str, **kwargs: Any) -> aiohttp.ClientResponse:
     """Convenience function for POST requests."""
     async with create_http_client() as client:
         return await client.post(url, **kwargs)

@@ -13,7 +13,7 @@ interface MetadataPreferences {
     lastUpdated: number;
 }
 
-const COOKIE_NAME = "fcc-metadata-preferences";
+const COOKIE_NAME = `${APP_CONFIG.cookies.namePrefix}-metadata-preferences`;
 
 // Global singleton state for metadata preferences
 const globalSelectedFields = ref<string[]>([]);

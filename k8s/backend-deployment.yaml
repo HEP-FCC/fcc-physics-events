@@ -22,7 +22,7 @@ spec:
         io.kompose.service: fcc-physics-events-backend
     spec:
       containers:
-      - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:31
+      - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:latest
         name: fcc-phsyics-events-backend
         ports:
         - containerPort: 8000

@@ -12,15 +12,15 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse, Response
 
-from app.routers import auth as auth_router
-from app.routers import entities as entities_router
-from app.routers import navigation as navigation_router
+from app.routers import auth_router
+from app.routers import entities_router as entities_router
+from app.routers import navigation_router as navigation_router
 from app.services.file_watcher import FileWatcherService
 from app.storage.database import Database
-from app.utils.auth import load_cern_endpoints
-from app.utils.config import get_config
-from app.utils.gclql_query_parser import QueryParser
-from app.utils.logging import get_logger, setup_logging
+from app.utils.auth_utils import AUTH_ENABLED, load_cern_endpoints
+from app.utils.config_utils import get_config
+from app.utils.gclql_query_parser_utils import QueryParser
+from app.utils.logging_utils import get_logger, setup_logging
 
 logger = get_logger(__name__)
 config = get_config()
@@ -39,7 +39,7 @@ async def lifespan(_: FastAPI) -> Any:
     await database.setup(config)
 
     # Only load CERN endpoints if authentication is enabled
-    if config.get("auth.enabled", True):
+    if AUTH_ENABLED:
         logger.info("Authentication is enabled, loading CERN endpoints...")
         await load_cern_endpoints()
     else:
@@ -59,27 +59,34 @@ async def lifespan(_: FastAPI) -> Any:
 
 
 app = FastAPI(
-    title="FCC Physics Events API",
-    description="API for querying and managing FCC physics events.",
+    title="Universal Metadata Browser API",
+    description="API for querying and managing metadata entities.",
     lifespan=lifespan,
 )
 
 
-# Only add session middleware if auth is enabled or if we have a secret key
-if config.get("auth.enabled", True) and config.get("general.application_secret_key"):
-    app.add_middleware(
-        SessionMiddleware,
-        secret_key=config.get("general.application_secret_key"),
-        https_only=config.get("general.https_only").lower() == "true",
-        same_site="lax",
-        max_age=3600,
-        session_cookie="fcc-physics-events-web",
-        domain=None,  # Allow cookies to work on localhost and other domains
-    )
+# Only add session middleware if auth is enabled
+if AUTH_ENABLED:
+    secret_key = config.get("general.application_secret_key")
+    if not secret_key:
+        logger.warning(
+            "Auth is enabled but no secret key provided - session middleware disabled"
+        )
+    else:
+        app.add_middleware(
+            SessionMiddleware,
+            secret_key=secret_key,
+            https_only=config.get("general.https_only").lower() == "true",
+            same_site="lax",
+            max_age=3600,
+            session_cookie=config.get(
+                "general.cookie_prefix", "universal-metadata-browser"
+            ),
+            domain=None,  # Allow cookies to work on localhost and other domains
+        )
+        logger.info("Session middleware enabled")
 else:
-    logger.info(
-        "Session middleware disabled - auth is disabled or no secret key provided"
-    )
+    logger.info("Session middleware disabled - auth is disabled")
 
 app.add_middleware(
     CORSMiddleware,

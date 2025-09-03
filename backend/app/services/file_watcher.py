@@ -1,9 +1,9 @@
 """
-File watcher service for monitoring directories and processing FCC dictionary files.
+File watcher service for monitoring directories and processing JSON data files.
 
 This service monitors specified directories for JSON file changes using polling
 (instead of inotify) to support FUSE/network filesystems like EOS, and automatically
-imports them into the database using the existing FCC dict import functionality.
+imports them into the database using the existing data import functionality.
 """
 
 import asyncio
@@ -15,8 +15,8 @@ from enum import Enum
 from pathlib import Path
 
 from app.storage.database import Database
-from app.utils.config import get_config
-from app.utils.logging import get_logger
+from app.utils.config_utils import get_config
+from app.utils.logging_utils import get_logger
 
 logger = get_logger()
 
@@ -47,7 +47,20 @@ class FileWatcherService:
 
         # Worker coordination - only one worker should handle file watching
         self._lock_file: int | None = None
-        self._lock_file_path = watcher_config.get("lock_file", "/backend-storage/file_watcher.lock")
+        self._lock_file_path = watcher_config.get(
+            "lock_file", "/backend-storage/file_watcher.lock"
+        )
+
+        # Handle case where lock_file_path is a directory - append default filename
+        if self._lock_file_path.endswith("/") or (
+            os.path.exists(self._lock_file_path) and os.path.isdir(self._lock_file_path)
+        ):
+            logger.warning(f"Lock file path is a directory: {self._lock_file_path}")
+            if not self._lock_file_path.endswith("/"):
+                self._lock_file_path += "/"
+            self._lock_file_path += "file_watcher.lock"
+            logger.info(f"Using lock file: {self._lock_file_path}")
+
         self._is_primary_worker = False
 
         self.enabled = watcher_config.get("enabled", True)
@@ -131,33 +144,85 @@ class FileWatcherService:
 
     def _try_acquire_lock(self) -> bool:
         """Try to acquire the file watcher lock to become the primary worker."""
+        current_pid = os.getpid()
+        logger.info(
+            f"Attempting to acquire file watcher lock (PID: {current_pid}, lock file: {self._lock_file_path})"
+        )
+
         try:
             # Ensure locks directory exists
             os.makedirs(os.path.dirname(self._lock_file_path), exist_ok=True)
+            logger.debug(
+                f"Lock directory created/verified: {os.path.dirname(self._lock_file_path)}"
+            )
+
+            # Check if lock file already exists and try to read existing PID
+            existing_pid = None
+            if os.path.exists(self._lock_file_path):
+                try:
+                    with open(self._lock_file_path) as f:
+                        existing_pid_str = f.read().strip()
+                        if existing_pid_str:
+                            existing_pid = int(existing_pid_str)
+                            logger.info(
+                                f"Found existing lock file with PID: {existing_pid}"
+                            )
+
+                            # Check if the process with that PID is still running
+                            try:
+                                os.kill(
+                                    existing_pid, 0
+                                )  # Check if process exists (doesn't actually kill)
+                                logger.info(f"Process {existing_pid} is still running")
+                            except OSError:
+                                logger.info(
+                                    f"Process {existing_pid} no longer exists - stale lock file"
+                                )
+                                # Process doesn't exist, we can remove the stale lock
+                                os.unlink(self._lock_file_path)
+                                logger.info("Removed stale lock file")
+                except (ValueError, OSError) as e:
+                    logger.warning(f"Could not read existing lock file: {e}")
 
             # Open the lock file
             self._lock_file = os.open(
                 self._lock_file_path, os.O_CREAT | os.O_TRUNC | os.O_RDWR
             )
+            logger.debug(f"Opened lock file descriptor: {self._lock_file}")
 
             # Try to acquire exclusive lock (non-blocking)
             fcntl.flock(self._lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            logger.debug("Successfully acquired fcntl lock")
 
             # Write our process ID to the lock file
-            os.write(self._lock_file, f"{os.getpid()}\n".encode())
+            pid_data = f"{current_pid}\n".encode()
+            os.write(self._lock_file, pid_data)
             os.fsync(self._lock_file)
+            logger.debug(f"Written PID {current_pid} to lock file")
 
             self._is_primary_worker = True
-            logger.info(f"Acquired file watcher lock (PID: {os.getpid()})")
+            logger.info(f"Successfully acquired file watcher lock (PID: {current_pid})")
             return True
 
-        except OSError:
+        except OSError as e:
             # Lock is already held by another process
+            logger.warning(f"Failed to acquire lock (PID: {current_pid}): {e}")
+
+            # Try to read who currently holds the lock
+            if os.path.exists(self._lock_file_path):
+                try:
+                    with open(self._lock_file_path) as f:
+                        holding_pid = f.read().strip()
+                        logger.info(f"Lock is currently held by PID: {holding_pid}")
+                except Exception as read_e:
+                    logger.warning(f"Could not read lock holder PID: {read_e}")
+
             if self._lock_file is not None:
                 try:
                     os.close(self._lock_file)
-                except Exception:
-                    pass
+                    logger.debug("Closed lock file descriptor")
+                except Exception as close_e:
+                    logger.warning(f"Error closing lock file: {close_e}")
                 self._lock_file = None
             self._is_primary_worker = False
             return False
@@ -227,18 +292,28 @@ class FileWatcherService:
 
     async def start(self) -> None:
         """Start the file watcher service."""
+        current_pid = os.getpid()
+        logger.info(
+            f"File watcher service starting (PID: {current_pid}, enabled: {self.enabled})"
+        )
+
         if not self.enabled:
             logger.info("File watcher service is disabled")
             return
 
         if self.is_running:
-            logger.warning("File watcher service is already running")
+            logger.warning(
+                f"File watcher service is already running (PID: {current_pid})"
+            )
             return
 
         # Try to acquire the lock to become the primary worker
+        logger.info(
+            f"Attempting to become primary file watcher worker (PID: {current_pid})"
+        )
         if not self._try_acquire_lock():
             logger.info(
-                "Another worker is already handling file watching - this worker will remain idle"
+                f"Another worker is already handling file watching - this worker will remain idle (PID: {current_pid})"
             )
             return
 
@@ -253,6 +328,7 @@ class FileWatcherService:
 
         # Start the watcher task (it will validate paths when it starts)
         self._watch_task = asyncio.create_task(self._watch_files())
+        logger.info(f"File watcher service started successfully (PID: {current_pid})")
 
     async def _handle_startup_files(self, valid_paths: list[str]) -> None:
         """Handle existing files based on startup mode configuration."""
@@ -263,7 +339,7 @@ class FileWatcherService:
         logger.info(f"Startup mode: {self.startup_mode} - processing existing files")
 
         # Scan all files and handle based on startup mode
-        current_files = {}
+        current_files: dict[str, float] = {}
         for path in valid_paths:
             if not os.path.exists(path) or not os.path.isdir(path):
                 continue
@@ -349,10 +425,10 @@ class FileWatcherService:
 
     async def _poll_directory_changes(
         self, paths: list[str]
-    ) -> tuple[Change, str] | None:
+    ) -> list[tuple[Change, str]]:
         """Poll directories for file changes and yield change events."""
         try:
-            current_files = {}
+            current_files: dict[str, float] = {}
 
             # Scan all watch paths
             for path in paths:
@@ -597,7 +673,7 @@ class FileWatcherService:
             # Import the file content
             try:
                 await self.database.import_data(content)
-                logger.info(f"Successfully imported FCC dictionary from: {file_path}")
+                logger.info(f"Successfully imported JSON data from: {file_path}")
 
                 # Update known files and save state after successful processing
                 self._known_files[file_path] = current_mtime
@@ -606,7 +682,9 @@ class FileWatcherService:
             except ValueError as e:
                 # These are expected validation/format errors - log as warning and continue
                 if "skipping incompatible format" in str(e):
-                    logger.warning(f"Skipping file with incompatible format {file_path}: {e}")
+                    logger.warning(
+                        f"Skipping file with incompatible format {file_path}: {e}"
+                    )
                 else:
                     logger.warning(f"Validation error processing file {file_path}: {e}")
 
@@ -616,7 +694,7 @@ class FileWatcherService:
 
             except Exception as e:
                 # Log unexpected errors as warnings but don't crash the service
-                logger.warning(f"Failed to import FCC dictionary from {file_path}: {e}")
+                logger.warning(f"Failed to import JSON data from {file_path}: {e}")
 
                 # Still update known files to avoid reprocessing the same problematic file
                 self._known_files[file_path] = current_mtime

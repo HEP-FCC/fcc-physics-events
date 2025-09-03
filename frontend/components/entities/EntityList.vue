@@ -151,7 +151,7 @@ const { getEntityBadges } = useEntityBadges();
 function getEntityId(entity: Entity): number {
     const id = getPrimaryKeyValue(entity);
     if (!id || id <= 0) {
-        console.warn("Entity has invalid ID:", { entity, dataset_id: entity.dataset_id });
+        console.warn("Entity has invalid ID:", { entity, entity_id: entity.entity_id });
         return -1; // Use -1 to indicate invalid ID instead of 0
     }
     return id;
