@@ -7,11 +7,11 @@ on:
 
 env:
   REGISTRY: registry.cern.ch
-  REGISTRY_USER: ${{ secrets.CERN_REGISTRY_USER }}
-  REGISTRY_PASSWORD: ${{ secrets.CERN_REGISTRY_PASSWORD }}
+  REGISTRY_USER: ${{ secrets.FCC_PHYSICS_EVENTS_REGISTRY_USER }}
+  REGISTRY_PASSWORD: ${{ secrets.FCC_PHYSICS_EVENTS_REGISTRY_PASSWORD }}
   OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
-  OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
-  OPENSHIFT_NAMESPACE: ${{ secrets.OPENSHIFT_NAMESPACE }}
+  OPENSHIFT_TOKEN: ${{ secrets.FCC_PHYSICS_EVENTS_OPENSHIFT_TOKEN }}
+  OPENSHIFT_NAMESPACE: ${{ secrets.FCC_PHYSICS_EVENTS_OPENSHIFT_NAMESPACE }}
   IMAGE_FRONTEND: registry.cern.ch/fcc-physics-events/fcc-physics-events-frontend
   IMAGE_BACKEND: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend
 
