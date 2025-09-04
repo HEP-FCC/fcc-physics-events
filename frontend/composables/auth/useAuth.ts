@@ -1,4 +1,5 @@
 import { onMounted, getCurrentInstance } from "vue";
+import { APP_CONFIG } from "~/config/app.config";
 
 interface User {
     given_name?: string;
@@ -22,7 +23,6 @@ interface AuthState {
  */
 export function useAuth() {
     const { initiateLogin, logoutUser, getSessionStatus, manualRefreshToken } = useApiClient();
-    const config = useRuntimeConfig();
 
     // Use global state to ensure consistency across components
     const authState = useState<AuthState>(
