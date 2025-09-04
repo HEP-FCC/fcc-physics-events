@@ -7,6 +7,7 @@ navigation entity creation, and metadata management.
 
 import json
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -171,7 +172,7 @@ async def _process_entity_collection_with_recovery(
 
 async def _process_batch_all_or_nothing(
     database: "Database",
-    batch: list[BaseEntityData],
+    batch: Sequence[BaseEntityData],
     batch_indices: list[int],
     main_table: str,
 ) -> tuple[int, int]:
@@ -212,7 +213,7 @@ async def _process_batch_all_or_nothing(
 
 async def _process_batch_individually(
     database: "Database",
-    batch: list[BaseEntityData],
+    batch: Sequence[BaseEntityData],
     batch_indices: list[int],
     main_table: str,
 ) -> tuple[int, int]:
@@ -254,7 +255,7 @@ async def _process_batch_individually(
 
 
 async def _preprocess_batch_navigation_entities(
-    database: "Database", conn: asyncpg.Connection, batch: list[BaseEntityData]
+    database: "Database", conn: asyncpg.Connection, batch: Sequence[BaseEntityData]
 ) -> dict[str, dict[str, int]]:
     """Pre-populate all navigation entities for a batch and return ID cache."""
     # Get dynamic navigation structure from config and schema
@@ -324,7 +325,7 @@ async def _process_single_entity(
     # Get metadata and create the main entity
     metadata_dict = entity_data.get_all_metadata()
     await _create_main_entity_with_conflict_resolution(
-        conn, entity_name, metadata_dict, foreign_key_ids, main_table, database
+        conn, entity_name, metadata_dict, foreign_key_ids, main_table
     )
 
 
@@ -481,12 +482,11 @@ async def _create_main_entity_with_conflict_resolution(
     metadata_dict: dict[str, Any],
     foreign_key_ids: dict[str, int | None],
     main_table: str,
-    database: "Database",
 ) -> None:
     """Create main entity using UUID-based conflict resolution."""
     try:
         await _create_main_entity(
-            conn, entity_name, metadata_dict, foreign_key_ids, main_table, database
+            conn, entity_name, metadata_dict, foreign_key_ids, main_table
         )
     except Exception as e:
         # Log any errors but don't do name-based retries since UUID handles uniqueness

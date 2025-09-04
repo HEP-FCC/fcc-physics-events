@@ -43,6 +43,7 @@ The data import system will automatically detect and use your classes.
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Sequence
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -226,13 +227,13 @@ class BaseEntityCollection(BaseModel, ABC):
     """
 
     @abstractmethod
-    def get_entities(self) -> list[BaseEntityData]:
+    def get_entities(self) -> Sequence[BaseEntityData]:
         """
         Abstract method that must be implemented by all entity collection classes.
-        Should return a list of entities contained in the collection.
+        Should return a sequence of entities contained in the collection.
 
         Returns:
-            List of BaseEntityData instances
+            Sequence of BaseEntityData instances
         """
         pass
 
@@ -242,7 +243,7 @@ class DatasetCollection(BaseEntityCollection):
 
     processes: list[FccDataset]
 
-    def get_entities(self) -> list[BaseEntityData]:
+    def get_entities(self) -> Sequence[BaseEntityData]:
         """
         Return the list of processes/entities in this collection.
 
@@ -261,7 +262,7 @@ class EntityTypeRegistry:
 
     _entity_classes: dict[str, type[BaseEntityData]] = {}
     _collection_classes: dict[str, type[BaseEntityCollection]] = {}
-    _detection_rules: list[tuple[callable, type[BaseEntityCollection]]] = []
+    _detection_rules: list[tuple[Callable[[dict[str, Any]], bool], type[BaseEntityCollection]]] = []
 
     @classmethod
     def register_entity_class(
@@ -279,7 +280,7 @@ class EntityTypeRegistry:
 
     @classmethod
     def register_detection_rule(
-        cls, detection_func: callable, collection_class: type[BaseEntityCollection]
+        cls, detection_func: Callable[[dict[str, Any]], bool], collection_class: type[BaseEntityCollection]
     ) -> None:
         """
         Register a detection rule that determines which collection class to use.
@@ -292,7 +293,7 @@ class EntityTypeRegistry:
 
     @classmethod
     def detect_collection_class(
-        cls, raw_data: dict
+        cls, raw_data: dict[str, Any]
     ) -> type[BaseEntityCollection] | None:
         """
         Detect which collection class to use based on registered detection rules.
@@ -327,7 +328,7 @@ class EntityTypeRegistry:
         return None
 
     @classmethod
-    def list_registered_classes(cls) -> dict[str, dict[str, type]]:
+    def list_registered_classes(cls) -> dict[str, Any]:
         """List all registered classes for debugging."""
         return {
             "entities": cls._entity_classes.copy(),
@@ -339,7 +340,7 @@ class EntityTypeRegistry:
 
 
 # Detection function for FCC format
-def _detect_fcc_format(raw_data: dict) -> bool:
+def _detect_fcc_format(raw_data: dict[str, Any]) -> bool:
     """Detect if raw_data matches FCC dataset format."""
     return "processes" in raw_data and isinstance(raw_data["processes"], list)
 
