@@ -1,0 +1,168 @@
+name: Build and Deploy to OpenShift
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.cern.ch
+  REGISTRY_USER: ${{ secrets.CERN_REGISTRY_USER }}
+  REGISTRY_PASSWORD: ${{ secrets.CERN_REGISTRY_PASSWORD }}
+  OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+  OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+  OPENSHIFT_NAMESPACE: ${{ secrets.OPENSHIFT_NAMESPACE }}
+  IMAGE_FRONTEND: registry.cern.ch/fcc-physics-events/fcc-physics-events-frontend
+  IMAGE_BACKEND: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+      k8s: ${{ steps.changes.outputs.k8s }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for changes
+        id: changes
+        run: |
+          # Check if frontend files changed
+          if git diff --name-only HEAD^ HEAD | grep -E '^frontend/' > /dev/null; then
+            echo "frontend=true" >> $GITHUB_OUTPUT
+          else
+            echo "frontend=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check if backend files changed
+          if git diff --name-only HEAD^ HEAD | grep -E '^backend/' > /dev/null; then
+            echo "backend=true" >> $GITHUB_OUTPUT
+          else
+            echo "backend=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check if k8s files changed or if any images were built
+          if git diff --name-only HEAD^ HEAD | grep -E '^k8s/' > /dev/null || \
+             git diff --name-only HEAD^ HEAD | grep -E '^(frontend|backend)/' > /dev/null; then
+            echo "k8s=true" >> $GITHUB_OUTPUT
+          else
+            echo "k8s=false" >> $GITHUB_OUTPUT
+          fi
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_FRONTEND }}:latest
+            ${{ env.IMAGE_FRONTEND }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-backend:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ env.REGISTRY_USER }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BACKEND }}:latest
+            ${{ env.IMAGE_BACKEND }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [changes, build-frontend, build-backend]
+    if: |
+      always() && 
+      needs.changes.outputs.k8s == 'true' && 
+      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped') &&
+      (needs.build-backend.result == 'success' || needs.build-backend.result == 'skipped')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install OpenShift CLI
+        uses: redhat-actions/openshift-tools-installer@v1
+        with:
+          oc: 4
+
+      - name: Log in to OpenShift
+        uses: redhat-actions/oc-login@v1
+        with:
+          openshift_server_url: ${{ env.OPENSHIFT_SERVER }}
+          openshift_token: ${{ env.OPENSHIFT_TOKEN }}
+          insecure_skip_tls_verify: true
+          namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+
+      - name: Deploy to OpenShift
+        run: |
+          echo "Deploying to OpenShift..."
+          
+          # Apply all Kubernetes resources
+          oc apply -R -f k8s/
+          
+          # Wait for deployments to be ready
+          echo "Waiting for deployments to be ready..."
+          
+          # Check if frontend deployment exists and wait for it
+          if oc get deployment fcc-physics-events-frontend 2>/dev/null; then
+            oc rollout status deployment/fcc-physics-events-frontend --timeout=300s
+          fi
+          
+          # Check if backend deployment exists and wait for it
+          if oc get deployment fcc-physics-events-backend 2>/dev/null; then
+            oc rollout status deployment/fcc-physics-events-backend --timeout=300s
+          fi
+          
+          echo "Deployment completed successfully!"
+
+      - name: Verify deployment
+        run: |
+          echo "Verifying deployment status..."
+          oc get pods
+          oc get services
+          oc get routes
