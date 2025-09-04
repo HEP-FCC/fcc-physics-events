@@ -199,7 +199,6 @@ async def _process_batch_all_or_nothing(
                         main_table,
                         navigation_cache,
                         navigation_structure,
-                        database,
                     )
 
                 # If we get here, all entities succeeded
@@ -243,7 +242,6 @@ async def _process_batch_individually(
                         main_table,
                         navigation_cache,
                         navigation_structure,
-                        database,
                     )
                     processed_count += 1
         except Exception as e:
@@ -311,7 +309,6 @@ async def _process_single_entity(
     main_table: str,
     navigation_cache: dict[str, dict[str, int]],
     navigation_structure: dict[str, dict[str, str]],
-    database: "Database",
 ) -> None:
     """Process a single entity using pre-populated navigation entity cache."""
     entity_name = _generate_entity_name(entity_data, idx)
