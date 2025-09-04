@@ -500,7 +500,6 @@ async def _create_main_entity(
     metadata_dict: dict[str, Any],
     foreign_key_ids: dict[str, int | None],
     main_table: str,
-    database: "Database",
 ) -> None:
     """Create the main entity in the database."""
     # Generate deterministic UUID based on key fields
