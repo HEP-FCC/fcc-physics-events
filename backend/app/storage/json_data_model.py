@@ -262,7 +262,9 @@ class EntityTypeRegistry:
 
     _entity_classes: dict[str, type[BaseEntityData]] = {}
     _collection_classes: dict[str, type[BaseEntityCollection]] = {}
-    _detection_rules: list[tuple[Callable[[dict[str, Any]], bool], type[BaseEntityCollection]]] = []
+    _detection_rules: list[
+        tuple[Callable[[dict[str, Any]], bool], type[BaseEntityCollection]]
+    ] = []
 
     @classmethod
     def register_entity_class(
@@ -280,7 +282,9 @@ class EntityTypeRegistry:
 
     @classmethod
     def register_detection_rule(
-        cls, detection_func: Callable[[dict[str, Any]], bool], collection_class: type[BaseEntityCollection]
+        cls,
+        detection_func: Callable[[dict[str, Any]], bool],
+        collection_class: type[BaseEntityCollection],
     ) -> None:
         """
         Register a detection rule that determines which collection class to use.
