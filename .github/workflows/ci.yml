@@ -30,7 +30,7 @@ jobs:
 
     - name: Type check frontend
       working-directory: ./frontend
-      run: yarn typecheck
+      run: yarn type-check
 
     - name: Build frontend
       working-directory: ./frontend
