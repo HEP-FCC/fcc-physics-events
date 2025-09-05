@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml -o k8s/
+    kompose.version: 1.36.0 (ae2a39403)
+  labels:
+    io.kompose.service: fcc-physics-events-backend
+  name: fcc-physics-events-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: fcc-physics-events-backend
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml -o k8s/
+        kompose.version: 1.36.0 (ae2a39403)
+        eos.okd.cern.ch/mount-eos-with-credentials-from-secret: eos-credentials
+      labels:
+        io.kompose.service: fcc-physics-events-backend
+    spec:
+      containers:
+      - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:latest
+        name: fcc-physics-events-backend
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+        envFrom:
+        - secretRef:
+            name: fcc-physics-events-backend
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: eos
+          mountPath: /eos
+        - name: backend-storage
+          mountPath: /backend-storage
+      volumes:
+      - name: eos
+        persistentVolumeClaim:
+          claimName: "eos-volume"
+      - name: backend-storage
+        persistentVolumeClaim:
+          claimName: backend-storage-pvc
+      restartPolicy: Always

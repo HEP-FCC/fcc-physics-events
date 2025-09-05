@@ -1,0 +1,256 @@
+stages:
+- validate
+- build
+- deploy
+
+variables:
+  CI_REGISTRY: "registry.cern.ch"
+  CI_REGISTRY_USER: "${FCC_PHYSICS_EVENTS_REGISTRY_USER}"
+  CI_REGISTRY_PASSWORD: "${FCC_PHYSICS_EVENTS_REGISTRY_PASSWORD}"
+
+  IMAGE_FRONTEND: "registry.cern.ch/fcc-physics-events/fcc-physics-events-frontend"
+  IMAGE_BACKEND: "registry.cern.ch/fcc-physics-events/fcc-physics-events-backend"
+
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+  UV_VERSION: "0.7.14"
+  SHORT_SHA: "$CI_COMMIT_SHORT_SHA"
+
+default:
+  image: alpine:latest
+
+#############################################
+# VALIDATION
+#############################################
+
+validate-frontend:
+  stage: validate
+  image: node:${NODE_VERSION}
+  cache:
+    key: "frontend-${CI_COMMIT_REF_SLUG}"
+    paths:
+    - frontend/node_modules/
+    - frontend/.nuxt/
+  before_script:
+  - |
+    cd frontend
+    node --version
+    yarn --version || corepack enable && yarn --version
+  script:
+  - |
+    yarn install --frozen-lockfile
+    yarn lint
+    yarn type-check
+    yarn build --no-generate
+  rules:
+  - if: $CI_MERGE_REQUEST_IID
+    changes:
+    - frontend/**/*
+  - if: '$CI_COMMIT_BRANCH =~ /^dev(elop)?$/'
+    changes:
+    - frontend/**/*
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    changes:
+    - frontend/**/*
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
+validate-backend:
+  stage: validate
+  image: python:${PYTHON_VERSION}
+  cache:
+    key: "backend-${CI_COMMIT_REF_SLUG}"
+    paths:
+    - backend/.venv/
+  before_script:
+  - |
+    cd backend
+    pip install uv==${UV_VERSION}
+  script:
+  - |
+    uv sync --frozen --no-install-project --only-dev
+    uv run ruff check .
+    uv run mypy app
+    # Check for tests without failing the script if none are found
+    if [ -n "$(find . -path ./.venv -prune -o -name 'test_*.py' -print -quit)" ]; then
+      echo "Tests found, running pytest..."
+      uv run pytest -v || [ $? -eq 5 ]
+    else
+      echo "No tests found, skipping."
+    fi
+  rules:
+  - if: $CI_MERGE_REQUEST_IID
+    changes:
+    - backend/**/*
+  - if: '$CI_COMMIT_BRANCH =~ /^dev(elop)?$/'
+    changes:
+    - backend/**/*
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    changes:
+    - backend/**/*
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
+#############################################
+# BUILD
+#############################################
+
+build-frontend:
+  stage: build
+  image: gitlab-registry.cern.ch/ci-tools/docker-builder/tools:latest
+  variables:
+    TO: "${IMAGE_FRONTEND}:${SHORT_SHA}"
+    CONTEXT_DIR: "frontend"
+    DOCKER_FILE: "frontend/Dockerfile"
+    CACHE_TTL: "168h"
+  before_script:
+  - |
+    echo "Building frontend image: $TO"
+    echo "Context: $CONTEXT_DIR"
+    echo "Dockerfile: $DOCKER_FILE"
+    # Set up authentication (using the same auth script as docker-builder)
+    source /kaniko/auth.sh
+    # Set up cache repository
+    export CACHE_REPO="$(echo $TO | sed 's/:.*//')/cache"
+  script:
+  - |
+    /kaniko/executor \
+      --cache --cache-copy-layers=false --cache-ttl ${CACHE_TTL} \
+      --cache-repo ${CACHE_REPO} \
+      --context ${CI_PROJECT_DIR}/${CONTEXT_DIR} \
+      --dockerfile ${CI_PROJECT_DIR}/${DOCKER_FILE} \
+      --destination ${TO} \
+      --destination ${IMAGE_FRONTEND}:latest \
+      --verbosity=info
+  rules:
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    changes:
+    - frontend/**/*
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
+build-backend:
+  stage: build
+  image: gitlab-registry.cern.ch/ci-tools/docker-builder/tools:latest
+  variables:
+    TO: "${IMAGE_BACKEND}:${SHORT_SHA}"
+    CONTEXT_DIR: "backend"
+    DOCKER_FILE: "backend/Dockerfile"
+    CACHE_TTL: "168h"
+  before_script:
+  - |
+    echo "Building backend image: $TO"
+    echo "Context: $CONTEXT_DIR"
+    echo "Dockerfile: $DOCKER_FILE"
+    # Set up authentication (using the same auth script as docker-builder)
+    source /kaniko/auth.sh
+    # Set up cache repository
+    export CACHE_REPO="$(echo $TO | sed 's/:.*//')/cache"
+  script:
+  - |
+    /kaniko/executor \
+      --cache --cache-copy-layers=false --cache-ttl ${CACHE_TTL} \
+      --cache-repo ${CACHE_REPO} \
+      --context ${CI_PROJECT_DIR}/${CONTEXT_DIR} \
+      --dockerfile ${CI_PROJECT_DIR}/${DOCKER_FILE} \
+      --destination ${TO} \
+      --destination ${IMAGE_BACKEND}:latest \
+      --verbosity=info
+  rules:
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    changes:
+    - backend/**/*
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
+#############################################
+# DEPLOY
+#############################################
+
+deploy:
+  stage: deploy
+  image: registry.cern.ch/docker.io/library/ubuntu:20.04
+  needs:
+  - job: build-frontend
+    optional: true
+  - job: build-backend
+    optional: true
+  before_script:
+  - |
+    # Update package index and install required tools
+    apt-get update
+    apt-get install -y curl git
+    
+    # Download OpenShift client (using specific version like in the example)
+    curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.8.4/openshift-client-linux.tar.gz -o oc.tar.gz
+    tar -xf oc.tar.gz
+    mv ./oc /usr/bin/oc
+    
+    # Login to OpenShift
+    oc login \
+      --token="$FCC_PHYSICS_EVENTS_OPENSHIFT_TOKEN" \
+      --server="${OPENSHIFT_SERVER:-https://openshift.example.com}"
+    oc whoami
+    oc project fcc-physics-events || oc new-project fcc-physics-events || echo "Using default project"
+    echo "Current OpenShift project: $(oc project -q)"
+  script:
+  - |
+    echo "Applying k8s manifests..."
+    if [ -n "$CI_COMMIT_SHORT_SHA" ]; then
+      echo "Updating image tags to use SHA: $CI_COMMIT_SHORT_SHA"
+      # Create a temporary directory for modified manifests
+      cp -r k8s/ /tmp/k8s-temp/
+      sed -i "s|${IMAGE_FRONTEND}:latest|${IMAGE_FRONTEND}:${SHORT_SHA}|g" /tmp/k8s-temp/*deployment*.yaml || true
+      sed -i "s|${IMAGE_BACKEND}:latest|${IMAGE_BACKEND}:${SHORT_SHA}|g" /tmp/k8s-temp/*deployment*.yaml || true
+    else
+      cp -r k8s/ /tmp/k8s-temp/
+    fi
+
+    echo "Applying all Kubernetes manifests..."
+    oc apply -R -f /tmp/k8s-temp/
+
+    echo "Waiting for deployments to be ready..."
+    for d in fcc-physics-events-frontend fcc-physics-events-backend; do
+      if oc get deployment "$d" 2>/dev/null; then
+        echo "Rolling out deployment: $d"
+        # Increase timeout and add better error handling
+        if oc rollout status "deployment/$d" --timeout=600s; then
+          echo "Deployment $d is ready"
+        else
+          echo "Rollout timed out for $d, checking if deployment is actually healthy..."
+          # Check if the deployment is actually ready despite timeout
+          READY=$(oc get deployment "$d" -o jsonpath='{.status.readyReplicas}')
+          DESIRED=$(oc get deployment "$d" -o jsonpath='{.spec.replicas}')
+          if [ "$READY" = "$DESIRED" ] && [ "$READY" != "0" ]; then
+            echo "Deployment $d is actually healthy ($READY/$DESIRED replicas ready), continuing..."
+          else
+            echo "Deployment $d is not healthy ($READY/$DESIRED replicas ready), failing..."
+            exit 1
+          fi
+        fi
+      else
+        echo "Deployment $d not found, skipping rollout check"
+      fi
+    done
+
+    echo "Deployment completed successfully!"
+  rules:
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    changes:
+    - k8s/**/*
+    - frontend/**/*
+    - backend/**/*
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
+#############################################
+# WORKFLOW FILTER
+#############################################
+
+workflow:
+  rules:
+  - if: $CI_MERGE_REQUEST_IID
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  - if: '$CI_COMMIT_BRANCH =~ /^dev(elop)?$/'
+  - if: '$CI_PIPELINE_SOURCE == "web"'
+  - if: '$CI_PIPELINE_SOURCE == "push"'
