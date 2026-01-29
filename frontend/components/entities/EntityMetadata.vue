@@ -468,11 +468,6 @@ const cancelEdit = (): void => {
 };
 
 const saveMetadata = (): void => {
-    console.log("=== EntityMetadata SAVE DEBUG ===");
-    console.log("localEditJson.value:", localEditJson.value);
-    console.log("props.editState?.json:", props.editState?.json);
-    console.log("props.metadata:", JSON.stringify(props.metadata));
-    console.log("=== END EntityMetadata DEBUG ===");
     emit("saveMetadata", actualEntityId.value, localEditJson.value);
 };
 
