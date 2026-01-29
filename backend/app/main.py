@@ -40,10 +40,10 @@ async def lifespan(_: FastAPI) -> Any:
 
     # Only load CERN endpoints if authentication is enabled
     if AUTH_ENABLED:
-        logger.info("Authentication is enabled, loading CERN endpoints...")
+        logger.info("Authentication is enabled, loading CERN auth endpoints")
         await load_cern_endpoints()
     else:
-        logger.info("Authentication is disabled, skipping CERN endpoint loading")
+        logger.info("Authentication is disabled, skipping CERN auth endpoint loading")
 
     # Query parser setup depends on database being ready
     await query_parser.setup()
