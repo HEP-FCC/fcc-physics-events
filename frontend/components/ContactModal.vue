@@ -51,9 +51,9 @@
                     </div>
                 </div>
 
-                <!-- GitHub Source -->
+                <!-- Code Repository -->
                 <div class="space-y-2">
-                    <h3 class="text-sm font-medium text-deep-blue-900">Source Code</h3>
+                    <h3 class="text-sm font-medium text-deep-blue-900">Code Repository</h3>
                     <div class="flex items-center space-x-2">
                         <UIcon name="i-heroicons-code-bracket" class="text-secondary-500" />
                         <a
@@ -62,7 +62,7 @@
                             rel="noopener noreferrer"
                             class="text-deep-blue-600 hover:text-deep-blue-900 transition-colors"
                         >
-                            GitHub Repository
+                            Visit Repository
                         </a>
                     </div>
                 </div>
