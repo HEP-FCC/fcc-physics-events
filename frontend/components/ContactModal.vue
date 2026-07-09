@@ -51,7 +51,7 @@
                     </div>
                 </div>
 
-                <!-- GitLab Repository -->
+                <!-- Code Repository -->
                 <div class="space-y-2">
                     <h3 class="text-sm font-medium text-deep-blue-900">Code Repository</h3>
                     <div class="flex items-center space-x-2">
@@ -62,7 +62,7 @@
                             rel="noopener noreferrer"
                             class="text-deep-blue-600 hover:text-deep-blue-900 transition-colors"
                         >
-                            GitLab Repository
+                            Code Repository
                         </a>
                     </div>
                 </div>
