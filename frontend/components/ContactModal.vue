@@ -62,7 +62,7 @@
                             rel="noopener noreferrer"
                             class="text-deep-blue-600 hover:text-deep-blue-900 transition-colors"
                         >
-                            Code Repository
+                            Visit Repository
                         </a>
                     </div>
                 </div>
