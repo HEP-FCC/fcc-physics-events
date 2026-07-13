@@ -250,4 +250,26 @@ function handleEntityKeydown(event: KeyboardEvent, entityId: number): void {
             break;
     }
 }
+
+watch(() => props.entities, (newEntities: Entity[]) => {
+    // If the list finishes loading and there is exactly 1 result...
+    if (newEntities && newEntities.length === 1) {
+        
+        const singleEntityId = getEntityId(newEntities[0]);
+        
+        // Ensure it's valid and not already open
+        if (singleEntityId !== -1 && !isMetadataExpanded(singleEntityId)) {
+            
+            // Wait 50 milliseconds to let the parent component finish its own resets
+            
+            setTimeout(() => {
+                // Double check it's still closed just to be safe
+                if (!isMetadataExpanded(singleEntityId)) {
+                    toggleMetadata(singleEntityId);
+                }
+            }, 50);
+            
+        }
+    }
+}, { immediate: true });
 </script>
