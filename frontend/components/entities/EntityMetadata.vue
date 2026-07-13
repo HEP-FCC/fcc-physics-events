@@ -419,10 +419,9 @@ const { isAuthenticated } = useAuth();
 const { mainTableDisplayName } = useAppConfiguration();
 
 const myHttpsLink = computed(() => {
-    // Check if the UUID exists on the entity
-    if (!props.entity?.uuid) return '';
+
     // Construct the link (Replace with your actual domain/path if needed)
-    return `https://fcc-physics-events.web.cern.ch/?q=${props.entity.uuid}`;
+    return `https://fcc-physics-events.web.cern.ch/?q=uuid%3D${props.entity.uuid}`;
 });
 
 const copyLinkToClipboard = () => {

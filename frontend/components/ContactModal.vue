@@ -51,18 +51,18 @@
                     </div>
                 </div>
 
-                <!-- Code Repository -->
+                <!-- GitHub Source -->
                 <div class="space-y-2">
-                    <h3 class="text-sm font-medium text-deep-blue-900">Code Repository</h3>
+                    <h3 class="text-sm font-medium text-deep-blue-900">Source Code</h3>
                     <div class="flex items-center space-x-2">
                         <UIcon name="i-heroicons-code-bracket" class="text-secondary-500" />
                         <a
-                            href="https://github.com/HEP-FCC/fcc-physics-events"
+                            href="https://gitlab.cern.ch/hep-fcc/fcc-physics-events"
                             target="_blank"
                             rel="noopener noreferrer"
                             class="text-deep-blue-600 hover:text-deep-blue-900 transition-colors"
                         >
-                            Visit Repository
+                            GitHub Repository
                         </a>
                     </div>
                 </div>

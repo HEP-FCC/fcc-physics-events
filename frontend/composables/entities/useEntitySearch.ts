@@ -198,7 +198,12 @@ export function useEntitySearch() {
             // For infinite scroll: use currentPage directly
             // For initial load: always start with page 1
             const pageToLoad = isInitialLoad ? 1 : scrollState.currentPage;
-            const queryToSend = searchQuery || "*";
+            // Removes "uuid=", spaces, and optional quotes before sending to API
+            const sanitizedQuery = searchQuery
+                .replace(/^uuid\s*=\s*['"]?/i, "")
+                .replace(/['"]?$/i, "")
+                .trim();
+            const queryToSend = sanitizedQuery || "*";
 
             const searchParams = {
                 query: queryToSend,
