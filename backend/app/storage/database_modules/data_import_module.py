@@ -321,6 +321,11 @@ async def _process_single_entity(
 
     # Get metadata and create the main entity
     metadata_dict = entity_data.get_all_metadata()
+    config_url = _build_config_url(
+        entity_name, entity_data.campaign, entity_data.accelerator
+    )
+    if config_url:
+        metadata_dict = {**metadata_dict, "config-url": config_url}
     await _create_main_entity_with_conflict_resolution(
         conn, entity_name, metadata_dict, foreign_key_ids, main_table
     )
@@ -396,6 +401,72 @@ def _generate_entity_name(entity_data: BaseEntityData, idx: int) -> str:
         )
     return entity_name
 
+_GITHUB_BASE = "https://github.com/HEP-FCC/FCC-config/blob"
+_GENERATOR_MAPPING = {
+    "wzp6": ("Whizard", ".sin"),
+    "wz3p6": ("Whizard", ".sin"),
+    "p8": ("Pythia8", ".cmd"),
+    "pythia8": ("Pythia8", ".cmd"),
+    "kkmc": ("KKMC", ".input"),
+}
+_ACCELERATOR_SEGMENT = {
+    "fcc-ee": "FCCee",
+}
+_WHIZARD_VERSION = {
+    "winter2023": "v3.0.3",
+    "pre_summer2026": "v3.1.5",
+}
+
+
+def _build_config_url(
+    dataset_name: str | None,
+    campaign: str | None,
+    accelerator: str | None,
+) -> str | None:
+    if not dataset_name or dataset_name.startswith("unnamed_entity_"):
+        return None
+    if not campaign or not campaign.strip():
+        return None
+    if not accelerator or not accelerator.strip():
+        return None
+
+    accel_seg = _ACCELERATOR_SEGMENT.get(accelerator.strip().lower())
+    if accel_seg is None:
+        logger.warning(
+            f"No config-path segment for accelerator '{accelerator}'; "
+            f"config-url skipped for '{dataset_name}'."
+        )
+        return None
+
+    last_segment = dataset_name.rstrip("/").rsplit("/", 1)[-1]
+    token = last_segment.split("_", 1)[0].lower()
+    mapping = _GENERATOR_MAPPING.get(token)
+    if mapping is None:
+        logger.warning(
+            f"Unrecognized generator prefix '{token}' in '{dataset_name}'; "
+            "config-url skipped."
+        )
+        return None
+    folder, ext = mapping
+    branch = campaign.strip()
+
+    if folder == "Whizard":
+        version = _WHIZARD_VERSION.get(branch)
+        if version is None:
+            logger.warning(
+                f"No Whizard version mapping for campaign '{branch}'; "
+                f"config-url skipped for '{dataset_name}'."
+            )
+            return None
+        return (
+            f"{_GITHUB_BASE}/{branch}/{accel_seg}/Generator/"
+            f"{folder}/{version}/{last_segment}{ext}"  # was dataset_name
+        )
+
+    return (
+        f"{_GITHUB_BASE}/{branch}/{accel_seg}/Generator/"
+        f"{folder}/{last_segment}{ext}"  # was dataset_name
+    )
 
 async def _get_navigation_entity_structure(
     database: "Database", conn: asyncpg.Connection
