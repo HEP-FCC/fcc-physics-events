@@ -129,6 +129,22 @@
                         </UButton>
                     </UTooltip>
 
+                    <!-- Link button -->
+                    <UTooltip
+                        text="Copy link to this record"
+                        :popper="{ placement: 'top' }"
+                    >
+                        <UButton
+                            icon="i-heroicons-link"
+                            class="text-neutral-600 cursor-pointer hover:text-neutral-800 hover:bg-neutral-100"
+                            variant="ghost"
+                            size="xs"
+                            @click="copyLinkToClipboard"
+                        >
+                            Link
+                        </UButton>
+                    </UTooltip>
+
                     <!-- Edit button -->
                     <UButton
                         icon="i-heroicons-pencil"
@@ -401,6 +417,17 @@ const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getSta
     useUtils();
 const { isAuthenticated } = useAuth();
 const { mainTableDisplayName } = useAppConfiguration();
+
+const myHttpsLink = computed(() => {
+
+    // Construct the link (Replace with your actual domain/path if needed)
+    return `https://fcc-physics-events.web.cern.ch/?q=uuid%3D${props.entity.uuid}`;
+});
+
+const copyLinkToClipboard = () => {
+
+    copyToClipboard(myHttpsLink.value);
+};
 
 // Dynamic color system using CSS custom properties
 // Dark mode disabled for consistent mobile rendering

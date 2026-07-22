@@ -53,8 +53,8 @@ QUERY_LANGUAGE_GRAMMAR = r"""
     AND.2: "AND"
     OR.2: "OR"
     NOT.2: "NOT"
+    UUID.2: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/
     IDENTIFIER: /[a-zA-Z_][a-zA-Z0-9_-]*/
-    UUID: /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/
     ASTERISK: "*"
     OP: "=" | "!=" | ">" | "<" | ">=" | "<=" | ":" | "!:" | "=~" | "!~" | "#"
     QUOTED_STRING: /"[^"]*"/ | /'[^']*'/
@@ -448,6 +448,12 @@ class SqlTranslator:
             0
         ] == "last_edited_at" or sql_field.endswith("last_edited_at")
 
+        # Special handling for UUID fields
+        is_uuid_field = (
+            node.field.parts[0] == "uuid"
+            or sql_field.endswith(".uuid")
+)
+
         self.param_index += 1
         placeholder = f"${self.param_index}"
 
@@ -467,7 +473,7 @@ class SqlTranslator:
             else:
                 # For string values, use case-insensitive exact match (ILIKE)
                 # For numeric/date values, use exact match (=)
-                if isinstance(value, str) and not is_last_edited_at:
+                if isinstance(value, str) and not is_last_edited_at and not is_uuid_field:
                     sql_op, param_value = "ILIKE", value
                 else:
                     sql_op, param_value = "=", value
@@ -487,7 +493,7 @@ class SqlTranslator:
         elif op == "!=":
             # For string values, use case-insensitive not equal (NOT ... ILIKE)
             # For numeric/date values, use exact not equal (!=)
-            if isinstance(value, str) and not is_last_edited_at:
+            if isinstance(value, str) and not is_last_edited_at and not is_uuid_field:
                 # Use NOT (field ILIKE value) for case-insensitive inequality
                 sql_op, param_value = "NOT_ILIKE", value
             else:
