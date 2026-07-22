@@ -57,7 +57,7 @@
                     <div class="flex items-center space-x-2">
                         <UIcon name="i-heroicons-code-bracket" class="text-secondary-500" />
                         <a
-                            href="https://gitlab.cern.ch/hep-fcc/fcc-physics-events"
+                            href="https://github.com/HEP-FCC/fcc-physics-events"
                             target="_blank"
                             rel="noopener noreferrer"
                             class="text-deep-blue-600 hover:text-deep-blue-900 transition-colors"
