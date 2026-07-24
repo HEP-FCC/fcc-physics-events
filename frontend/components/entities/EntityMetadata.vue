@@ -245,14 +245,21 @@
                                             class="text-xs leading-tight break-words"
                                             :title="getUnifiedFieldValueTitle(field)"
                                         >
-                                            {{ getUnifiedDisplayValue(field) }}
+                                                <a
+                                                v-if="field.type === 'url'"
+                                                    :href="String(field.value)"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="text-blue-500 break-all inline-flex items-center gap-1"
+                                                    @click.stop
+                                                >{{ field.value }}<UIcon name="i-heroicons-arrow-top-right-on-square" class="w-3 h-3 shrink-0 inline" /></a>
+                                            <template v-else>{{ getUnifiedDisplayValue(field) }}</template>
                                         </div>
                                     </div>
                                 </div>
                             </template>
                         </div>
                     </div>
-
                     <!-- Desktop layout: Continuous grid flow without grouping -->
                     <div class="hidden lg:block">
                         <!-- Single continuous grid for all fields -->
@@ -349,7 +356,15 @@
                                             class="flex-1 text-xs leading-tight min-w-0 mr-2"
                                             :title="getUnifiedFieldValueTitle(field)"
                                         >
-                                            {{ getUnifiedDisplayValue(field) }}
+                                                <a
+                                                v-if="field.type === 'url'"
+                                                    :href="String(field.value)"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="text-blue-500 break-all inline-flex items-center gap-1"
+                                                    @click.stop
+                                                >{{ field.value }}<UIcon name="i-heroicons-arrow-top-right-on-square" class="w-3 h-3 shrink-0 inline" /></a>
+                                            <template v-else>{{ getUnifiedDisplayValue(field) }}</template>
                                         </div>
 
                                         <!-- Action buttons -->
@@ -641,6 +656,10 @@ const isLongString = (value: unknown): boolean => {
     return typeof value === "string" && value.length > 50;
 };
 
+const isUrlString = (value: unknown): boolean => {
+    return typeof value === "string" && /^https?:\/\/\S+$/.test(value.trim());
+};
+
 // Check if a string value is actually a number
 const isNumericString = (value: unknown): boolean => {
     if (typeof value !== "string") return false;
@@ -698,6 +717,8 @@ const getTypeIcon = (type: string): string => {
             return "✓";
         case "vector":
             return "<>";
+        case "url":
+            return "🔗";
         case "longString":
             return "A";
         default: // shortString
@@ -728,7 +749,7 @@ const getContentLength = (key: string, value: unknown, type: string): number => 
 
 const getGridSpanClass = (key: string, value: unknown, type: string): string => {
     // Long strings always take full width
-    if (type === "longString") {
+    if (type === "longString" || type === "url") {
         return "col-span-12";
     }
 
@@ -852,6 +873,7 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
             else if (typeof value === "number") type = "number";
             else if (typeof value === "boolean") type = "boolean";
             else if (isNumericString(value)) type = "number";
+            else if (isUrlString(value)) type = "url";
             else if (typeof value === "string" && isLongString(value)) type = "longString";
             else type = "shortString";
 
@@ -860,6 +882,7 @@ const getAllFieldsComputed = computed((): UnifiedField[] => {
             if (type === "number" || type === "boolean") priority = 2;
             else if (type === "shortString") priority = 3;
             else if (type === "vector") priority = 4;
+            else if (type === "url") priority = 5;
             else if (type === "longString") priority = 5;
 
             field = {
