@@ -122,6 +122,11 @@ build-frontend:
       --destination ${TO} \
       --destination ${IMAGE_FRONTEND}:latest \
       --verbosity=info
+    echo -n "${SHORT_SHA}" > frontend-image-tag.txt
+  artifacts:
+    paths:
+    - frontend-image-tag.txt
+    expire_in: 1 day
   rules:
   - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     changes:
@@ -156,6 +161,11 @@ build-backend:
       --destination ${TO} \
       --destination ${IMAGE_BACKEND}:latest \
       --verbosity=info
+    echo -n "${SHORT_SHA}" > backend-image-tag.txt
+  artifacts:
+    paths:
+    - backend-image-tag.txt
+    expire_in: 1 day
   rules:
   - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     changes:
@@ -173,8 +183,10 @@ deploy:
   needs:
   - job: build-frontend
     optional: true
+    artifacts: true
   - job: build-backend
     optional: true
+    artifacts: true
   before_script:
   - |
     # Update package index and install required tools
@@ -196,14 +208,26 @@ deploy:
   script:
   - |
     echo "Applying k8s manifests..."
-    if [ -n "$CI_COMMIT_SHORT_SHA" ]; then
-      echo "Updating image tags to use SHA: $CI_COMMIT_SHORT_SHA"
-      # Create a temporary directory for modified manifests
-      cp -r k8s/ /tmp/k8s-temp/
-      sed -i "s|${IMAGE_FRONTEND}:latest|${IMAGE_FRONTEND}:${SHORT_SHA}|g" /tmp/k8s-temp/*deployment*.yaml || true
-      sed -i "s|${IMAGE_BACKEND}:latest|${IMAGE_BACKEND}:${SHORT_SHA}|g" /tmp/k8s-temp/*deployment*.yaml || true
+    cp -r k8s/ /tmp/k8s-temp/
+
+    # Only pin a component to the SHA tag if it was actually built and
+    # pushed in this pipeline (marker artifact from build-frontend /
+    # build-backend). Otherwise leave it on :latest, which those jobs
+    # always keep up to date -- pinning to an untested SHA here would
+    # reference an image that was never pushed and fail ErrImagePull.
+    if [ -f frontend-image-tag.txt ]; then
+      FRONTEND_TAG="$(cat frontend-image-tag.txt)"
+      echo "Frontend image built this pipeline, pinning to: $FRONTEND_TAG"
+      sed -i "s|${IMAGE_FRONTEND}:latest|${IMAGE_FRONTEND}:${FRONTEND_TAG}|g" /tmp/k8s-temp/*deployment*.yaml
     else
-      cp -r k8s/ /tmp/k8s-temp/
+      echo "No frontend image built this pipeline, keeping :latest"
+    fi
+    if [ -f backend-image-tag.txt ]; then
+      BACKEND_TAG="$(cat backend-image-tag.txt)"
+      echo "Backend image built this pipeline, pinning to: $BACKEND_TAG"
+      sed -i "s|${IMAGE_BACKEND}:latest|${IMAGE_BACKEND}:${BACKEND_TAG}|g" /tmp/k8s-temp/*deployment*.yaml
+    else
+      echo "No backend image built this pipeline, keeping :latest"
     fi
 
     echo "Applying all Kubernetes manifests..."
