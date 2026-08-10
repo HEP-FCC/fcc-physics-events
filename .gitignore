@@ -28,6 +28,7 @@ htmlcov
 .pytest_cache
 .ruff_cache
 
+
 ## Frontend ##
 
 # Nuxt dev/build outputs
