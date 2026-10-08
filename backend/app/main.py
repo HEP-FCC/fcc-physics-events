@@ -153,7 +153,7 @@ async def validation_exception_handler(
     # headers here to let the frontend read the error instead of failing
     # with a CORS error
     origin = request.headers.get("origin")
-    if origin in ALLOWED_ORIGINS:
+    if origin is not None and origin in ALLOWED_ORIGINS:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
         response.headers["Vary"] = "Origin"
