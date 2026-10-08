@@ -1,0 +1,29 @@
+name: Validate
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/validate.yml"
+  push:
+    branches: [master]
+    paths:
+      - "backend/**"
+      - ".github/workflows/validate.yml"
+
+jobs:
+  validate-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Keep the versions in sync with .gitlab-ci.yml
+      - run: pip install uv==0.7.14
+      - run: uv sync --frozen --no-install-project --only-dev
+      - run: uv run ruff check .
+      - run: uv run mypy app
