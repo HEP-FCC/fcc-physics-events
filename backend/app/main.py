@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse, Response
 
 from app.routers import auth_router
 from app.routers import entities_router as entities_router
+from app.routers import health_router as health_router
 from app.routers import navigation_router as navigation_router
 from app.services.file_watcher import FileWatcherService
 from app.storage.database import Database
@@ -107,6 +108,10 @@ async def log_requests(
     try:
         response = await call_next(request)
 
+        # Skip the frequent health check requests from the Kubernetes probes
+        if request.url.path in health_router.HEALTH_PATHS:
+            return response
+
         # Log the request after successful processing
         logger.info(
             f"[{response.status_code}] {request.method} {request.url.path} - {request.query_params}"
@@ -165,11 +170,13 @@ async def validation_exception_handler(
 auth_router.init_dependencies(database)
 entities_router.init_dependencies(database, query_parser)
 navigation_router.init_dependencies(database)
+health_router.init_dependencies(database)
 
 # Include routers
 app.include_router(auth_router.router)
 app.include_router(entities_router.router)
 app.include_router(navigation_router.router)
+app.include_router(health_router.router)
 
 
 # Powered by friendship!
