@@ -25,6 +25,8 @@ from app.utils.logging_utils import get_logger, setup_logging
 logger = get_logger(__name__)
 config = get_config()
 
+ALLOWED_ORIGINS = [config.get("general.frontend_url")]
+
 database = Database()
 query_parser = QueryParser(database=database)
 file_watcher = FileWatcherService(database=database)
@@ -90,7 +92,7 @@ else:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[config.get("general.frontend_url")],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,24 +125,40 @@ async def validation_exception_handler(
     request: Request, exc: Exception
 ) -> JSONResponse:
     """Catch all unhandled exceptions and return a standardized 500 response."""
+    # Log only a one-line summary here, Starlette re-raises the exception after
+    # this handler and the server (uvicorn) logs the full traceback
     logger.error(
-        f"Unhandled exception for {request.method} {request.url}", exc_info=True
+        f"Unhandled exception for {request.method} {request.url}: "
+        f"{type(exc).__name__}: {exc}"
     )
 
-    # Create standardized error response
+    # Create standardized error response. Exception details go only to the
+    # logs, never to the client, to avoid leaking internals (e.g. database
+    # user names)
     error_response = {
         "message": "An internal server error occurred. Please try again later.",
         "status": 500,
         "details": {
             "error": "internal_error",
-            "message": f"Unhandled exception: {str(exc)}",
+            "message": "Unhandled exception",
         },
     }
 
-    return JSONResponse(
+    response = JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=error_response,
     )
+
+    # Responses from this handler bypass CORSMiddleware, so add the CORS
+    # headers here to let the frontend read the error instead of failing
+    # with a CORS error
+    origin = request.headers.get("origin")
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Vary"] = "Origin"
+
+    return response
 
 
 # Initialize router dependencies
