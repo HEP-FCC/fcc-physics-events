@@ -32,7 +32,7 @@ def init_dependencies(db: Database) -> None:
     database = db
 
 
-@router.get("/healthz")
+@router.api_route("/healthz", methods=["GET", "HEAD"])
 async def healthz() -> Any:
     """
     Liveness check, reports whether the application process is running.
@@ -42,7 +42,7 @@ async def healthz() -> Any:
     return {"status": "ok"}
 
 
-@router.get("/readyz")
+@router.api_route("/readyz", methods=["GET", "HEAD"])
 async def readyz() -> Any:
     """
     Readiness check, reports whether the application can serve requests,
