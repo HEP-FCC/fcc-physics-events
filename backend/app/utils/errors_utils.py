@@ -1,5 +1,5 @@
 """
-Standardized Error Handling for Universal Metadata Browser Backend
+Standardized Error Handling for Dataset Metadata Interface (DaMI) Backend
 Provides consistent error response formats matching frontend expectations
 """
 

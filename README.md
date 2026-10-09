@@ -1,4 +1,4 @@
-# FCC Physics Events
+# Dataset Metadata Interface (DaMI)
 
 Specific deployment of the [umb-template](https://github.com/HEP-FCC/umb-template) for the metadata of the FCC physics datasets.
 

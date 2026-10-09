@@ -1,6 +1,6 @@
 # Tutorial: Building a Bookstore Metadata Browser
 
-This tutorial walks you through adapting the Universal Metadata Browser Template to create a **Bookstore Metadata Briwser** - a complete example that demonstrates all the key concepts you'll need for your own domain.
+This tutorial walks you through adapting the Dataset Metadata Interface (DaMI) Template to create a **Bookstore Metadata Browser** - a complete example that demonstrates all the key concepts you'll need for your own domain.
 
 ## 🎯 What We're Building
 

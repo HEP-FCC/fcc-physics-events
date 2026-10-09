@@ -1,5 +1,5 @@
 """
-UUID generation utilities for the Universal Metadata Browser Template.
+UUID generation utilities for Dataset Metadata Interface (DaMI).
 
 This module provides utilities for generating deterministic UUIDs for entities
 and other entities in the metadata database.

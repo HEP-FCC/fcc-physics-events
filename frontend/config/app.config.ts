@@ -20,10 +20,10 @@ export const APP_CONFIG = {
      * Application branding and metadata
      */
     branding: {
-        title: "FCC Physics Data",
-        appTitle: "FCC Physics Events",
+        title: "DaMI",
+        appTitle: "Dataset Metadata Interface",
         description: "Search and explore FCC physics simulation data and entities",
-        defaultTitle: "FCC Physics Data Search",
+        defaultTitle: "DaMI Search",
     },
 
     /**

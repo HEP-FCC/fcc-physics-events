@@ -1,5 +1,5 @@
 """
-Entity routes for the Universal Metadata Browser API.
+Entity routes for the Dataset Metadata Interface (DaMI) API.
 Handles CRUD operations for entities and related data.
 """
 

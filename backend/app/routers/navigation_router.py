@@ -1,5 +1,5 @@
 """
-Navigation and schema discovery routes for the Universal Metadata Browser API.
+Navigation and schema discovery routes for the Dataset Metadata Interface (DaMI) API.
 Handles dynamic schema discovery and dropdown data for navigation.
 """
 
