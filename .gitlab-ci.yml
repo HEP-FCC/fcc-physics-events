@@ -133,6 +133,7 @@ build-frontend:
     - frontend/**/*
   - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     when: manual
+  - if: '$CI_COMMIT_TAG'
 
 build-backend:
   stage: build
@@ -172,6 +173,7 @@ build-backend:
     - backend/**/*
   - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     when: manual
+  - if: '$CI_COMMIT_TAG'
 
 #############################################
 # DEPLOY
@@ -265,6 +267,85 @@ deploy:
     - frontend/**/*
     - backend/**/*
   - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
+# Tag-triggered twin of `deploy`, so a release can pin prod to a specific
+# build without needing another master push. Superseded by a broader
+# deploy-prod job once the staging-environment work lands.
+deploy-prod:
+  stage: deploy
+  image: registry.cern.ch/docker.io/library/ubuntu:20.04
+  needs:
+  - job: build-frontend
+    optional: true
+    artifacts: true
+  - job: build-backend
+    optional: true
+    artifacts: true
+  before_script:
+  - |
+    apt-get update
+    apt-get install -y curl git
+
+    curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/4.8.4/openshift-client-linux.tar.gz -o oc.tar.gz
+    tar -xf oc.tar.gz
+    mv ./oc /usr/bin/oc
+
+    oc login \
+      --token="$FCC_PHYSICS_EVENTS_OPENSHIFT_TOKEN" \
+      --server="${OPENSHIFT_SERVER:-https://openshift.example.com}"
+    oc whoami
+    oc project fcc-physics-events || oc new-project fcc-physics-events || echo "Using default project"
+    echo "Current OpenShift project: $(oc project -q)"
+  script:
+  - |
+    echo "Applying k8s manifests..."
+    cp -r k8s/ /tmp/k8s-temp/
+
+    if [ -f frontend-image-tag.txt ]; then
+      FRONTEND_TAG="$(cat frontend-image-tag.txt)"
+      echo "Frontend image built this pipeline, pinning to: $FRONTEND_TAG"
+      sed -i "s|${IMAGE_FRONTEND}:latest|${IMAGE_FRONTEND}:${FRONTEND_TAG}|g" /tmp/k8s-temp/*deployment*.yaml
+    else
+      echo "No frontend image built this pipeline, keeping :latest"
+    fi
+    if [ -f backend-image-tag.txt ]; then
+      BACKEND_TAG="$(cat backend-image-tag.txt)"
+      echo "Backend image built this pipeline, pinning to: $BACKEND_TAG"
+      sed -i "s|${IMAGE_BACKEND}:latest|${IMAGE_BACKEND}:${BACKEND_TAG}|g" /tmp/k8s-temp/*deployment*.yaml
+    else
+      echo "No backend image built this pipeline, keeping :latest"
+    fi
+
+    echo "Applying all Kubernetes manifests..."
+    oc apply -R -f /tmp/k8s-temp/
+
+    echo "Waiting for deployments to be ready..."
+    for d in fcc-physics-events-frontend fcc-physics-events-backend; do
+      if oc get deployment "$d" 2>/dev/null; then
+        echo "Rolling out deployment: $d"
+        if oc rollout status "deployment/$d" --timeout=600s; then
+          echo "Deployment $d is ready"
+        else
+          echo "Rollout timed out for $d, checking if deployment is actually healthy..."
+          READY=$(oc get deployment "$d" -o jsonpath='{.status.readyReplicas}')
+          DESIRED=$(oc get deployment "$d" -o jsonpath='{.spec.replicas}')
+          if [ "$READY" = "$DESIRED" ] && [ "$READY" != "0" ]; then
+            echo "Deployment $d is actually healthy ($READY/$DESIRED replicas ready), continuing..."
+          else
+            echo "Deployment $d is not healthy ($READY/$DESIRED replicas ready), failing..."
+            exit 1
+          fi
+        fi
+      else
+        echo "Deployment $d not found, skipping rollout check"
+      fi
+    done
+
+    echo "Deployment completed successfully!"
+  rules:
+  - if: '$CI_COMMIT_TAG'
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG'
     when: manual
 
 #############################################
