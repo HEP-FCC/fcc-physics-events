@@ -69,6 +69,10 @@ export default defineNuxtConfig({
 
     runtimeConfig: {
         public: {
+            // This default is only baked in at build time. To actually change
+            // it per deployment without rebuilding, set NUXT_PUBLIC_API_BASE_URL
+            // at container startup -- Nitro overrides public runtime config
+            // keys from matching NUXT_PUBLIC_<KEY> env vars at boot.
             apiBaseUrl: process.env.METADATA_BROWSER_BACKEND_URL || "http://localhost:8000",
         },
     },
