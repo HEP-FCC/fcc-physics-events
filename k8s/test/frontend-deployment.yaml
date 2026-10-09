@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: dami-frontend
+  name: dami-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: dami-frontend
+  template:
+    metadata:
+      labels:
+        io.kompose.service: dami-frontend
+    spec:
+      containers:
+        - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-frontend:latest
+          name: dami-frontend
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          envFrom:
+          - secretRef:
+              name: dami-frontend
+      restartPolicy: Always

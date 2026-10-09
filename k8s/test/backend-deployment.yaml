@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    io.kompose.service: dami-backend
+  name: dami-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: dami-backend
+  template:
+    metadata:
+      labels:
+        io.kompose.service: dami-backend
+    spec:
+      containers:
+      - image: registry.cern.ch/fcc-physics-events/fcc-physics-events-backend:latest
+        name: dami-backend
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+        envFrom:
+        - secretRef:
+            name: dami-backend
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: backend-storage
+          mountPath: /backend-storage
+      volumes:
+      - name: backend-storage
+        persistentVolumeClaim:
+          claimName: dami-backend-storage-pvc
+      restartPolicy: Always
