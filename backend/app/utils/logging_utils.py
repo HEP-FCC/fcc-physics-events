@@ -1,5 +1,5 @@
 """
-Logging utilities for the Universal Metadata Browser application.
+Logging utilities for the Dataset Metadata Interface (DaMI) application.
 
 This module provides a structured logging setup using structlog,
 with proper configuration and type hints.

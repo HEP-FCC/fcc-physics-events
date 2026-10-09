@@ -62,7 +62,7 @@ async def lifespan(_: FastAPI) -> Any:
 
 
 app = FastAPI(
-    title="Universal Metadata Browser API",
+    title="Dataset Metadata Interface (DaMI) API",
     description="API for querying and managing metadata entities.",
     lifespan=lifespan,
 )
