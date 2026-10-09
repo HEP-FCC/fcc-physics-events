@@ -96,7 +96,10 @@ class Database:
         """Creates the database connection pool."""
         connection_string = f"postgresql://{self.config['database.user']}:{self.config['database.password']}@{self.config['database.host']}:{self.config['database.port']}/{self.config['database.db']}"
         self._pool = await asyncpg.create_pool(
-            dsn=connection_string, min_size=5, max_size=20
+            dsn=connection_string,
+            ssl=self.config.get("database.ssl_mode", "prefer"),
+            min_size=5,
+            max_size=20,
         )
         logger.info("Database connection pool created successfully.")
 
