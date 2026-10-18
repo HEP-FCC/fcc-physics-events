@@ -52,7 +52,7 @@ async def get_user_role(user_data: dict[str, Any]) -> UserRole:
     Resolve a user's role: CERN role/e-group membership for admin, otherwise
     an in-app grant (user_roles table) for editor, otherwise viewer.
     """
-    admin_cern_role = config.get("auth.admin_cern_role")
+    admin_cern_role = config.get("auth.admin_cern_role", None)
     if admin_cern_role and admin_cern_role in user_data.get("cern_roles", []):
         return "admin"
 
