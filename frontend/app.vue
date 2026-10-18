@@ -25,16 +25,9 @@
                             <EditModal v-if="canEdit" icon-only />
                             <!-- About Modal - Icon only on mobile -->
                             <AboutModal icon-only />
-                            <!-- Auth Section - will show icon for login or sign out button -->
-                            <AuthSection mobile-compact logout-only />
-                            <!-- Role badge - shows whether the user is recognized and their role. Always rightmost. -->
+                            <!-- Role badge - also the account dropdown trigger (sign in/out, user area). Always rightmost. -->
                             <UserRoleBadge />
                         </div>
-                    </div>
-
-                    <!-- Second row: User info (only when logged in) -->
-                    <div v-if="hasDisplayName" class="flex items-center justify-end mt-2 w-full">
-                        <AuthSection user-info-only />
                     </div>
                 </div>
 
@@ -51,12 +44,11 @@
                     <h1 class="px-5 text-xl font-semibold font-sans whitespace-nowrap select-none">
                         {{ appTitle }}
                     </h1>
-                    <!-- Right: Users, Edit, About, Authentication Section, and role badge (always rightmost) -->
+                    <!-- Right: Users, Edit, About, and role badge/account dropdown (always rightmost) -->
                     <div class="ml-auto flex items-center space-x-4">
                         <UserManagementModal v-if="isAdmin" />
                         <EditModal v-if="canEdit" />
                         <AboutModal />
-                        <AuthSection />
                         <UserRoleBadge />
                     </div>
                 </div>
@@ -71,21 +63,19 @@
 </template>
 
 <script setup lang="ts">
-import AuthSection from "~/components/auth/AuthSection.vue";
 import AboutModal from "~/components/AboutModal.vue";
 import EditModal from "~/components/EditModal.vue";
 import UserManagementModal from "~/components/UserManagementModal.vue";
 import UserRoleBadge from "~/components/UserRoleBadge.vue";
 
 // Check authentication status on app initialization
-const { checkAuthStatus, user, hasRole } = useAuth();
+const { checkAuthStatus, hasRole } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
 const { appTitle } = useAppConfiguration();
 const router = useRouter();
 
 const canEdit = computed(() => hasRole("editor"));
 const isAdmin = computed(() => hasRole("admin"));
-const hasDisplayName = computed(() => !!user.value?.given_name);
 
 const handleLogoClick = async (event: Event) => {
     // Prevent the default link navigation

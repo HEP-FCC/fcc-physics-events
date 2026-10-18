@@ -1,17 +1,44 @@
 <template>
-    <UTooltip :text="tooltipText" :popper="{ placement: 'bottom' }">
-        <div class="flex items-center gap-2 pl-2 pr-3 py-1 rounded-lg bg-primary select-none">
-            <UIcon name="i-heroicons-user-circle" class="text-2xl text-white flex-shrink-0" />
-            <div class="leading-none">
-                <div class="text-sm font-medium text-white">{{ nameLine }}</div>
-                <div v-if="isAuthenticated" class="text-[10px] text-white/70 mt-0.5">{{ roleLabel }}</div>
-            </div>
-        </div>
-    </UTooltip>
+    <div class="flex items-center">
+        <UDropdownMenu :items="menuItems" :ui="{ item: 'cursor-pointer' }" :content="{ align: 'end', side: 'bottom' }">
+            <UTooltip :text="tooltipText" :popper="{ placement: 'bottom' }">
+                <div
+                    class="flex items-center gap-2 pl-2 pr-3 py-1 rounded-lg bg-primary select-none"
+                    style="cursor: pointer"
+                >
+                    <UIcon name="i-heroicons-user-circle" class="text-2xl text-white flex-shrink-0" />
+                    <div class="leading-none">
+                        <div class="text-sm font-medium text-white">{{ nameLine }}</div>
+                        <div v-if="isAuthenticated" class="text-[10px] text-white/70 mt-0.5">{{ roleLabel }}</div>
+                    </div>
+                </div>
+            </UTooltip>
+        </UDropdownMenu>
+
+        <!-- Error alert -->
+        <UAlert
+            v-if="error"
+            icon="i-heroicons-exclamation-triangle"
+            color="error"
+            variant="soft"
+            :title="error"
+            :close-button="{
+                icon: 'i-heroicons-x-mark-20-solid',
+                color: 'neutral',
+                variant: 'ghost',
+                size: 'xs',
+                class: 'w-6 h-6 p-1 hover:bg-gray-100 rounded cursor-pointer flex items-center justify-center shrink-0',
+            }"
+            class="fixed top-20 right-4 z-50 max-w-sm"
+            @close="clearError"
+        />
+    </div>
 </template>
 
 <script setup lang="ts">
-const { isAuthenticated, user, role } = useAuth();
+const { isAuthenticated, user, role, login, logout, authState, clearError } = useAuth();
+
+const error = computed(() => authState.value.error);
 
 const roleLabel = computed(() => role.value.charAt(0).toUpperCase() + role.value.slice(1));
 
@@ -38,4 +65,29 @@ const tooltipText = computed(() => {
               : "You are a viewer: read-only access.";
     return user.value?.auth_disabled ? `${base} (Authentication is disabled in this environment.)` : base;
 });
+
+const menuItems = computed(() => [
+    [
+        {
+            label: isAuthenticated.value ? "Sign out" : "Sign in",
+            icon: isAuthenticated.value ? "i-heroicons-arrow-right-on-rectangle" : "i-heroicons-arrow-left-on-rectangle",
+            onSelect: isAuthenticated.value ? () => logout() : () => login(),
+        },
+        {
+            label: "User Area",
+            icon: "i-heroicons-user-circle",
+            to: "/account",
+        },
+    ],
+]);
 </script>
+
+<style>
+[role="menuitem"],
+[role="menuitem"]:focus,
+[role="menuitem"]:focus-visible,
+[role="menuitem"][data-highlighted] {
+    outline: none !important;
+    box-shadow: none !important;
+}
+</style>
