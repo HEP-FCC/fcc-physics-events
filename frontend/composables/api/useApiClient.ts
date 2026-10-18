@@ -361,6 +361,36 @@ export function useApiClient() {
     };
 
     /**
+     * List users currently granted the editor role (admin only)
+     */
+    const listEditors = async (): Promise<
+        Array<{ cern_username: string; granted_by: string; granted_at: string }>
+    > => {
+        return typedFetch<Array<{ cern_username: string; granted_by: string; granted_at: string }>>(
+            "/users/editors",
+        );
+    };
+
+    /**
+     * Grant a user the editor role (admin only)
+     */
+    const grantEditorRole = async (cernUsername: string): Promise<void> => {
+        await typedFetch<undefined>("/users/editors", {
+            method: "POST",
+            body: { cern_username: cernUsername },
+        });
+    };
+
+    /**
+     * Revoke a user's editor role (admin only)
+     */
+    const revokeEditorRole = async (cernUsername: string): Promise<void> => {
+        await typedFetch<undefined>(`/users/editors/${encodeURIComponent(cernUsername)}`, {
+            method: "DELETE",
+        });
+    };
+
+    /**
      * Generic GET method using the enhanced typedFetch with automatic token refresh
      */
     const apiGet = async <T>(url: string, query?: Record<string, string | number | boolean>): Promise<T> => {
@@ -397,6 +427,11 @@ export function useApiClient() {
         logoutUser,
         getSessionStatus,
         manualRefreshToken,
+
+        // User role management (admin only)
+        listEditors,
+        grantEditorRole,
+        revokeEditorRole,
 
         // Configuration
         baseUrl,

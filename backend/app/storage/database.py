@@ -31,6 +31,11 @@ from app.storage.database_modules.search_module import (
     perform_search,
     search_entities,
 )
+from app.storage.database_modules.user_roles_module import (
+    grant_editor_role,
+    list_editors,
+    revoke_editor_role,
+)
 from app.utils.config_utils import Config, get_config
 from app.utils.logging_utils import get_logger
 
@@ -261,3 +266,15 @@ class Database:
     async def import_data(self, json_content: bytes) -> None:
         """Import data from JSON content."""
         return await import_data(self, json_content)
+
+    async def list_editors(self) -> list[dict[str, Any]]:
+        """List all users currently granted the editor role."""
+        return await list_editors(self)
+
+    async def grant_editor_role(self, cern_username: str, granted_by: str) -> None:
+        """Grant a user the editor role."""
+        return await grant_editor_role(self, cern_username, granted_by)
+
+    async def revoke_editor_role(self, cern_username: str) -> bool:
+        """Revoke a user's editor role. Returns True if a grant was removed."""
+        return await revoke_editor_role(self, cern_username)

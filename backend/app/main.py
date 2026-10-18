@@ -16,8 +16,10 @@ from app.routers import auth_router
 from app.routers import entities_router as entities_router
 from app.routers import health_router as health_router
 from app.routers import navigation_router as navigation_router
+from app.routers import users_router as users_router
 from app.services.file_watcher import FileWatcherService
 from app.storage.database import Database
+from app.utils import auth_utils
 from app.utils.auth_utils import AUTH_ENABLED, load_cern_endpoints
 from app.utils.config_utils import get_config
 from app.utils.gclql_query_parser_utils import QueryParser
@@ -171,12 +173,15 @@ auth_router.init_dependencies(database)
 entities_router.init_dependencies(database, query_parser)
 navigation_router.init_dependencies(database)
 health_router.init_dependencies(database)
+users_router.init_dependencies(database)
+auth_utils.init_dependencies(database)
 
 # Include routers
 app.include_router(auth_router.router)
 app.include_router(entities_router.router)
 app.include_router(navigation_router.router)
 app.include_router(health_router.router)
+app.include_router(users_router.router)
 
 
 # Powered by friendship!

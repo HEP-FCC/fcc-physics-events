@@ -55,3 +55,11 @@ Open http://localhost:3000.
   with `--port <other>` and the frontend with `yarn dev --port <other>`,
   setting `METADATA_BROWSER_BACKEND_URL=http://localhost:<backend-port>`
   when starting the frontend so it points at the right place.
+- Accessing from another machine on the network: both dev servers default to
+  binding `127.0.0.1` only (reachable from this machine alone). Add
+  `--host 0.0.0.0` to both the `uvicorn` and `yarn dev` commands, set
+  `METADATA_BROWSER_FRONTEND_URL` in `local-dev/backend.env` and
+  `METADATA_BROWSER_BACKEND_URL` (passed to `yarn dev`) to this machine's
+  actual hostname/IP instead of `localhost` (drives CORS and the API
+  target respectively), and restart the backend after editing the env file
+  -- `--reload` only watches Python source files, not the env file.

@@ -66,6 +66,17 @@ CREATE TABLE IF NOT EXISTS datasets (
     CONSTRAINT chk_metadata_valid CHECK (metadata IS NULL OR jsonb_typeof(metadata) = 'object')
 );
 
+-- Application-managed role grants. Admin is not stored here -- it's granted
+-- entirely via CERN e-group membership (see auth.admin_cern_group); this
+-- table only ever holds "editor" grants, assignable by an admin in-app.
+-- Absence of a row means "viewer" (the default, read-only).
+CREATE TABLE IF NOT EXISTS user_roles (
+    cern_username TEXT PRIMARY KEY,
+    role TEXT NOT NULL CHECK (role = 'editor'),
+    granted_by TEXT NOT NULL,
+    granted_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
 -- Indexes
 -- Standard B-tree indexes for foreign keys to speed up joins
 CREATE INDEX IF NOT EXISTS idx_datasets_uuid ON datasets(uuid);

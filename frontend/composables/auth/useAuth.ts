@@ -1,5 +1,9 @@
 import { onMounted, getCurrentInstance } from "vue";
-import { APP_CONFIG } from "~/config/app.config";
+
+export type UserRole = "viewer" | "editor" | "admin";
+
+// Mirrors the backend's ROLE_RANK in app/utils/auth_utils.py.
+const ROLE_RANK: Record<UserRole, number> = { viewer: 0, editor: 1, admin: 2 };
 
 interface User {
     given_name?: string;
@@ -7,6 +11,7 @@ interface User {
     preferred_username?: string;
     cern_roles?: string[];
     groups?: string[];
+    role?: UserRole;
     [key: string]: unknown;
 }
 
@@ -59,19 +64,10 @@ export function useAuth() {
         authState.value.error = null;
 
         try {
-            // If auth is disabled in frontend config, behave as if always authenticated
-            if (!APP_CONFIG.auth.enabled) {
-                authState.value.isAuthenticated = true;  // Changed from false to true
-                authState.value.user = {
-                    preferred_username: "Guest User",
-                    email: "guest@example.com",
-                    name: "Guest User",
-                    auth_disabled: true,
-                } as User;
-                authState.value.isLoading = false;
-                return;
-            }
-
+            // The backend already returns a generic, always-authenticated
+            // user (with role "editor") when auth is disabled server-side --
+            // see AuthDependency in auth_utils.py. No frontend-side
+            // short-circuit needed; this keeps a single source of truth.
             const sessionData = await getSessionStatus();
 
             if (sessionData.authenticated && sessionData.user) {
@@ -245,6 +241,9 @@ export function useAuth() {
         }
     }
 
+    const role = computed<UserRole>(() => authState.value.user?.role ?? "viewer");
+    const hasRole = (minRole: UserRole): boolean => ROLE_RANK[role.value] >= ROLE_RANK[minRole];
+
     return {
         // Readonly state
         authState: readonly(authState),
@@ -253,6 +252,8 @@ export function useAuth() {
         isLoading: readonly(computed(() => authState.value.isLoading)),
         error: readonly(computed(() => authState.value.error)),
         isAuthDisabled: readonly(isAuthDisabled),
+        role: readonly(role),
+        hasRole,
 
         // Methods
         checkAuthStatus,

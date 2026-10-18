@@ -20,7 +20,7 @@
                         :class="[
                             'text-white cursor-pointer bg-eco-600 hover:bg-eco-700 border-eco-600 hover:border-eco-700',
                         ]"
-                        :disabled="!isAuthenticated || props.editState?.isSaving"
+                        :disabled="!canEdit || props.editState?.isSaving"
                         @click="saveMetadata"
                     >
                         <template #leading>
@@ -34,9 +34,9 @@
                         {{
                             props.editState?.isSaving
                                 ? "Saving..."
-                                : isAuthenticated
+                                : canEdit
                                   ? "Save changes"
-                                  : "Login required"
+                                  : "Editor role required"
                         }}
                     </UButton>
                     <UButton
@@ -147,7 +147,7 @@
 
                     <!-- Edit button - only shown to users who can actually edit -->
                     <UButton
-                        v-if="isAuthenticated"
+                        v-if="canEdit"
                         icon="i-heroicons-pencil"
                         class="text-neutral-600 cursor-pointer hover:text-neutral-800 hover:bg-neutral-100"
                         variant="ghost"
@@ -221,7 +221,7 @@
                                                     variant="ghost"
                                                     size="xs"
                                                     :loading="pendingLockChanges.has(field.key)"
-                                                    :disabled="!isAuthenticated"
+                                                    :disabled="!canEdit"
                                                     @click="toggleFieldLock(field.key)"
                                                 />
                                             </UTooltip>
@@ -323,14 +323,14 @@
                                                     variant="ghost"
                                                     size="xs"
                                                     :padded="false"
-                                                    :disabled="!isAuthenticated || pendingLockChanges.has(field.key)"
+                                                    :disabled="!canEdit || pendingLockChanges.has(field.key)"
                                                     :class="[
                                                         'w-4 h-4 p-0.5 transition-all duration-200',
                                                         {
                                                             'cursor-pointer opacity-70 hover:opacity-100 hover:bg-gray-100 rounded':
-                                                                isAuthenticated && !pendingLockChanges.has(field.key),
+                                                                canEdit && !pendingLockChanges.has(field.key),
                                                             'animate-spin': pendingLockChanges.has(field.key),
-                                                            'cursor-not-allowed': !isAuthenticated,
+                                                            'cursor-not-allowed': !canEdit,
                                                         },
                                                     ]"
                                                     @click="toggleFieldLock(field.key)"
@@ -431,7 +431,8 @@ const actualEntityId = computed(() => {
 // Composables
 const { formatFieldName, formatSizeInGiB, copyToClipboard, isStatusField, getStatusBadgeColor, formatTimestamp } =
     useUtils();
-const { isAuthenticated } = useAuth();
+const { hasRole } = useAuth();
+const canEdit = computed(() => hasRole("editor"));
 const { mainTableDisplayName } = useAppConfiguration();
 
 const myHttpsLink = computed(() => {
@@ -571,7 +572,7 @@ const isFieldLocked = (fieldName: string): boolean => {
     return !!lockStatesForTemplate.value[fieldName];
 };
 const toggleFieldLock = async (fieldName: string): Promise<void> => {
-    if (!isAuthenticated.value || !actualEntityId.value) {
+    if (!canEdit.value || !actualEntityId.value) {
         toast.add({
             title: "Authentication Required",
             description: "Please login to manage field locks.",

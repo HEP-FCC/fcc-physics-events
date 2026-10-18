@@ -19,8 +19,10 @@
                             </h1>
                         </div>
                         <div class="flex items-center gap-2 flex-shrink-0">
-                            <!-- Admin Modal - Icon only on mobile, only for authenticated users -->
-                            <AdminModal v-if="isAuthenticated" icon-only />
+                            <!-- User Management Modal - Icon only on mobile, admins only -->
+                            <UserManagementModal v-if="isAdmin" icon-only />
+                            <!-- Edit Modal - Icon only on mobile, editors and admins only -->
+                            <EditModal v-if="canEdit" icon-only />
                             <!-- About Modal - Icon only on mobile -->
                             <AboutModal icon-only />
                             <!-- Auth Section - will show icon for login or sign out button -->
@@ -29,7 +31,7 @@
                     </div>
 
                     <!-- Second row: User info (only when logged in) -->
-                    <div v-if="isAuthenticated" class="flex items-center justify-end mt-2 w-full">
+                    <div v-if="hasDisplayName" class="flex items-center justify-end mt-2 w-full">
                         <AuthSection user-info-only />
                     </div>
                 </div>
@@ -47,9 +49,10 @@
                     <h1 class="px-5 text-xl font-semibold font-sans whitespace-nowrap select-none">
                         {{ appTitle }}
                     </h1>
-                    <!-- Right: About, Admin and Authentication Section -->
+                    <!-- Right: Users, Edit, About and Authentication Section -->
                     <div class="ml-auto flex items-center space-x-4">
-                        <AdminModal v-if="isAuthenticated" />
+                        <UserManagementModal v-if="isAdmin" />
+                        <EditModal v-if="canEdit" />
                         <AboutModal />
                         <AuthSection />
                     </div>
@@ -67,15 +70,18 @@
 <script setup lang="ts">
 import AuthSection from "~/components/auth/AuthSection.vue";
 import AboutModal from "~/components/AboutModal.vue";
-import AdminModal from "~/components/AdminModal.vue";
+import EditModal from "~/components/EditModal.vue";
+import UserManagementModal from "~/components/UserManagementModal.vue";
 
 // Check authentication status on app initialization
-const { checkAuthStatus, user } = useAuth();
+const { checkAuthStatus, user, hasRole } = useAuth();
 const { initializeNavigation } = useDynamicNavigation();
 const { appTitle } = useAppConfiguration();
 const router = useRouter();
 
-const isAuthenticated = computed(() => APP_CONFIG.auth.enabled && !!user.value?.given_name);
+const canEdit = computed(() => hasRole("editor"));
+const isAdmin = computed(() => hasRole("admin"));
+const hasDisplayName = computed(() => !!user.value?.given_name);
 
 const handleLogoClick = async (event: Event) => {
     // Prevent the default link navigation
