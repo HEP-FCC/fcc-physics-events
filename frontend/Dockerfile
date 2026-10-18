@@ -3,6 +3,9 @@
 FROM node:22-alpine3.22 AS build
 WORKDIR /app
 
+ARG GIT_VERSION=dev
+ENV GIT_VERSION=$GIT_VERSION
+
 RUN corepack enable
 
 # Copy package.json and your lockfile, here we add pnpm-lock.yaml for illustration
