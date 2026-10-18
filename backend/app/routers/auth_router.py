@@ -11,6 +11,7 @@ from app.utils.auth_utils import (
     clear_auth_cookies,
     extract_auth_cookies,
     get_logout_url,
+    get_user_role,
     set_auth_cookies,
     try_refresh_token,
     validate_token_and_get_user,
@@ -310,6 +311,7 @@ async def get_session_status(request: Request) -> JSONResponse:
                     "authenticated": False,
                     "sub": "unauthenticated",
                     "auth_disabled": True,
+                    "role": "editor",
                 },
             }
         )
@@ -339,6 +341,7 @@ async def get_session_status(request: Request) -> JSONResponse:
         userinfo = await validate_token_and_get_user(
             access_token, id_token, oauth.provider
         )
+        userinfo["role"] = await get_user_role(userinfo)
         return JSONResponse(content={"authenticated": True, "user": userinfo})
     except Exception as e:
         logger.info(
@@ -358,6 +361,7 @@ async def get_session_status(request: Request) -> JSONResponse:
 
             userinfo = await oauth.provider.parse_id_token(**data)
             logger.debug("Received userinfo from refreshed token: %s", userinfo)
+            userinfo["role"] = await get_user_role(userinfo)
 
             response = JSONResponse(content={"authenticated": True, "user": userinfo})
             set_auth_cookies(

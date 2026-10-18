@@ -3,12 +3,13 @@ Production-ready authentication module for CERN SSO integration.
 Handles JWT token validation, CERN OAuth introspection, and secure token management.
 """
 
-from typing import Any
+from typing import Any, Literal, cast
 
 import jwt
 from authlib.integrations.starlette_client import OAuth
 from fastapi import HTTPException, Request, Response, status
 
+from app.storage.database import Database
 from app.utils.config_utils import get_config
 from app.utils.http_client_utils import create_http_client
 from app.utils.logging_utils import get_logger
@@ -28,22 +29,43 @@ AUTH_COOKIE_PREFIX = f"{config.get('general.cookie_prefix')}-auth"
 # Well-known endpoint data loaded at startup
 CERN_ENDPOINTS: dict[str, Any] = {}
 
+# Three-tier role model. "admin" is granted entirely via CERN role/e-group
+# membership (auth.admin_cern_role) -- it is never stored in the app's own
+# database. "editor" is granted in-app by an admin (see the user_roles
+# table). Absence of any grant means "viewer" (read-only), the default for
+# anyone authenticated.
+UserRole = Literal["viewer", "editor", "admin"]
+ROLE_RANK: dict[UserRole, int] = {"viewer": 0, "editor": 1, "admin": 2}
 
-def get_endpoint_required_role(endpoint_name: str) -> str | None:
+# Wired up via init_dependencies() from main.py, same pattern as the routers.
+database: Database | None = None
+
+
+def init_dependencies(db: Database) -> None:
+    """Initialize auth_utils with the shared Database instance, for role lookups."""
+    global database
+    database = db
+
+
+async def get_user_role(user_data: dict[str, Any]) -> UserRole:
     """
-    Get the required role for a specific endpoint from configuration.
-
-    Args:
-        endpoint_name: The endpoint configuration key (e.g., 'update_entity')
-        default: Default role if not configured
-
-    Returns:
-        Required role string for the endpoint
+    Resolve a user's role: CERN role/e-group membership for admin, otherwise
+    an in-app grant (user_roles table) for editor, otherwise viewer.
     """
-    if not AUTH_ENABLED:
-        return None
+    admin_cern_role = config.get("auth.admin_cern_role")
+    if admin_cern_role and admin_cern_role in user_data.get("cern_roles", []):
+        return "admin"
 
-    return config.get(f"auth.endpoints.{endpoint_name}", None) or "authorized"
+    username = user_data.get("preferred_username")
+    if username and database is not None:
+        async with database.session() as conn:
+            row = await conn.fetchrow(
+                "SELECT role FROM user_roles WHERE cern_username = $1", username
+            )
+            if row:
+                return cast(UserRole, row["role"])
+
+    return "viewer"
 
 
 class CERNAuthenticator:
@@ -144,21 +166,6 @@ class CERNAuthenticator:
             options={"verify_signature": True, "verify_exp": False},
         )
         return str(decoded_payload["data"])
-
-    @staticmethod
-    def has_user_access(user_data: dict[str, Any]) -> bool:
-        """
-        Check if the user has the required role for authorization.
-        Returns True if user is authorized, False otherwise.
-        """
-        if not (required_role := config.get("auth.required_cern_role")):
-            logger.warning(
-                "No specific role required, allowing all authenticated users"
-            )
-            return True
-
-        user_roles = user_data.get("cern_roles", [])
-        return required_role in user_roles
 
 
 # Global authenticator instance
@@ -454,28 +461,29 @@ def clear_auth_cookies(response: Response) -> None:
 
 
 async def validate_user_session(
-    request: Any, response: Any, oauth_client: Any, required_role: str = "authorized"
+    request: Any, response: Any, oauth_client: Any
 ) -> tuple[bool, dict[str, Any] | None]:
     """
-    Comprehensive user session validation with automatic token refresh and role checking.
+    Comprehensive user session validation with automatic token refresh.
 
     This function:
     1. Extracts and validates authentication cookies
     2. Attempts to validate current tokens
     3. If tokens are expired, tries to refresh them and updates cookies
-    4. Checks if user has required role
-    5. Returns authentication status and user info
+    4. Returns authentication status and user info
+
+    Role-tier authorization (viewer/editor/admin) is checked separately by
+    AuthDependency, once a valid identity is established here.
 
     Args:
         request: The FastAPI request object
         response: The response object to set cookies on (if tokens are refreshed)
         oauth_client: The OAuth client instance
-        required_role: The required CERN role (default: "authorized")
 
     Returns:
         Tuple of (is_authenticated: bool, user_info: dict | None)
-        - (True, user_dict) if authenticated and authorized
-        - (False, None) if authentication failed or user lacks required role
+        - (True, user_dict) if authenticated
+        - (False, None) if authentication failed
     """
     logger.debug("Starting user session validation")
 
@@ -498,13 +506,6 @@ async def validate_user_session(
             access_token, id_token, oauth_client
         )
         logger.debug("Current tokens are valid")
-
-        # Step 3: Check if user has required role
-        if not cern_auth.has_user_access(userinfo):
-            logger.warning(
-                f"User {userinfo.get('preferred_username', 'unknown')} lacks required role '{required_role}'"
-            )
-            return False, None
 
         return True, userinfo
 
@@ -540,13 +541,6 @@ async def validate_user_session(
             else:
                 logger.debug("Response object not available, skipping cookie update")
 
-            # Step 7: Check if user has required role
-            if not cern_auth.has_user_access(userinfo):
-                logger.warning(
-                    f"User {userinfo.get('preferred_username', 'unknown')} lacks required role '{required_role}'"
-                )
-                return False, None
-
             logger.info(
                 f"Successfully authenticated user: {userinfo.get('preferred_username', 'unknown')}"
             )
@@ -559,55 +553,59 @@ async def validate_user_session(
 
 class AuthDependency:
     """
-    FastAPI dependency class for user authentication and authorization.
+    FastAPI dependency class for user authentication and role-tier authorization.
 
     This class follows the recommended FastAPI pattern for parameterized dependencies
-    using the __call__ method to create injectable dependencies with configurable roles.
+    using the __call__ method to create injectable dependencies with a minimum role.
 
     Example usage:
-        # Default "authorized" role
+        # Any authenticated user (viewer or above) -- the default
         user: dict = Depends(AuthDependency())
 
-        # Admin role required
-        user: dict = Depends(AuthDependency("admin"))
-
-        # Custom role required
+        # Must be at least an editor
         user: dict = Depends(AuthDependency("editor"))
+
+        # Must be an admin
+        user: dict = Depends(AuthDependency("admin"))
 
         # No authentication required - returns generic "Unauthenticated user"
         user: dict = Depends(AuthDependency(None))
     """
 
-    def __init__(self, required_role: str | None = "authorized"):
+    def __init__(self, min_role: UserRole | None = "viewer"):
         """
-        Initialize the auth dependency with a required role.
+        Initialize the auth dependency with a minimum required role tier.
 
         Args:
-            required_role: The CERN role required for access. Use None to skip authentication
-                          and return a generic "Unauthenticated user" (default: "authorized")
+            min_role: The minimum role tier required for access ("viewer",
+                      "editor", or "admin"). Use None to skip authentication
+                      entirely and return a generic "Unauthenticated user".
         """
-        self.required_role = required_role
+        self.min_role = min_role
 
     async def __call__(self, request: Request) -> dict[str, Any]:
         """
-        FastAPI dependency function that validates authentication and authorization.
+        FastAPI dependency function that validates authentication and role-tier
+        authorization.
 
         This method is called by FastAPI when the dependency is injected.
-        It handles authentication validation and authorization checking.
-        Token refresh is now handled by the dedicated /refresh-auth-token endpoint.
+        Token refresh is handled by the dedicated /refresh-auth-token endpoint.
 
         Args:
             request: FastAPI Request object (auto-injected)
 
         Returns:
-            User information dictionary if authenticated and authorized, or generic
-            unauthenticated user dict if required_role is None or auth is disabled
+            User information dictionary (with a "role" key) if authenticated
+            and authorized, or a generic unauthenticated user dict if
+            min_role is None or auth is disabled.
 
         Raises:
-            HTTPException: If authentication or authorization fails (when auth is enabled and required_role is not None)
+            HTTPException: If authentication fails, or the user's role is
+                below min_role (when auth is enabled and min_role is not None)
         """
         try:
-            # If auth is disabled globally, return a generic unauthenticated user
+            # If auth is disabled globally, return a generic user with full
+            # access -- this is the local-dev/staging "no CERN SSO needed" path.
             if not AUTH_ENABLED:
                 logger.debug(
                     "Authentication is disabled globally, returning generic user"
@@ -621,10 +619,11 @@ class AuthDependency:
                     "authenticated": False,
                     "sub": "unauthenticated",
                     "auth_disabled": True,
+                    "role": "editor",
                 }
 
             # If no role is required, return a generic unauthenticated user
-            if self.required_role is None:
+            if self.min_role is None:
                 logger.debug("No authentication required, returning generic user")
                 return {
                     "preferred_username": "Unauthenticated user",
@@ -634,6 +633,7 @@ class AuthDependency:
                     "roles": [],
                     "authenticated": False,
                     "sub": "unauthenticated",
+                    "role": "viewer",
                 }
 
             # Check if required auth configuration is available
@@ -650,6 +650,7 @@ class AuthDependency:
                     "authenticated": False,
                     "sub": "unauthenticated",
                     "config_missing": True,
+                    "role": "viewer",
                 }
 
             oauth = OAuth()
@@ -669,7 +670,6 @@ class AuthDependency:
                 request=request,
                 response=None,
                 oauth_client=oauth.provider,
-                required_role=self.required_role,
             )
 
             if not is_authenticated or user_info is None:
@@ -685,8 +685,23 @@ class AuthDependency:
                     },
                 )
 
+            role = await get_user_role(user_info)
+            if ROLE_RANK[role] < ROLE_RANK[self.min_role]:
+                logger.warning(
+                    f"User {user_info.get('preferred_username', 'unknown')} has role "
+                    f"'{role}', which is below the required '{self.min_role}'"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "error": "insufficient_role",
+                        "message": f"This action requires the '{self.min_role}' role or above.",
+                    },
+                )
+            user_info["role"] = role
+
             logger.debug(
-                f"Authentication successful for user: {user_info.get('preferred_username', 'unknown')}"
+                f"Authentication successful for user: {user_info.get('preferred_username', 'unknown')} (role: {role})"
             )
             return user_info
 

@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from app.models.generic import GenericEntityUpdate
 from app.storage.database import Database
 from app.storage.schema_discovery import get_schema_discovery
-from app.utils.auth_utils import AuthDependency, get_endpoint_required_role
+from app.utils.auth_utils import AuthDependency
 from app.utils.config_utils import get_config
 from app.utils.errors_utils import (
     SearchValidationError,
@@ -224,7 +224,7 @@ async def update_entity(
     update_data: GenericEntityUpdate,
     _request: Request,
     user: dict[str, Any] = Depends(
-        AuthDependency(get_endpoint_required_role("update_entity"))
+        AuthDependency("editor")
     ),
 ) -> Any:
     """
@@ -265,7 +265,7 @@ async def update_metadata_lock(
     lock_request: MetadataLockRequest,
     _request: Request,
     user: dict[str, Any] = Depends(
-        AuthDependency(get_endpoint_required_role("update_metadata_lock"))
+        AuthDependency("editor")
     ),
 ) -> Any:
     """
@@ -361,7 +361,7 @@ async def update_metadata_lock(
 async def delete_entities(
     request: DeleteEntitiesRequest,
     user: dict[str, Any] = Depends(
-        AuthDependency(get_endpoint_required_role("delete_entities"))
+        AuthDependency("editor")
     ),
 ) -> dict[str, Any]:
     """
@@ -435,7 +435,7 @@ async def override_entities(
         False, description="Force override even if metadata fields are locked"
     ),
     user: dict[str, Any] = Depends(
-        AuthDependency(get_endpoint_required_role("override_entities"))
+        AuthDependency("editor")
     ),
 ) -> EntityOverrideResponse:
     """

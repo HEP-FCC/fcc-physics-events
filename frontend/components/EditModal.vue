@@ -1,7 +1,7 @@
 <template>
     <UModal
         v-model:open="isOpen"
-        title="Admin Tools"
+        title="Edit Tools"
         :transition="true"
         :close="{
             color: 'neutral',
@@ -15,7 +15,7 @@
             icon="i-heroicons-cog-6-tooth"
             color="neutral"
             variant="ghost"
-            :label="iconOnly ? undefined : 'Admin'"
+            :label="iconOnly ? undefined : 'Edit'"
             @click="isOpen = true"
         />
 
