@@ -27,6 +27,8 @@
                             <AboutModal icon-only />
                             <!-- Auth Section - will show icon for login or sign out button -->
                             <AuthSection mobile-compact logout-only />
+                            <!-- Role badge - shows whether the user is recognized and their role. Always rightmost. -->
+                            <UserRoleBadge />
                         </div>
                     </div>
 
@@ -49,12 +51,13 @@
                     <h1 class="px-5 text-xl font-semibold font-sans whitespace-nowrap select-none">
                         {{ appTitle }}
                     </h1>
-                    <!-- Right: Users, Edit, About and Authentication Section -->
+                    <!-- Right: Users, Edit, About, Authentication Section, and role badge (always rightmost) -->
                     <div class="ml-auto flex items-center space-x-4">
                         <UserManagementModal v-if="isAdmin" />
                         <EditModal v-if="canEdit" />
                         <AboutModal />
                         <AuthSection />
+                        <UserRoleBadge />
                     </div>
                 </div>
             </div>
@@ -72,6 +75,7 @@ import AuthSection from "~/components/auth/AuthSection.vue";
 import AboutModal from "~/components/AboutModal.vue";
 import EditModal from "~/components/EditModal.vue";
 import UserManagementModal from "~/components/UserManagementModal.vue";
+import UserRoleBadge from "~/components/UserRoleBadge.vue";
 
 // Check authentication status on app initialization
 const { checkAuthStatus, user, hasRole } = useAuth();
