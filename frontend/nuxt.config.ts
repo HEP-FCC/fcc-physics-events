@@ -74,7 +74,7 @@ export default defineNuxtConfig({
             // at container startup -- Nitro overrides public runtime config
             // keys from matching NUXT_PUBLIC_<KEY> env vars at boot.
             apiBaseUrl: process.env.METADATA_BROWSER_BACKEND_URL || "http://localhost:8000",
-            appVersion: process.env.GIT_VERSION || "dev",
+            appVersion: process.env.DAMI_VERSION || "dev",
         },
     },
 

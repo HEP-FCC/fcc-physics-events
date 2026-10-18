@@ -15,8 +15,6 @@ variables:
   PYTHON_VERSION: "3.12"
   UV_VERSION: "0.7.14"
   SHORT_SHA: "$CI_COMMIT_SHORT_SHA"
-  # Full history + tags needed for `git describe` in build-frontend.
-  GIT_DEPTH: "0"
 
 default:
   image: alpine:latest
@@ -114,9 +112,9 @@ build-frontend:
     source /kaniko/auth.sh
     # Set up cache repository
     export CACHE_REPO="$(echo $TO | sed 's/:.*//')/cache"
-    # "vX.Y.Z" exactly on a release tag, "vX.Y.Z-N-gSHA" otherwise.
-    export GIT_VERSION="$(git describe --tags --always)"
-    echo "Git version: $GIT_VERSION"
+    # Exact tag on a release build, short commit SHA otherwise.
+    export DAMI_VERSION="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+    echo "DaMI version: $DAMI_VERSION"
   script:
   - |
     /kaniko/executor \
@@ -124,7 +122,7 @@ build-frontend:
       --cache-repo ${CACHE_REPO} \
       --context ${CI_PROJECT_DIR}/${CONTEXT_DIR} \
       --dockerfile ${CI_PROJECT_DIR}/${DOCKER_FILE} \
-      --build-arg GIT_VERSION=${GIT_VERSION} \
+      --build-arg DAMI_VERSION=${DAMI_VERSION} \
       --destination ${TO} \
       --destination ${IMAGE_FRONTEND}:latest \
       --verbosity=info
