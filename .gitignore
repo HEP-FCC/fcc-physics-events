@@ -47,4 +47,9 @@ node_modules
 # Database files
 /database/
 *data/
+/dev-database/
+
+# Local dev env files and runtime storage (templates are *.env.example)
+/local-dev/*.env
+/local-dev/storage/
 
