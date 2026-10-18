@@ -66,6 +66,15 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- Version -->
+                <div class="space-y-2">
+                    <h3 class="text-sm font-medium text-deep-blue-900">Version</h3>
+                    <div class="flex items-center space-x-2">
+                        <UIcon name="i-heroicons-tag" class="text-secondary-500" />
+                        <span class="text-deep-blue-600">{{ appVersion }}</span>
+                    </div>
+                </div>
             </div>
         </template>
     </UModal>
@@ -81,4 +90,5 @@ withDefaults(defineProps<Props>(), {
 });
 
 const isOpen = ref(false);
+const { public: { appVersion } } = useRuntimeConfig();
 </script>
