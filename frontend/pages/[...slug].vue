@@ -43,10 +43,13 @@ const currentPath = computed(() => {
 const pageTitle = computed(() => {
     const path = currentPath.value;
     try {
-        return Object.keys(path).some((key) => path[key]) ? getPageTitle(path) : appConfigComposable.appTitle.value;
+        const suffix = Object.keys(path).some((key) => path[key])
+            ? getPageTitle(path)
+            : appConfigComposable.appTitle.value;
+        return `DaMI | ${suffix}`;
     } catch (error) {
         console.error("Error getting page title:", error);
-        return appConfigComposable.appTitle.value;
+        return `DaMI | ${appConfigComposable.appTitle.value}`;
     }
 });
 

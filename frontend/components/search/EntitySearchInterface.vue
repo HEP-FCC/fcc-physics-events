@@ -196,9 +196,16 @@ const scrollToTop = () => {
     });
 };
 
-// Watch scroll position to show/hide scroll to top button
+// Watch scroll position to show/hide scroll to top button.
+// Deferred to a rAF and registered as passive so this doesn't block/delay
+// the browser's scroll handling (avoids Firefox's scroll-linked-effects warning).
+let scrollRaf = 0;
 const handleScroll = () => {
-    showScrollToTop.value = window.scrollY > 400; // Show after scrolling 400px
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+        showScrollToTop.value = window.scrollY > 400; // Show after scrolling 400px
+        scrollRaf = 0;
+    });
 };
 
 // Reactive state for duplicate search prevention
@@ -437,7 +444,7 @@ onMounted(async () => {
     document.addEventListener("click", handleClickOutside);
 
     // Add scroll event listener for scroll-to-top button
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     // Initialize scroll button state
     handleScroll();
@@ -450,6 +457,7 @@ onUnmounted(() => {
     // Clean up event listeners
     document.removeEventListener("click", handleClickOutside);
     window.removeEventListener("scroll", handleScroll);
+    if (scrollRaf) cancelAnimationFrame(scrollRaf);
 
     // Clean up composables
     search.cleanup();

@@ -145,13 +145,14 @@
                         </UButton>
                     </UTooltip>
 
-                    <!-- Edit button -->
+                    <!-- Edit button - only shown to users who can actually edit -->
                     <UButton
+                        v-if="isAuthenticated"
                         icon="i-heroicons-pencil"
                         class="text-neutral-600 cursor-pointer hover:text-neutral-800 hover:bg-neutral-100"
                         variant="ghost"
                         size="xs"
-                        :disabled="!isAuthenticated || actualEntityId <= 0"
+                        :disabled="actualEntityId <= 0"
                         @click="enterEditMode"
                     >
                         {{ actualEntityId <= 0 ? "Invalid Entity" : "Edit" }}

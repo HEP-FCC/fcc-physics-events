@@ -8,7 +8,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <!-- Mobile Layout (responsive stacked) -->
                 <div class="flex flex-col py-2 sm:hidden">
-                    <!-- First row: Logo, Title, Contact (icon), and Auth -->
+                    <!-- First row: Logo, Title, About (icon), and Auth -->
                     <div class="flex items-center justify-between">
                         <div class="flex items-center space-x-3 flex-1 min-w-0">
                             <NuxtLink to="/" class="flex items-center flex-shrink-0" @click="handleLogoClick">
@@ -21,8 +21,8 @@
                         <div class="flex items-center gap-2 flex-shrink-0">
                             <!-- Admin Modal - Icon only on mobile, only for authenticated users -->
                             <AdminModal v-if="isAuthenticated" icon-only />
-                            <!-- Contact Modal - Icon only on mobile -->
-                            <ContactModal icon-only />
+                            <!-- About Modal - Icon only on mobile -->
+                            <AboutModal icon-only />
                             <!-- Auth Section - will show icon for login or sign out button -->
                             <AuthSection mobile-compact logout-only />
                         </div>
@@ -47,10 +47,10 @@
                     <h1 class="px-5 text-xl font-semibold font-sans whitespace-nowrap select-none">
                         {{ appTitle }}
                     </h1>
-                    <!-- Right: Contact, Admin and Authentication Section -->
+                    <!-- Right: About, Admin and Authentication Section -->
                     <div class="ml-auto flex items-center space-x-4">
                         <AdminModal v-if="isAuthenticated" />
-                        <ContactModal />
+                        <AboutModal />
                         <AuthSection />
                     </div>
                 </div>
@@ -61,16 +61,12 @@
         <main id="main-content" class="flex-1">
             <NuxtPage />
         </main>
-
-        <!-- Footer -->
-        <AppFooter />
     </UApp>
 </template>
 
 <script setup lang="ts">
 import AuthSection from "~/components/auth/AuthSection.vue";
-import AppFooter from "~/components/AppFooter.vue";
-import ContactModal from "~/components/ContactModal.vue";
+import AboutModal from "~/components/AboutModal.vue";
 import AdminModal from "~/components/AdminModal.vue";
 
 // Check authentication status on app initialization

@@ -1,7 +1,7 @@
 <template>
     <UModal
         v-model:open="isOpen"
-        title="Contact & Resources"
+        title="About DaMI"
         :transition="true"
         :close="{
             color: 'neutral',
@@ -12,10 +12,10 @@
     >
         <UButton
             class="cursor-pointer"
-            icon="i-heroicons-envelope"
+            icon="i-heroicons-information-circle"
             color="neutral"
             variant="ghost"
-            :label="iconOnly ? undefined : 'Contact'"
+            :label="iconOnly ? undefined : 'About'"
             @click="isOpen = true"
         />
 
@@ -75,6 +75,11 @@
                         <span class="text-deep-blue-600">{{ appVersion }}</span>
                     </div>
                 </div>
+
+                <!-- Copyright -->
+                <div class="pt-2 border-t border-gray-200 text-center text-xs text-deep-blue-300">
+                    © CERN {{ currentYear }}
+                </div>
             </div>
         </template>
     </UModal>
@@ -91,4 +96,5 @@ withDefaults(defineProps<Props>(), {
 
 const isOpen = ref(false);
 const { public: { appVersion } } = useRuntimeConfig();
+const currentYear = new Date().getFullYear();
 </script>
