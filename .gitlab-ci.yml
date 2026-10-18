@@ -146,7 +146,6 @@ build-backend:
     TO: "${IMAGE_BACKEND}:${SHORT_SHA}"
     CONTEXT_DIR: "backend"
     DOCKER_FILE: "backend/Dockerfile"
-    CACHE_TTL: "168h"
   before_script:
   - |
     echo "Building backend image: $TO"
@@ -154,13 +153,9 @@ build-backend:
     echo "Dockerfile: $DOCKER_FILE"
     # Set up authentication (using the same auth script as docker-builder)
     source /kaniko/auth.sh
-    # Set up cache repository
-    export CACHE_REPO="$(echo $TO | sed 's/:.*//')/cache"
   script:
   - |
     /kaniko/executor \
-      --cache --cache-copy-layers=false --cache-ttl ${CACHE_TTL} \
-      --cache-repo ${CACHE_REPO} \
       --context ${CI_PROJECT_DIR}/${CONTEXT_DIR} \
       --dockerfile ${CI_PROJECT_DIR}/${DOCKER_FILE} \
       --destination ${TO} \
