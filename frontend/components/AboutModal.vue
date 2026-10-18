@@ -77,7 +77,7 @@
                 </div>
 
                 <!-- Copyright -->
-                <div class="pt-2 border-t border-gray-200 text-center text-xs text-gray-500">
+                <div class="pt-2 border-t border-gray-200 text-center text-xs text-deep-blue-300">
                     © CERN {{ currentYear }}
                 </div>
             </div>
