@@ -106,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_datasets_metadata_path_gin ON datasets USING GIN 
 
 -- Specific indexes for commonly searched metadata fields (based on your JSON structure)
 -- These will be much faster for queries targeting specific metadata fields
-CREATE INDEX IF NOT EXISTS idx_datasets_metadata_name ON datasets USING GIN ((metadata->>'process-name') gin_trgm_ops);
+DROP INDEX IF EXISTS idx_datasets_metadata_name;
 CREATE INDEX IF NOT EXISTS idx_datasets_metadata_description ON datasets USING GIN ((metadata->>'description') gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_datasets_metadata_comment ON datasets USING GIN ((metadata->>'comment') gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_datasets_metadata_status ON datasets USING BTREE ((metadata->>'status'));

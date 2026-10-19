@@ -47,6 +47,21 @@ export const clearPreloadedDropdownCache = (): void => {
     preloadedDropdownCache = {};
 };
 
+// Bumped whenever navigation values may have changed server-side (e.g. a new
+// accelerator/campaign/etc. was created elsewhere), so any mounted
+// useNavigationState() instance knows its cached dropdown items are stale.
+const navigationCacheVersion = ref(0);
+
+export const getNavigationCacheVersion = () => readonly(navigationCacheVersion);
+
+/**
+ * Invalidate cached dropdown data so it gets refetched on next use.
+ */
+export const invalidateNavigationDropdowns = (): void => {
+    clearPreloadedDropdownCache();
+    navigationCacheVersion.value++;
+};
+
 export const useNavigationConfig = () => {
     const { getSchema } = useSchema();
 

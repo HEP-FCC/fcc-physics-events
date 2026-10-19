@@ -3,6 +3,7 @@ Entity routes for the Dataset Metadata Interface (DaMI) API.
 Handles CRUD operations for entities and related data.
 """
 
+import json
 from typing import Any
 
 from fastapi import (
@@ -34,6 +35,39 @@ from app.utils.logging_utils import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="", tags=["entities"])
+
+# Internal/non-portable fields stripped from exported datasets -- the
+# numeric primary key, foreign key ids, and audit timestamps don't make
+# sense to re-import.
+_EXPORT_DROP_FIELDS = {
+    "entity_id",
+    "created_at",
+    "updated_at",
+    "last_edited_at",
+    "edited_by_name",
+}
+
+
+def _to_exportable_dataset(row: dict[str, Any]) -> dict[str, Any]:
+    """
+    Convert a raw search-result row into the shape expected when
+    re-importing via POST /entities/upload: drops internal fields (see
+    _EXPORT_DROP_FIELDS) and foreign key id columns, renames joined
+    navigation "<field>_name" columns to their bare field name (e.g.
+    accelerator_name -> accelerator) to match FccDataset's field names,
+    and flattens the "metadata" column's contents to top-level keys.
+    """
+    exportable: dict[str, Any] = {}
+    for key, value in row.items():
+        if key in _EXPORT_DROP_FIELDS or key.endswith("_id"):
+            continue
+        if key == "metadata" and isinstance(value, dict):
+            exportable.update(value)
+        elif key.endswith("_name") and key != "name":
+            exportable[key[: -len("_name")]] = value
+        else:
+            exportable[key] = value
+    return exportable
 
 # This will be injected from main.py
 database: Database
@@ -138,17 +172,17 @@ async def execute_gclql_query(
         )
 
 
-@router.post("/entities/", response_model=list[dict[str, Any]])
+@router.post("/entities/", response_model=dict[str, list[dict[str, Any]]])
 async def get_entities_by_ids(request: EntityIdsRequest) -> Any:
     """
     Get entities by their IDs with all details and metadata flattened to top-level keys.
-    Takes a list of entity IDs and returns a list of entity information.
+    Takes a list of entity IDs and returns {"datasets": [...]} with entity information.
     """
     if not request.entity_ids:
-        return []
+        return {"datasets": []}
 
     entities = await database.get_entities_by_ids(request.entity_ids)
-    return entities
+    return {"datasets": [_to_exportable_dataset(entity) for entity in entities]}
 
 
 @router.get("/sorting-fields/", response_model=dict[str, Any])
@@ -161,14 +195,14 @@ async def get_sorting_fields() -> dict[str, Any]:
     return result
 
 
-@router.get("/download-filtered/", response_model=list[dict[str, Any]])
+@router.get("/download-filtered/", response_model=dict[str, list[dict[str, Any]]])
 async def download_filtered_entities(
     q: str,
     sort_by: str = Query("last_edited_at", description="Field to sort by"),
     sort_order: str = Query("desc", description="Sort order: 'asc' or 'desc'"),
 ) -> Any:
     """
-    Download all entities matching the given query filter.
+    Download all entities matching the given query filter, as {"datasets": [...]}.
     This endpoint returns all results without pagination for download purposes.
     """
     logger.info(
@@ -191,8 +225,11 @@ async def download_filtered_entities(
             count_query, search_query, search_query_params, limit=999999, offset=0
         )
 
-        # Return only the items array for download
-        return result.get("items", [])
+        return {
+            "datasets": [
+                _to_exportable_dataset(item) for item in result.get("items", [])
+            ]
+        }
 
     except ValueError as e:
         logger.error("Invalid download query", exc_info=True)
@@ -418,93 +455,64 @@ async def delete_entities(
         )
 
 
-class EntityOverrideResponse(BaseModel):
-    """Response model for bulk entity override operations."""
+class DatasetUploadResponse(BaseModel):
+    """Response model for the dataset add/update upload endpoint."""
 
     success: bool
     message: str
+    created_count: int = 0
     updated_count: int = 0
+    failed_count: int = 0
     lock_conflicts: list[dict[str, Any]] = []
-    updated_entities: list[dict[str, Any]] = []
+    missing_entities: list[dict[str, Any]] = []
 
 
-@router.post("/override", response_model=EntityOverrideResponse)
-async def override_entities(
-    entities: list[dict[str, Any]],
+@router.post("/entities/upload", response_model=DatasetUploadResponse)
+async def upload_datasets(
+    dataset_upload: dict[str, Any],
     force_override: bool = Query(
         False, description="Force override even if metadata fields are locked"
     ),
-    user: dict[str, Any] = Depends(
-        AuthDependency("editor")
-    ),
-) -> EntityOverrideResponse:
+    user: dict[str, Any] = Depends(AuthDependency("editor")),
+) -> DatasetUploadResponse:
     """
-    Bulk entity metadata override endpoint with field locking and authentication.
+    Add and/or update datasets from a {"datasets": [...]} JSON body.
 
-    This endpoint performs METADATA-ONLY updates for security. It will reject attempts
-    to update table columns such as foreign keys, UUIDs, names, or other database fields.
-    Only metadata fields are processed and updated.
-
-    REQUIRES: Each entity MUST include a valid 'uuid' field to identify the entity to update.
-    No UUID computation is performed - entities without UUIDs will be rejected.
-
-    When metadata is updated, fuzzy search capabilities are automatically maintained
-    through PostgreSQL's expression indexes on the metadata column.
-
-    Accepts a list of entity dictionaries to update. Each entity MUST:
-    1. Include a 'uuid' field to match against existing entities
-
-    All metadata updates are performed within a single transaction. If any entity
-    cannot be found in the database or is missing a UUID, the entire operation fails
-    and no changes are made. If any entity has locked metadata fields that conflict
-    with the update, the entire operation is rolled back and detailed lock information
-    is returned, unless force_override is set to True.
-
-    Requires 'authorized' role for access.
-
-    Args:
-        entities: List of entity dictionaries with metadata fields to update
-        force_override: If True, ignore metadata field locks and force the update
-        user: Authenticated user data (injected by AuthDependency)
-
-    Returns:
-        EntityOverrideResponse with success status and either updated entities
-        or detailed lock conflict information
+    Each entry without a 'uuid' field is created (navigation entities like
+    accelerator/campaign auto-created, UUID derived deterministically from
+    name + foreign keys). Each entry with a 'uuid' field updates that
+    existing entity's metadata only, respecting field locks unless
+    force_override is set -- fails that entry if no entity with that UUID
+    exists.
     """
-
     try:
         logger.info(
-            f"User {user.get('preferred_username', 'unknown')} attempting bulk override of {len(entities)} entities (force_override={force_override})."
+            f"User {user.get('preferred_username', 'unknown')} uploading datasets (force_override={force_override})."
         )
 
-        # Validate that entities list is not empty
-        if not entities:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No entities provided for override operation",
-            )
-
-        # Perform bulk override operation
-        result = await database.bulk_override_entities(
-            entities, user_info=user, force_override=force_override
+        json_bytes = json.dumps(dataset_upload).encode("utf-8")
+        result = await database.import_data(
+            json_bytes, user_info=user, force_override=force_override
         )
 
-        return EntityOverrideResponse(
+        return DatasetUploadResponse(
             success=result["success"],
             message=result["message"],
-            updated_count=result.get("entities_processed", 0),
+            created_count=result.get("created_count", 0),
+            updated_count=result.get("updated_count", 0),
+            failed_count=result.get("failed_count", 0),
             lock_conflicts=result.get("lock_conflicts", []),
-            updated_entities=result.get("updated_entities", []),
+            missing_entities=result.get("missing_entities", []),
         )
 
     except ValueError as e:
-        logger.error(f"Validation error in bulk override: {e}")
+        logger.error(f"Validation error in dataset upload: {e}")
         raise validation_error(error_type="validation_error", message=str(e))
     except Exception as e:
-        logger.error(f"Bulk override operation failed: {e}")
+        logger.error(f"Dataset upload failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during bulk override operation",
+            detail="Internal server error during dataset upload",
         )
 
 

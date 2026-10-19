@@ -182,7 +182,7 @@ export function useEntitySelection() {
 
             if (entitiesToDownload.length > 0) {
                 const filename = createEntityDownloadFilename(entitiesToDownload.length);
-                downloadAsJsonFile(entitiesToDownload, filename);
+                downloadAsJsonFile({ datasets: entitiesToDownload }, filename);
             }
         } catch (error) {
             console.error("Failed to download entities:", error);
@@ -203,7 +203,7 @@ export function useEntitySelection() {
 
             if (entitiesToDownload.length > 0) {
                 const filename = createEntityDownloadFilename(entitiesToDownload.length);
-                downloadAsJsonFile(entitiesToDownload, filename);
+                downloadAsJsonFile({ datasets: entitiesToDownload }, filename);
             }
         } catch (error) {
             console.error("Failed to download filtered entities:", error);

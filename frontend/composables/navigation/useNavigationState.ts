@@ -447,6 +447,16 @@ export function useNavigationState() {
         return openRef ? openRef.value : false;
     }
 
+    // Drop cached dropdown items whenever navigation data may have changed
+    // elsewhere (see invalidateNavigationDropdowns); they'll refetch lazily
+    // next time each level is opened, with whatever filters apply then.
+    watch(getNavigationCacheVersion(), () => {
+        navigationOrder.value.forEach((type) => {
+            clearDropdownData(type);
+        });
+        proactivelyLoadDropdownData();
+    });
+
     return {
         dropdowns,
         itemsRefs: readonly(itemsRefs),

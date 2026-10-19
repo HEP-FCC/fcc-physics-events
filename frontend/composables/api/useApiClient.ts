@@ -207,10 +207,11 @@ export function useApiClient() {
      * Get multiple entities by IDs
      */
     const getEntitiesByIds = async (ids: number[]): Promise<Entity[]> => {
-        return typedFetch<Entity[]>("/entities/", {
+        const response = await typedFetch<{ datasets: Entity[] }>("/entities/", {
             method: "POST",
             body: { entity_ids: ids },
         });
+        return response.datasets;
     };
 
     /**
@@ -283,6 +284,30 @@ export function useApiClient() {
     };
 
     /**
+     * Add and/or update datasets from a parsed {"datasets": [...]} JSON object.
+     * Entries without a 'uuid' are created; entries with a 'uuid' update that
+     * existing entity's metadata, respecting field locks.
+     */
+    const uploadDatasets = async (
+        datasets: unknown[],
+        forceOverride: boolean,
+    ): Promise<{
+        success: boolean;
+        message: string;
+        created_count: number;
+        updated_count: number;
+        failed_count: number;
+        lock_conflicts?: Array<Record<string, unknown>>;
+        missing_entities?: Array<Record<string, unknown>>;
+    }> => {
+        return typedFetch("/entities/upload", {
+            method: "POST",
+            body: { datasets },
+            query: { force_override: forceOverride },
+        });
+    };
+
+    /**
      * Get sorting fields
      */
     const getSortingFields = async (): Promise<{ fields: string[]; count: number; info: string }> => {
@@ -321,10 +346,11 @@ export function useApiClient() {
         if (options.sortBy) queryParams.sort_by = options.sortBy;
         if (options.sortOrder) queryParams.sort_order = options.sortOrder;
 
-        return typedFetch<Entity[]>("/download-filtered/", {
+        const response = await typedFetch<{ datasets: Entity[] }>("/download-filtered/", {
             method: "GET",
             query: queryParams,
         });
+        return response.datasets;
     };
 
     /**
@@ -414,6 +440,7 @@ export function useApiClient() {
         updateMetadataLock,
         deleteEntity,
         deleteEntities,
+        uploadDatasets,
 
         // Utility methods
         getSortingFields,
