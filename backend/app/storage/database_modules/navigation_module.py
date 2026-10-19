@@ -67,7 +67,7 @@ async def get_dropdown_items(
         )
         rows = await conn.fetch(final_query, *params)
 
-        items = [{"id": row["id"], "name": row["name"]} for row in rows]
+        items = [{"entity_id": row["id"], "name": row["name"]} for row in rows]
         return {"data": items}
 
 
