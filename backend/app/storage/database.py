@@ -14,7 +14,6 @@ from pydantic import BaseModel
 # Import modularized database functions
 from app.storage.database_modules.data_import_module import import_data
 from app.storage.database_modules.entity_management_module import (
-    bulk_override_entities,
     delete_entities_by_ids,
     update_entity,
 )
@@ -211,15 +210,6 @@ class Database:
         """Delete entities by IDs."""
         return await delete_entities_by_ids(self, entity_ids)
 
-    async def bulk_override_entities(
-        self,
-        entities: list[dict[str, Any]],
-        user_info: dict[str, Any] | None = None,
-        force_override: bool = False,
-    ) -> dict[str, Any]:
-        """Bulk override entities."""
-        return await bulk_override_entities(self, entities, user_info, force_override)
-
     async def perform_search(
         self,
         count_query: str,
@@ -263,9 +253,14 @@ class Database:
             self, table_key, main_table, navigation_analysis, filters
         )
 
-    async def import_data(self, json_content: bytes) -> None:
+    async def import_data(
+        self,
+        json_content: bytes,
+        user_info: dict[str, Any] | None = None,
+        force_override: bool = False,
+    ) -> dict[str, Any]:
         """Import data from JSON content."""
-        return await import_data(self, json_content)
+        return await import_data(self, json_content, user_info, force_override)
 
     async def list_editors(self) -> list[dict[str, Any]]:
         """List all users currently granted the editor role."""

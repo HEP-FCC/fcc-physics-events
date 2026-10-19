@@ -1,7 +1,7 @@
 <template>
     <UModal
         v-model:open="isOpen"
-        title="Edit Tools"
+        title="Dataset Tools"
         :transition="true"
         :close="{
             color: 'neutral',
@@ -12,22 +12,84 @@
     >
         <UButton
             class="cursor-pointer"
-            icon="i-heroicons-cog-6-tooth"
+            icon="i-heroicons-circle-stack"
             color="neutral"
             variant="ghost"
-            :label="iconOnly ? undefined : 'Edit'"
+            :label="iconOnly ? undefined : 'Add Data'"
             @click="isOpen = true"
         />
 
         <template #body>
             <div class="space-y-6 overflow-hidden">
-                <!-- Admin Override Section -->
-                <div class="space-y-3">
+                <UTabs v-model="activeTab" :items="tabItems" class="w-full">
+                    <template #add>
+                        <div class="space-y-3 pt-3">
+                            <div v-if="!isNavigationReady" class="text-sm text-deep-blue-600">
+                                Loading navigation fields...
+                            </div>
+                            <div v-else class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-deep-blue-900 mb-1">
+                                        Dataset Name *
+                                    </label>
+                                    <UInput v-model="singleName" placeholder="e.g. my-simulation" class="w-full" />
+                                </div>
+
+                                <div v-for="field in navigationFields" :key="field.type">
+                                    <label class="block text-sm font-medium text-deep-blue-900 mb-1">
+                                        {{ field.label }} *
+                                    </label>
+                                    <UInputMenu
+                                        v-model="singleNavValues[field.type]"
+                                        :items="navigationOptions[field.type] || []"
+                                        :loading="navigationOptionsLoading[field.type]"
+                                        create-item
+                                        :placeholder="`Select or type a new ${field.label.toLowerCase()}`"
+                                        class="w-full"
+                                        @create="(term: string) => handleNavigationOptionCreate(field.type, term)"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-deep-blue-900 mb-1">
+                                        Metadata (optional JSON object)
+                                    </label>
+                                    <UTextarea
+                                        v-model="singleMetadataText"
+                                        placeholder='{"status": "done", "comment": "..."}'
+                                        :rows="4"
+                                        class="w-full font-mono"
+                                    />
+                                </div>
+
+                                <UButton
+                                    icon="i-heroicons-plus-circle"
+                                    color="primary"
+                                    variant="solid"
+                                    size="sm"
+                                    :disabled="singleProcessing"
+                                    :loading="singleProcessing"
+                                    class="cursor-pointer"
+                                    @click="performSingleCreate"
+                                >
+                                    {{ singleProcessing ? "Creating..." : "Create Dataset" }}
+                                </UButton>
+
+                                <div v-if="singleStatusMessage" class="text-xs" :class="singleStatusMessageClass">
+                                    {{ singleStatusMessage }}
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template #bulk>
+                <!-- Add/Update Datasets Section -->
+                <div class="space-y-3 pt-3">
                     <h3 class="text-md font-medium text-deep-blue-900 flex items-center gap-2">
                         <UIcon name="i-heroicons-cog-6-tooth" class="text-lg text-secondary-500" />
-                        Override entity metadata with data from a JSON file
+                        Add or update datasets from a JSON file
                         <UTooltip
-                            text="Learn more about the override functionality"
+                            text="Learn more about adding/updating datasets"
                             class="cursor-pointer"
                             :popper="{ placement: 'bottom' }"
                         >
@@ -63,7 +125,7 @@
                             <div class="flex items-center justify-between mb-3">
                                 <h4 class="font-semibold text-deep-blue-900 flex items-center gap-2">
                                     <UIcon name="i-heroicons-academic-cap" class="text-deep-blue-600" />
-                                    How Override Works
+                                    How This Works
                                 </h4>
                                 <UButton
                                     icon="i-heroicons-x-mark"
@@ -77,20 +139,22 @@
 
                             <div class="text-sm text-deep-blue-800 space-y-2">
                                 <p>
-                                    <strong>⚠️ UUID Required:</strong> Each entity MUST include a valid 'uuid' field.
-                                    Entities without UUIDs will be rejected.
+                                    <strong>🆕 No 'uuid'? It's created.</strong> Navigation fields (accelerator,
+                                    campaign, detector, etc.) are auto-created as needed, and the dataset's UUID is
+                                    derived deterministically from its name and those fields.
                                 </p>
                                 <p>
-                                    <strong>📃 Metadata Only:</strong> Only metadata fields can be updated. Database
-                                    fields like foreign keys, names, UUIDs are protected and blocked.
+                                    <strong>🔁 Has 'uuid'? It's updated.</strong> Only metadata fields are touched on
+                                    the matching existing entity -- database fields like foreign keys and names are
+                                    protected and blocked. Fails that entry if no entity with that UUID exists.
                                 </p>
                                 <p>
                                     <strong>🔒 Field Locking:</strong> Updated metadata fields are automatically locked
                                     to prevent further changes (unless force override is used).
                                 </p>
                                 <p>
-                                    <strong>🔄 Transaction Safety:</strong> All updates happen in one transaction - if
-                                    any entity fails, nothing is changed.
+                                    <strong>🔄 Independent Processing:</strong> New entries and updates are processed
+                                    independently -- one entry failing doesn't block the others from succeeding.
                                 </p>
                             </div>
 
@@ -99,27 +163,22 @@
                                 <pre
                                     class="bg-gray-100 p-3 rounded text-sm font-mono overflow-x-auto text-deep-blue-800"
                                 >
-[
-  {
-    "uuid": "valid-entity-uuid-here",
-    "description": "Updated description",
-    "process-name": "new-simulation",
-    "status": "completed",
-  },
-  {
-    "uuid": "another-valid-entity-uuid-here",
-    "comment": "Updated via bulk override",
-    "status": "done",
-  }
-]</pre
+{
+  "datasets": [
+    {
+      "dataset-name": "new-simulation",
+      "accelerator": "fcc-ee",
+      "campaign": "winter2023",
+      "status": "completed"
+    },
+    {
+      "uuid": "existing-entity-uuid-here",
+      "comment": "Updated via upload",
+      "status": "done"
+    }
+  ]
+}</pre
                                 >
-                            </div>
-
-                            <div
-                                class="text-sm text-shadow-amber-200 text-amber-700 bg-amber-100 p-2 rounded border border-amber-200"
-                            >
-                                <strong>⚠️ Important:</strong> Every entity must have a 'uuid' field. Only metadata
-                                fields will be processed - all database fields (foregin keys) are.
                             </div>
                         </div>
                     </div>
@@ -181,9 +240,9 @@
                             :disabled="!selectedFile || isProcessing"
                             :loading="isProcessing"
                             class="cursor-pointer"
-                            @click="confirmOverride"
+                            @click="performUpload"
                         >
-                            {{ isProcessing ? "Processing..." : "Override Entities" }}
+                            {{ isProcessing ? "Processing..." : "Upload Datasets" }}
                         </UButton>
 
                         <!-- Status Messages -->
@@ -269,6 +328,8 @@
                         </div>
                     </div>
                 </div>
+                    </template>
+                </UTabs>
             </div>
         </template>
     </UModal>
@@ -285,14 +346,188 @@ withDefaults(defineProps<Props>(), {
 
 const isOpen = ref(false);
 
-// API client
-const { typedFetch } = useApiClient();
+// Refresh the search results once the modal closes, if something actually changed
+const needsRefresh = ref(false);
+const { forceRefresh } = useGlobalSearchControl();
+watch(isOpen, (open) => {
+    if (!open && needsRefresh.value) {
+        needsRefresh.value = false;
+        forceRefresh();
+    }
+});
 
-// Override response type
-interface OverrideResponse {
+// Tabs: single-dataset form vs. bulk JSON upload
+const activeTab = ref("add");
+const tabItems = [
+    { label: "Add Dataset", icon: "i-heroicons-plus-circle", slot: "add" as const, value: "add" },
+    { label: "Bulk Upload (JSON)", icon: "i-heroicons-document-text", slot: "bulk" as const, value: "bulk" },
+];
+
+// Navigation fields (dynamic, schema-driven)
+const { getNavigationOrder, getNavigationItem, initializeNavigation, isNavigationReady: checkNavigationReady } =
+    useNavigationConfig();
+const isNavigationReady = computed(() => checkNavigationReady());
+const navigationFields = computed(() =>
+    getNavigationOrder().map((type) => ({ type, label: getNavigationItem(type).label })),
+);
+
+onMounted(() => {
+    initializeNavigation();
+});
+
+// API client (also used by the bulk upload tab below)
+const { uploadDatasets, getDropdownOptions } = useApiClient();
+
+// Single-dataset creation form
+const singleName = ref("");
+const singleMetadataText = ref("");
+const singleNavValues = reactive<Record<string, string>>({});
+const navigationOptions = reactive<Record<string, string[]>>({});
+const navigationOptionsLoading = reactive<Record<string, boolean>>({});
+const navigationOptionsLoaded = reactive<Record<string, boolean>>({});
+const singleProcessing = ref(false);
+const singleStatusMessage = ref("");
+const singleStatusMessageClass = ref("");
+
+const loadNavigationOptions = async (type: string) => {
+    if (navigationOptionsLoaded[type] || navigationOptionsLoading[type]) return;
+    navigationOptionsLoading[type] = true;
+    try {
+        const items = await getDropdownOptions(type);
+        navigationOptions[type] = items.map((item) => item.name);
+        navigationOptionsLoaded[type] = true;
+    } catch (error) {
+        console.error(`Failed to load existing ${type} values:`, error);
+        navigationOptions[type] = [];
+    } finally {
+        navigationOptionsLoading[type] = false;
+    }
+};
+
+// Drop our own cached dropdown values so the next load picks up anything
+// just created (here or elsewhere), instead of serving this tab's stale cache.
+const refreshNavigationOptions = () => {
+    navigationFields.value.forEach((field) => {
+        navigationOptionsLoaded[field.type] = false;
+        loadNavigationOptions(field.type);
+    });
+};
+
+watch(
+    navigationFields,
+    (fields) => {
+        fields.forEach((field) => {
+            if (!(field.type in singleNavValues)) {
+                singleNavValues[field.type] = "";
+            }
+            loadNavigationOptions(field.type);
+        });
+    },
+    { immediate: true },
+);
+
+const handleNavigationOptionCreate = (type: string, term: string) => {
+    singleNavValues[type] = term;
+    if (!navigationOptions[type]) {
+        navigationOptions[type] = [];
+    }
+    if (!navigationOptions[type].includes(term)) {
+        navigationOptions[type].push(term);
+    }
+};
+
+const showSingleStatus = (message: string, type: "success" | "error" | "info") => {
+    singleStatusMessage.value = message;
+    singleStatusMessageClass.value =
+        type === "success" ? "text-green-600" : type === "error" ? "text-energy-600" : "text-blue-600";
+};
+
+const performSingleCreate = async () => {
+    const trimmedName = singleName.value.trim();
+    if (!trimmedName) {
+        showSingleStatus("Dataset name is required.", "error");
+        return;
+    }
+
+    const missingFields = navigationFields.value.filter((field) => !singleNavValues[field.type]?.trim());
+    if (missingFields.length > 0) {
+        showSingleStatus(`Please fill in: ${missingFields.map((field) => field.label).join(", ")}.`, "error");
+        return;
+    }
+
+    let extraMetadata: Record<string, unknown> = {};
+    const metadataText = singleMetadataText.value.trim();
+    if (metadataText) {
+        try {
+            const parsedMetadata = JSON.parse(metadataText);
+            if (!parsedMetadata || typeof parsedMetadata !== "object" || Array.isArray(parsedMetadata)) {
+                throw new Error("Metadata must be a JSON object, e.g. {\"status\": \"done\"}.");
+            }
+            extraMetadata = parsedMetadata;
+        } catch (error) {
+            showSingleStatus(error instanceof Error ? error.message : "Invalid metadata JSON.", "error");
+            return;
+        }
+
+        const reservedKeys = new Set([
+            "dataset-name",
+            "name",
+            "uuid",
+            ...navigationFields.value.map((field) => field.type),
+        ]);
+        const collidingKeys = Object.keys(extraMetadata).filter((key) => reservedKeys.has(key));
+        if (collidingKeys.length > 0) {
+            showSingleStatus(`Metadata cannot redefine reserved field(s): ${collidingKeys.join(", ")}.`, "error");
+            return;
+        }
+    }
+
+    const dataset: Record<string, unknown> = {
+        "dataset-name": trimmedName,
+        ...Object.fromEntries(
+            navigationFields.value.map((field) => [field.type, singleNavValues[field.type].trim()]),
+        ),
+        ...extraMetadata,
+    };
+
+    singleProcessing.value = true;
+    showSingleStatus("Creating dataset...", "info");
+
+    try {
+        const response = (await uploadDatasets([dataset], false)) as UploadResponse;
+
+        if (response.success && response.created_count > 0) {
+            showSingleStatus("Dataset created successfully.", "success");
+            needsRefresh.value = true;
+            invalidateNavigationDropdowns();
+            refreshNavigationOptions();
+            singleName.value = "";
+            singleMetadataText.value = "";
+            navigationFields.value.forEach((field) => {
+                singleNavValues[field.type] = "";
+            });
+        } else {
+            showSingleStatus(response.message || "Failed to create dataset.", "error");
+        }
+    } catch (error: unknown) {
+        console.error("Dataset creation failed:", error);
+        const errorMessage =
+            (error as { data?: { detail?: string }; message?: string })?.data?.detail ||
+            (error as { message?: string })?.message ||
+            "Failed to create dataset.";
+        showSingleStatus(errorMessage, "error");
+    } finally {
+        singleProcessing.value = false;
+    }
+};
+
+// Upload response type
+interface UploadResponse {
     success: boolean;
     message: string;
+    created_count: number;
     updated_count: number;
+    failed_count: number;
     lock_conflicts?: Array<{
         entity_id: number;
         entity_uuid: string;
@@ -306,7 +541,6 @@ interface OverrideResponse {
         >;
         entity_data: Record<string, unknown>;
     }>;
-    updated_entities?: Array<Record<string, unknown>>;
     missing_entities?: Array<{
         entity_data: Record<string, unknown>;
         identifier: string;
@@ -320,7 +554,7 @@ const selectedFileName = ref<string>("");
 const isProcessing = ref(false);
 const statusMessage = ref<string>("");
 const statusMessageClass = ref<string>("");
-const lockConflicts = ref<OverrideResponse["lock_conflicts"]>([]);
+const lockConflicts = ref<UploadResponse["lock_conflicts"]>([]);
 const forceOverride = ref<boolean>(false);
 const showOverrideHelp = ref<boolean>(false);
 
@@ -362,29 +596,8 @@ const showStatus = (message: string, type: "success" | "error" | "info") => {
         type === "success" ? "text-green-600" : type === "error" ? "text-energy-600" : "text-blue-600";
 };
 
-// Confirm override operation
-const confirmOverride = () => {
-    const baseMessage =
-        "Are you sure you want to override entity metadata? This operation will:\n\n" +
-        "• Require a valid UUID for each entity\n" +
-        "• Update ONLY metadata fields (database fields are protected)\n" +
-        "• Create field locks to prevent further modifications\n" +
-        "• Fail if any entities don't exist or lack UUIDs\n" +
-        "• Cannot be easily undone\n";
-
-    const forceMessage = forceOverride.value
-        ? "\n⚠️  FORCE OVERRIDE ENABLED: This will ignore existing field locks and may overwrite changes made by other users!\n"
-        : "";
-
-    const confirmed = confirm(baseMessage + forceMessage + "\nPlease confirm to proceed.");
-
-    if (confirmed) {
-        performOverride();
-    }
-};
-
-// Perform the override operation
-const performOverride = async () => {
+// Perform the upload operation
+const performUpload = async () => {
     if (!selectedFile.value) {
         showStatus("No file selected.", "error");
         return;
@@ -398,37 +611,50 @@ const performOverride = async () => {
         const fileText = await selectedFile.value.text();
 
         // Parse JSON
-        let entities;
+        let parsed;
         try {
-            entities = JSON.parse(fileText);
+            parsed = JSON.parse(fileText);
         } catch {
             throw new Error("Invalid JSON format in selected file.");
         }
 
-        // Validate that it's an array
-        if (!Array.isArray(entities)) {
-            throw new Error("JSON file must contain an array of entities.");
+        // Validate shape: {"datasets": [...]}
+        if (!parsed || !Array.isArray(parsed.datasets)) {
+            throw new Error('JSON file must be an object with a "datasets" array.');
         }
 
-        if (entities.length === 0) {
-            throw new Error("JSON file contains no entities.");
+        if (parsed.datasets.length === 0) {
+            throw new Error("JSON file contains no datasets.");
         }
 
-        showStatus(`Processing ${entities.length} entities...`, "info");
+        // Only confirm when something potentially destructive is happening:
+        // updating existing entries by UUID, or bypassing field locks.
+        const hasUpdates = parsed.datasets.some(
+            (entry: Record<string, unknown>) => !!entry.uuid,
+        );
+        if (hasUpdates || forceOverride.value) {
+            if (!confirm("Are you sure you want to proceed with this upload?")) {
+                showStatus("Upload cancelled.", "info");
+                isProcessing.value = false;
+                return;
+            }
+        }
 
-        // Send to backend with force_override query parameter
-        const response = await typedFetch<OverrideResponse>("/override", {
-            method: "POST",
-            body: entities,
-            query: { force_override: forceOverride.value },
-        });
+        showStatus(`Processing ${parsed.datasets.length} datasets...`, "info");
+
+        const response = (await uploadDatasets(parsed.datasets, forceOverride.value)) as UploadResponse;
+        const countsMsg = `${response.created_count} created, ${response.updated_count} updated`;
+
+        if (response.created_count > 0 || response.updated_count > 0) {
+            needsRefresh.value = true;
+        }
+        if (response.created_count > 0) {
+            invalidateNavigationDropdowns();
+            refreshNavigationOptions();
+        }
 
         if (response.success) {
-            const successMsg = forceOverride.value
-                ? `Successfully updated ${response.updated_count} entities (forced override enabled).`
-                : `Successfully updated ${response.updated_count} entities.`;
-
-            showStatus(successMsg, "success");
+            showStatus(`Successfully processed: ${countsMsg}.`, "success");
             lockConflicts.value = []; // Clear any previous conflicts
 
             // Clear the file selection after successful operation
@@ -440,48 +666,46 @@ const performOverride = async () => {
                     fileInput.value.value = "";
                 }
             }, 3000);
+        } else if (response.missing_entities && response.missing_entities.length > 0) {
+            // Handle missing entities/UUIDs error
+            const missingCount = response.missing_entities.length;
+            const missingList = response.missing_entities
+                .slice(0, 3)
+                .map((missing) => missing.identifier)
+                .join(", ");
+            const moreText = missingCount > 3 ? ` and ${missingCount - 3} more` : "";
+
+            showStatus(
+                `${countsMsg}; ${missingCount} update(s) failed -- no entity found for UUID(s): ${missingList}${moreText}.`,
+                "error",
+            );
+            lockConflicts.value = [];
+        } else if (response.lock_conflicts && response.lock_conflicts.length > 0) {
+            lockConflicts.value = response.lock_conflicts;
+
+            // Count total locked fields across all entities
+            const totalLockedFields = response.lock_conflicts.reduce(
+                (sum, conflict) => sum + Object.keys(conflict.locked_fields).length,
+                0,
+            );
+
+            showStatus(
+                `${countsMsg}; ${response.lock_conflicts.length} entities have ${totalLockedFields} locked fields. See details below.`,
+                "error",
+            );
+
+            // Log detailed conflict information for debugging
+            console.warn("Lock conflicts detected:", response.lock_conflicts);
         } else {
-            if (response.missing_entities && response.missing_entities.length > 0) {
-                // Handle missing entities/UUIDs error
-                const missingCount = response.missing_entities.length;
-                const missingList = response.missing_entities
-                    .slice(0, 3)
-                    .map((missing) => missing.identifier)
-                    .join(", ");
-                const moreText = missingCount > 3 ? ` and ${missingCount - 3} more` : "";
-
-                showStatus(
-                    `Operation failed: ${missingCount} entities have issues (${missingList}${moreText}). Each entity must have a valid UUID.`,
-                    "error",
-                );
-                lockConflicts.value = [];
-            } else if (response.lock_conflicts && response.lock_conflicts.length > 0) {
-                lockConflicts.value = response.lock_conflicts;
-
-                // Count total locked fields across all entities
-                const totalLockedFields = response.lock_conflicts.reduce(
-                    (sum, conflict) => sum + Object.keys(conflict.locked_fields).length,
-                    0,
-                );
-
-                showStatus(
-                    `Operation failed: ${response.lock_conflicts.length} entities have ${totalLockedFields} locked fields. See details below.`,
-                    "error",
-                );
-
-                // Log detailed conflict information for debugging
-                console.warn("Lock conflicts detected:", response.lock_conflicts);
-            } else {
-                lockConflicts.value = [];
-                showStatus(response.message || "Override operation failed.", "error");
-            }
+            lockConflicts.value = [];
+            showStatus(response.message || "Upload operation failed.", "error");
         }
     } catch (error: unknown) {
-        console.error("Override operation failed:", error);
+        console.error("Dataset upload failed:", error);
         const errorMessage =
             (error as { data?: { detail?: string }; message?: string })?.data?.detail ||
             (error as { message?: string })?.message ||
-            "Failed to process override operation.";
+            "Failed to process dataset upload.";
         showStatus(errorMessage, "error");
     } finally {
         isProcessing.value = false;

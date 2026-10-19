@@ -15,6 +15,7 @@ import asyncpg
 
 from app.models.generic import GenericEntityCreate
 from app.storage.database_modules.entity_management_module import (
+    bulk_override_entities,
     get_valid_table_columns,
 )
 from app.storage.json_data_model import (
@@ -50,32 +51,90 @@ _WHIZARD_VERSION = {
 
 
 # NOTE: This function can be changed by users
-async def import_data(database: "Database", json_content: bytes) -> None:
-    """Parses JSON content and upserts the data into the database with proper transaction handling."""
+async def import_data(
+    database: "Database",
+    json_content: bytes,
+    user_info: dict[str, Any] | None = None,
+    force_override: bool = False,
+) -> dict[str, Any]:
+    """
+    Parses JSON content ({"datasets": [...]}) and processes each entity:
+    records without a 'uuid' are created (navigation entities auto-created,
+    UUID derived deterministically); records with a 'uuid' update that
+    existing entity's metadata only, respecting field locks.
+    """
     try:
         collection = _parse_json_content(json_content)
     except ValueError as e:
         # If the file format is incompatible, log and skip without raising an error
         if "skipping incompatible format" in str(e):
             logger.warning(f"Skipping JSON file with incompatible format: {e}")
-            return
+            return {
+                "success": False,
+                "message": str(e),
+                "created_count": 0,
+                "updated_count": 0,
+                "failed_count": 0,
+            }
         else:
             # Re-raise other validation errors
             logger.error(f"Unexpected validation error: {e}")
             raise
 
     main_table = database.config["application"]["main_table"]
+    all_entities = collection.get_entities()
+    to_create = [e for e in all_entities if not getattr(e, "uuid", None)]
+    to_update = [e for e in all_entities if getattr(e, "uuid", None)]
 
-    # Process each entity in its own transaction to avoid transaction abort issues
-    (
-        processed_count,
-        failed_count,
-    ) = await _process_entity_collection_with_recovery(database, collection, main_table)
+    created_count, creation_failed_count = 0, 0
+    if to_create:
+        created_count, creation_failed_count = (
+            await _process_entity_collection_with_recovery(
+                database, to_create, main_table
+            )
+        )
+        _log_import_results(created_count, creation_failed_count)
 
-    _log_import_results(processed_count, failed_count)
-    _validate_import_success(processed_count, failed_count)
+    override_result: dict[str, Any] = {}
+    updated_count = 0
+    override_success = True
+    if to_update:
+        update_dicts = [
+            {"uuid": getattr(entity, "uuid", None), **entity.get_all_metadata()}
+            for entity in to_update
+        ]
+        override_result = await bulk_override_entities(
+            database, update_dicts, user_info=user_info, force_override=force_override
+        )
+        updated_count = override_result.get("entities_processed", 0)
+        override_success = override_result.get("success", False)
 
-    logger.info("Import operation completed successfully")
+    failed_count = creation_failed_count + (0 if override_success else len(to_update))
+    success = (not to_create or created_count > 0 or creation_failed_count == 0) and (
+        not to_update or override_success
+    )
+
+    message_parts = []
+    if to_create:
+        message_parts.append(f"{created_count} created, {creation_failed_count} failed")
+    if to_update:
+        message_parts.append(
+            override_result.get("message", f"{updated_count} updated")
+        )
+    message = "; ".join(message_parts) if message_parts else "No entities to process"
+
+    result = {
+        "success": success,
+        "message": message,
+        "created_count": created_count,
+        "updated_count": updated_count,
+        "failed_count": failed_count,
+        "lock_conflicts": override_result.get("lock_conflicts", []),
+        "missing_entities": override_result.get("missing_entities", []),
+    }
+
+    logger.info(f"Import operation completed: {result}")
+    return result
 
 
 # Helper functions for data import
@@ -142,16 +201,13 @@ def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
 
 
 async def _process_entity_collection_with_recovery(
-    database: "Database", collection: BaseEntityCollection, main_table: str
+    database: "Database", entities: Sequence[BaseEntityData], main_table: str
 ) -> tuple[int, int]:
-    """Process all entity in the collection using batch transactions with fallback."""
+    """Process a sequence of entities using batch transactions with fallback."""
     batch_size = database.config["application"]["batch_size"]
 
     total_processed = 0
     total_failed = 0
-
-    # Split entities into batches
-    entities = collection.get_entities()
 
     for batch_start in range(0, len(entities), batch_size):
         batch_end = min(batch_start + batch_size, len(entities))
@@ -814,15 +870,6 @@ def _log_import_results(processed_count: int, failed_count: int) -> None:
         )
     else:
         logger.info(f"Successfully processed all {processed_count} entities")
-
-
-def _validate_import_success(processed_count: int, failed_count: int) -> None:
-    """Validate that the import was successful enough to continue."""
-    total_entities = processed_count + failed_count
-    if total_entities > 0 and failed_count > (total_entities / 2):
-        raise RuntimeError(
-            f"Import failed: {failed_count}/{total_entities} entities could not be processed"
-        )
 
 
 async def _get_or_create_entity(

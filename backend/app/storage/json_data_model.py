@@ -46,7 +46,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.utils.logging_utils import get_logger
 
@@ -79,14 +79,23 @@ class FccDataset(BaseEntityData):
     while all other fields are stored in the raw_metadata for flexible handling.
     """
 
+    # Accept fields by their plain name (e.g. "file_type") as well as by
+    # their JSON alias (e.g. "file-type"), so a previously exported dataset
+    # round-trips correctly on re-upload.
+    model_config = ConfigDict(populate_by_name=True)
+
     # Core fields that are guaranteed or highly likely to be present
-    name: str | None = Field(default=None, alias="process-name")
+    name: str | None = Field(default=None, alias="dataset-name")
     n_events: int | None = Field(default=None, alias="n-events")
     path: str | None = Field(default=None)
     size: int | None = Field(default=None)
     description: str | None = Field(default=None)
     comment: str | None = Field(default=None)
     status: str | None = Field(default=None)
+
+    # When present, identifies an existing entity to update (metadata fields
+    # only, respecting locks) instead of creating a new one.
+    uuid: str | None = Field(default=None)
 
     # Navigation entity fields
     accelerator: str | None = Field(default=None)
@@ -159,32 +168,27 @@ class FccDataset(BaseEntityData):
         if not isinstance(data, dict):
             return data
 
-        # Fields that are explicitly handled by the model
+        # Fields that are explicitly handled by the model, keyed by both
+        # their Python name (e.g. "file_type") and their JSON alias (e.g.
+        # "file-type") -- derived from the model itself so a field's alias
+        # can never drift out of sync with this exclusion set.
         core_fields = {
-            "process-name",
-            "n-events",
-            "path",
-            "size",
-            "description",
-            "comment",
-            "status",
-            "accelerator",
-            "stage",
-            "campaign",
-            "detector",
-            "file-type",
+            key
+            for field_name, field in cls.model_fields.items()
+            if not field.exclude
+            for key in (field_name, field.alias)
+            if key is not None
         }
 
         # Create a copy of the data for manipulation
         processed_data = data.copy()
-        raw_metadata = {}
+        raw_metadata: dict[str, Any] = {}
 
-        # Extract all non-core fields into raw_metadata
+        # Extract all other non-core fields into raw_metadata
         for key, value in data.items():
-            if key not in core_fields:
-                # Skip the 'files' field as it's typically large and not needed
-                if key != "files":
-                    raw_metadata[key] = value
+            if key in core_fields or key == "files":
+                continue
+            raw_metadata[key] = value
 
         # Add raw_metadata to the processed data
         processed_data["raw_metadata"] = raw_metadata
@@ -241,16 +245,16 @@ class BaseEntityCollection(BaseModel, ABC):
 class DatasetCollection(BaseEntityCollection):
     """Pydantic model for the root of the JSON dictionary."""
 
-    processes: list[FccDataset]
+    datasets: list[FccDataset]
 
     def get_entities(self) -> Sequence[BaseEntityData]:
         """
-        Return the list of processes/entities in this collection.
+        Return the list of datasets/entities in this collection.
 
         Returns:
             List of FccDataset instances
         """
-        return self.processes
+        return self.datasets
 
 
 class EntityTypeRegistry:
@@ -346,7 +350,7 @@ class EntityTypeRegistry:
 # Detection function for FCC format
 def _detect_fcc_format(raw_data: dict[str, Any]) -> bool:
     """Detect if raw_data matches FCC dataset format."""
-    return "processes" in raw_data and isinstance(raw_data["processes"], list)
+    return "datasets" in raw_data and isinstance(raw_data["datasets"], list)
 
 
 # Auto-register the default FCC classes

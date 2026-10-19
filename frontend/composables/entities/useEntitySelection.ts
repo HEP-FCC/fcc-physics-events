@@ -182,7 +182,7 @@ export function useEntitySelection() {
 
             if (entitiesToDownload.length > 0) {
                 const filename = createEntityDownloadFilename(entitiesToDownload.length);
-                downloadAsJsonFile(entitiesToDownload, filename);
+                downloadAsJsonFile({ datasets: entitiesToDownload }, filename);
             }
         } catch (error) {
             console.error("Failed to download entities:", error);
@@ -203,7 +203,7 @@ export function useEntitySelection() {
 
             if (entitiesToDownload.length > 0) {
                 const filename = createEntityDownloadFilename(entitiesToDownload.length);
-                downloadAsJsonFile(entitiesToDownload, filename);
+                downloadAsJsonFile({ datasets: entitiesToDownload }, filename);
             }
         } catch (error) {
             console.error("Failed to download filtered entities:", error);
@@ -219,10 +219,10 @@ export function useEntitySelection() {
      */
     async function deleteAllFilteredEntities(searchOptions: SearchOptions): Promise<void> {
         const { deleteEntities } = useApiClient();
-        const { isAuthenticated, login } = useAuth();
+        const { isAuthenticated, hasRole, login } = useAuth();
         const toast = useToast();
 
-        // Check if user is authenticated
+        // Check if user is authenticated and has permission to delete
         if (!isAuthenticated.value) {
             toast.add({
                 title: "Authentication Required",
@@ -230,6 +230,14 @@ export function useEntitySelection() {
                 color: "warning",
             });
             login();
+            return;
+        }
+        if (!hasRole("editor")) {
+            toast.add({
+                title: "Permission Denied",
+                description: "You don't have permission to delete entities.",
+                color: "warning",
+            });
             return;
         }
 
@@ -372,9 +380,9 @@ export function useEntitySelection() {
         }
 
         const toast = useToast();
-        const { isAuthenticated, login } = useAuth();
+        const { isAuthenticated, hasRole, login } = useAuth();
 
-        // Check if user is authenticated
+        // Check if user is authenticated and has permission to edit
         if (!isAuthenticated.value) {
             toast.add({
                 title: "Authentication Required",
@@ -384,6 +392,14 @@ export function useEntitySelection() {
 
             // Trigger login
             login();
+            return;
+        }
+        if (!hasRole("editor")) {
+            toast.add({
+                title: "Permission Denied",
+                description: "You don't have permission to edit entities.",
+                color: "warning",
+            });
             return;
         }
 
@@ -496,10 +512,10 @@ export function useEntitySelection() {
         }
 
         const { deleteEntities } = useApiClient();
-        const { isAuthenticated, login } = useAuth();
+        const { isAuthenticated, hasRole, login } = useAuth();
         const toast = useToast();
 
-        // Check if user is authenticated
+        // Check if user is authenticated and has permission to delete
         if (!isAuthenticated.value) {
             toast.add({
                 title: "Authentication Required",
@@ -507,6 +523,14 @@ export function useEntitySelection() {
                 color: "warning",
             });
             login();
+            return;
+        }
+        if (!hasRole("editor")) {
+            toast.add({
+                title: "Permission Denied",
+                description: "You don't have permission to delete entities.",
+                color: "warning",
+            });
             return;
         }
 
