@@ -124,7 +124,8 @@ import type { Entity } from "~/types/entity";
 import MetadataTagsDropdown from "./MetadataTagsDropdown.vue";
 
 // Composables
-const { isAuthenticated } = useAuth();
+const { hasRole } = useAuth();
+const canEdit = computed(() => hasRole("editor"));
 
 interface Props {
     entities: Entity[];
@@ -258,28 +259,33 @@ const actionItems = computed(() => [
             onSelect: () => emit("downloadSelected"),
         },
         {
-            label: `Download All Filtered${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
+            label: `Download All Matching${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
             icon: "i-heroicons-arrow-down-tray",
             disabled: props.displayRange.total === 0 || props.isDownloadingFiltered,
             class: "hover:bg-green-50 ",
             onSelect: () => emit("downloadFiltered"),
         },
     ],
-    [
-        {
-            label: `Delete Selected${props.selectedCount > 0 ? ` (${props.selectedCount})` : ""}`,
-            icon: "i-heroicons-trash",
-            disabled: props.selectedCount === 0 || !isAuthenticated.value || props.isDownloading,
-            class: "hover:bg-earth-50 ",
-            onSelect: handleDeleteSelected,
-        },
-        {
-            label: `Delete All Filtered${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
-            icon: "i-heroicons-trash",
-            disabled: props.displayRange.total === 0 || !isAuthenticated.value || props.isDownloadingFiltered,
-            class: "hover:bg-earth-50 ",
-            onSelect: handleDeleteFiltered,
-        },
-    ],
+    // Delete actions are only shown to editors/admins, not just hidden
+    ...(canEdit.value
+        ? [
+              [
+                  {
+                      label: `Delete Selected${props.selectedCount > 0 ? ` (${props.selectedCount})` : ""}`,
+                      icon: "i-heroicons-trash",
+                      disabled: props.selectedCount === 0 || props.isDownloading,
+                      class: "hover:bg-earth-50 ",
+                      onSelect: handleDeleteSelected,
+                  },
+                  {
+                      label: `Delete All Matching${props.displayRange.total > 0 ? ` (${props.displayRange.total})` : ""}`,
+                      icon: "i-heroicons-trash",
+                      disabled: props.displayRange.total === 0 || props.isDownloadingFiltered,
+                      class: "hover:bg-earth-50 ",
+                      onSelect: handleDeleteFiltered,
+                  },
+              ],
+          ]
+        : []),
 ]);
 </script>
