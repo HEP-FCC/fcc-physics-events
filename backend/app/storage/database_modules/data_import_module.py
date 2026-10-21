@@ -6,6 +6,7 @@ navigation entity creation, and metadata management.
 """
 
 import json
+import re
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
@@ -48,6 +49,7 @@ _WHIZARD_VERSION = {
     "winter2023": "v3.0.3",
     "pre_summer2026": "v3.1.5",
 }
+_DRS_REQUEST_PATTERN = re.compile(r"^DRS-\d+$")
 
 
 # NOTE: This function can be changed by users
@@ -83,14 +85,31 @@ async def import_data(
 
     main_table = database.config["application"]["main_table"]
     all_entities = collection.get_entities()
-    to_create = [e for e in all_entities if not getattr(e, "uuid", None)]
-    to_update = [e for e in all_entities if getattr(e, "uuid", None)]
+
+    valid_entities: list[BaseEntityData] = []
+    invalid_drs_count = 0
+    for entity in all_entities:
+        drs_value = getattr(entity, "drs_request", None)
+        if drs_value is not None and not _DRS_REQUEST_PATTERN.match(drs_value):
+            invalid_drs_count += 1
+            logger.warning(
+                f"Rejecting entity with invalid drs-request (expected 'DRS-<number>'): {drs_value!r}"
+            )
+        else:
+            valid_entities.append(entity)
+
+    to_create = [e for e in valid_entities if not getattr(e, "uuid", None)]
+    to_update = [e for e in valid_entities if getattr(e, "uuid", None)]
+
+    # Creating a new navigation value (vs. reusing an existing one) is
+    # restricted to admins; see _get_or_create_entity.
+    is_admin = bool(user_info and user_info.get("role") == "admin")
 
     created_count, creation_failed_count = 0, 0
     if to_create:
         created_count, creation_failed_count = (
             await _process_entity_collection_with_recovery(
-                database, to_create, main_table
+                database, to_create, main_table, is_admin
             )
         )
         _log_import_results(created_count, creation_failed_count)
@@ -109,9 +128,15 @@ async def import_data(
         updated_count = override_result.get("entities_processed", 0)
         override_success = override_result.get("success", False)
 
-    failed_count = creation_failed_count + (0 if override_success else len(to_update))
-    success = (not to_create or created_count > 0 or creation_failed_count == 0) and (
-        not to_update or override_success
+    failed_count = (
+        creation_failed_count
+        + invalid_drs_count
+        + (0 if override_success else len(to_update))
+    )
+    success = (
+        (not to_create or created_count > 0 or creation_failed_count == 0)
+        and (not to_update or override_success)
+        and invalid_drs_count == 0
     )
 
     message_parts = []
@@ -120,6 +145,10 @@ async def import_data(
     if to_update:
         message_parts.append(
             override_result.get("message", f"{updated_count} updated")
+        )
+    if invalid_drs_count:
+        message_parts.append(
+            f"{invalid_drs_count} rejected (drs-request must be 'DRS-<number>')"
         )
     message = "; ".join(message_parts) if message_parts else "No entities to process"
 
@@ -201,7 +230,10 @@ def _parse_json_content(json_content: bytes) -> BaseEntityCollection:
 
 
 async def _process_entity_collection_with_recovery(
-    database: "Database", entities: Sequence[BaseEntityData], main_table: str
+    database: "Database",
+    entities: Sequence[BaseEntityData],
+    main_table: str,
+    is_admin: bool = False,
 ) -> tuple[int, int]:
     """Process a sequence of entities using batch transactions with fallback."""
     batch_size = database.config["application"]["batch_size"]
@@ -220,7 +252,7 @@ async def _process_entity_collection_with_recovery(
 
         # Try batch processing first (all-or-nothing)
         batch_processed, batch_failed = await _process_batch_all_or_nothing(
-            database, batch, batch_indices, main_table
+            database, batch, batch_indices, main_table, is_admin
         )
 
         # If batch failed, fall back to individual processing
@@ -229,7 +261,7 @@ async def _process_entity_collection_with_recovery(
                 f"Batch failed, falling back to individual processing for batch {batch_start // batch_size + 1}"
             )
             batch_processed, batch_failed = await _process_batch_individually(
-                database, batch, batch_indices, main_table
+                database, batch, batch_indices, main_table, is_admin
             )
 
         total_processed += batch_processed
@@ -247,6 +279,7 @@ async def _process_batch_all_or_nothing(
     batch: Sequence[BaseEntityData],
     batch_indices: list[int],
     main_table: str,
+    is_admin: bool = False,
 ) -> tuple[int, int]:
     """Process a batch of entities in a single transaction (all-or-nothing)."""
     try:
@@ -259,7 +292,7 @@ async def _process_batch_all_or_nothing(
 
                 # Pre-populate navigation entities for the entire batch
                 navigation_cache = await _preprocess_batch_navigation_entities(
-                    database, conn, batch
+                    database, conn, batch, is_admin
                 )
 
                 # Process all entities in the batch
@@ -287,6 +320,7 @@ async def _process_batch_individually(
     batch: Sequence[BaseEntityData],
     batch_indices: list[int],
     main_table: str,
+    is_admin: bool = False,
 ) -> tuple[int, int]:
     """Process batch entities individually (fallback when batch fails)."""
     processed_count = 0
@@ -304,7 +338,7 @@ async def _process_batch_individually(
 
                     # Create navigation cache for just this entity
                     navigation_cache = await _preprocess_batch_navigation_entities(
-                        database, conn, [entity_data]
+                        database, conn, [entity_data], is_admin
                     )
 
                     await _process_single_entity(
@@ -325,7 +359,10 @@ async def _process_batch_individually(
 
 
 async def _preprocess_batch_navigation_entities(
-    database: "Database", conn: asyncpg.Connection, batch: Sequence[BaseEntityData]
+    database: "Database",
+    conn: asyncpg.Connection,
+    batch: Sequence[BaseEntityData],
+    is_admin: bool = False,
 ) -> dict[str, dict[str, int]]:
     """Pre-populate all navigation entities for a batch and return ID cache."""
     # Get dynamic navigation structure from config and schema
@@ -367,6 +404,7 @@ async def _preprocess_batch_navigation_entities(
                 conn,
                 GenericEntityCreate,
                 table_name,
+                is_admin=is_admin,
                 name=name,
             )
             navigation_cache[entity_key][name] = entity_id
@@ -873,7 +911,11 @@ def _log_import_results(processed_count: int, failed_count: int) -> None:
 
 
 async def _get_or_create_entity(
-    conn: asyncpg.Connection, model: type, table_name: str, **kwargs: Any
+    conn: asyncpg.Connection,
+    model: type,
+    table_name: str,
+    is_admin: bool = False,
+    **kwargs: Any,
 ) -> int:
     """Generic function to get an entity by name or create it within a transaction."""
     name = kwargs.get("name")
@@ -886,6 +928,11 @@ async def _get_or_create_entity(
     record = await conn.fetchrow(query, name)
     if record:
         return int(record[id_column])
+
+    if not is_admin:
+        raise PermissionError(
+            f"Only admins can register a new {table_name.rstrip('s')} value: {name!r}"
+        )
 
     instance = model(**kwargs)
     data = instance.model_dump(exclude_unset=True)

@@ -670,9 +670,13 @@ class FileWatcherService:
                 logger.warning(f"File is empty: {file_path}")
                 return
 
-            # Import the file content
+            # Import the file content. This is a trusted background ingestion
+            # path (not a per-request authenticated user), so it's exempt
+            # from the admin-only navigation-value-creation restriction.
             try:
-                await self.database.import_data(content)
+                await self.database.import_data(
+                    content, user_info={"role": "admin"}
+                )
                 logger.info(f"Successfully imported JSON data from: {file_path}")
 
                 # Update known files and save state after successful processing
