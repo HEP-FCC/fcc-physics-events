@@ -104,6 +104,10 @@ class FccDataset(BaseEntityData):
     detector: str | None = Field(default=None)
     file_type: str | None = Field(default=None, alias="file-type")
 
+    # Reference to the DRS request this dataset was registered for, e.g.
+    # "DRS-76". Format is validated downstream in import_data.
+    drs_request: str | None = Field(default=None, alias="drs-request")
+
     # Store all other fields as metadata
     raw_metadata: dict[str, Any] = Field(default_factory=dict, exclude=True)
 
@@ -117,6 +121,7 @@ class FccDataset(BaseEntityData):
         "campaign",
         "detector",
         "file_type",
+        "drs_request",
         mode="before",
     )
     @classmethod
@@ -217,6 +222,8 @@ class FccDataset(BaseEntityData):
             metadata["comment"] = self.comment
         if self.status is not None:
             metadata["status"] = self.status
+        if self.drs_request is not None:
+            metadata["drs-request"] = self.drs_request
 
         # Add all raw metadata
         metadata.update(self.raw_metadata)

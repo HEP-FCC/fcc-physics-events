@@ -35,6 +35,13 @@
                                     <UInput v-model="singleName" placeholder="e.g. my-simulation" class="w-full" />
                                 </div>
 
+                                <div>
+                                    <label class="block text-sm font-medium text-deep-blue-900 mb-1">
+                                        DRS Request *
+                                    </label>
+                                    <UInput v-model="singleDrsRequest" placeholder="e.g. DRS-76" class="w-full" />
+                                </div>
+
                                 <div v-for="field in navigationFields" :key="field.type">
                                     <label class="block text-sm font-medium text-deep-blue-900 mb-1">
                                         {{ field.label }} *
@@ -43,11 +50,18 @@
                                         v-model="singleNavValues[field.type]"
                                         :items="navigationOptions[field.type] || []"
                                         :loading="navigationOptionsLoading[field.type]"
-                                        create-item
-                                        :placeholder="`Select or type a new ${field.label.toLowerCase()}`"
+                                        :create-item="isAdmin"
+                                        :placeholder="
+                                            isAdmin
+                                                ? `Select or type a new ${field.label.toLowerCase()}`
+                                                : `Select an existing ${field.label.toLowerCase()}`
+                                        "
                                         class="w-full"
                                         @create="(term: string) => handleNavigationOptionCreate(field.type, term)"
                                     />
+                                    <p v-if="!isAdmin" class="text-xs text-deep-blue-500 mt-1">
+                                        Only admins can register a new {{ field.label.toLowerCase() }}.
+                                    </p>
                                 </div>
 
                                 <div>
@@ -140,8 +154,9 @@
                             <div class="text-sm text-deep-blue-800 space-y-2">
                                 <p>
                                     <strong>🆕 No 'uuid'? It's created.</strong> Navigation fields (accelerator,
-                                    campaign, detector, etc.) are auto-created as needed, and the dataset's UUID is
-                                    derived deterministically from its name and those fields.
+                                    campaign, detector, etc.) are matched against existing values, and the dataset's
+                                    UUID is derived deterministically from its name and those fields. Registering a
+                                    brand-new navigation value (not already in the system) requires admin.
                                 </p>
                                 <p>
                                     <strong>🔁 Has 'uuid'? It's updated.</strong> Only metadata fields are touched on
@@ -167,6 +182,7 @@
   "datasets": [
     {
       "dataset-name": "new-simulation",
+      "drs-request": "DRS-76",
       "accelerator": "fcc-ee",
       "campaign": "winter2023",
       "status": "completed"
@@ -371,6 +387,11 @@ const navigationFields = computed(() =>
     getNavigationOrder().map((type) => ({ type, label: getNavigationItem(type).label })),
 );
 
+// Only admins may register a new navigation value; editors pick from the
+// existing list only (also enforced server-side).
+const { hasRole } = useAuth();
+const isAdmin = computed(() => hasRole("admin"));
+
 onMounted(() => {
     initializeNavigation();
 });
@@ -378,8 +399,11 @@ onMounted(() => {
 // API client (also used by the bulk upload tab below)
 const { uploadDatasets, getDropdownOptions } = useApiClient();
 
+const DRS_REQUEST_PATTERN = /^DRS-\d+$/;
+
 // Single-dataset creation form
 const singleName = ref("");
+const singleDrsRequest = ref("");
 const singleMetadataText = ref("");
 const singleNavValues = reactive<Record<string, string>>({});
 const navigationOptions = reactive<Record<string, string[]>>({});
@@ -449,6 +473,16 @@ const performSingleCreate = async () => {
         return;
     }
 
+    const trimmedDrsRequest = singleDrsRequest.value.trim();
+    if (!trimmedDrsRequest) {
+        showSingleStatus("DRS request reference is required.", "error");
+        return;
+    }
+    if (!DRS_REQUEST_PATTERN.test(trimmedDrsRequest)) {
+        showSingleStatus("DRS request must be in the form DRS-<number>, e.g. DRS-76.", "error");
+        return;
+    }
+
     const missingFields = navigationFields.value.filter((field) => !singleNavValues[field.type]?.trim());
     if (missingFields.length > 0) {
         showSingleStatus(`Please fill in: ${missingFields.map((field) => field.label).join(", ")}.`, "error");
@@ -473,6 +507,7 @@ const performSingleCreate = async () => {
             "dataset-name",
             "name",
             "uuid",
+            "drs-request",
             ...navigationFields.value.map((field) => field.type),
         ]);
         const collidingKeys = Object.keys(extraMetadata).filter((key) => reservedKeys.has(key));
@@ -484,6 +519,7 @@ const performSingleCreate = async () => {
 
     const dataset: Record<string, unknown> = {
         "dataset-name": trimmedName,
+        "drs-request": trimmedDrsRequest,
         ...Object.fromEntries(
             navigationFields.value.map((field) => [field.type, singleNavValues[field.type].trim()]),
         ),
@@ -502,6 +538,7 @@ const performSingleCreate = async () => {
             invalidateNavigationDropdowns();
             refreshNavigationOptions();
             singleName.value = "";
+            singleDrsRequest.value = "";
             singleMetadataText.value = "";
             navigationFields.value.forEach((field) => {
                 singleNavValues[field.type] = "";
