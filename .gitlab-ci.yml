@@ -295,6 +295,29 @@ deploy-prod:
   - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG'
     when: manual
 
+# New fcc-dami prod project, stood up alongside the current
+# fcc-physics-events one for verification -- this does NOT replace
+# deploy-prod above. Once fcc-dami is verified on real tagged releases,
+# deploy-prod will be retargeted (or removed) and this project decommissioned
+# in a follow-up change; see TODO.md.
+deploy-prod-fcc-dami:
+  extends: .deploy_base
+  variables:
+    OPENSHIFT_TOKEN: "$FCC_DAMI_OPENSHIFT_TOKEN"
+    OPENSHIFT_PROJECT: "fcc-dami"
+    K8S_DIR: "k8s/prod"
+    FRONTEND_DEPLOYMENT: "dami-frontend"
+    BACKEND_DEPLOYMENT: "dami-backend"
+  rules:
+  - if: '$CI_COMMIT_TAG'
+  - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG'
+    when: manual
+  # Manual-only during verification: lets us deploy an unreleased master
+  # commit on demand without cutting a tag, but never automatically --
+  # fcc-dami shares the live prod DB, unlike staging's isolated one.
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    when: manual
+
 #############################################
 # WORKFLOW FILTER
 #############################################
