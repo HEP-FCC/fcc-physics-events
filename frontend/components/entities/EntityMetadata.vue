@@ -1,6 +1,6 @@
 <template>
     <div
-        v-memo="[props.entityId, JSON.stringify(props.metadata), editState?.isEditing, lockStatesForTemplate]"
+        v-memo="[props.entityId, JSON.stringify(props.metadata), editState?.isEditing, lockStatesForTemplate, canEdit]"
         class="rounded border-t bg-white"
         style="border-color: var(--theme-light-border-primary)"
     >
