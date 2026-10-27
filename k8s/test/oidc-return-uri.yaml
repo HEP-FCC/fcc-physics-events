@@ -1,0 +1,7 @@
+apiVersion: webservices.cern.ch/v1alpha1
+kind: OidcReturnURI
+metadata:
+  name: dami-backend-return-uri
+  namespace: fcc-dami-test
+spec:
+  redirectURI: https://fcc-dami-test-backend.web.cern.ch/auth
